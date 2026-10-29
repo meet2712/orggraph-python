@@ -8,7 +8,7 @@ from pathlib import Path
 
 from flask import Flask, abort, current_app, g, render_template, send_file
 
-from database import connect, load_snapshot, read_company, read_json, write_compressed_snapshot
+from database import connect, ensure_snapshot, read_company, read_json
 
 
 ROOT = Path(__file__).resolve().parent
@@ -34,12 +34,13 @@ def initialize_database(app: Flask) -> None:
         if company_id in seen:
             raise ValueError(f"Duplicate company ID: {company_id}")
         seen.add(company_id)
-    run_id = load_snapshot(
-        Path(app.config["DATABASE"]), data_dir, Path(app.config["RAW_DATA_DIR"]),
+    run_id, reused = ensure_snapshot(
+        Path(app.config["DATABASE"]), Path(app.config["DATABASE_SNAPSHOT"]),
+        data_dir, Path(app.config["RAW_DATA_DIR"]),
         Path(app.config["MODEL_PATH"]), index, evaluation,
     )
-    write_compressed_snapshot(Path(app.config["DATABASE"]), Path(app.config["DATABASE_SNAPSHOT"]))
     app.config["ACTIVE_RUN_ID"] = run_id
+    app.config["DATABASE_REUSED"] = reused
     app.config["DATASET_INDEX"] = index
     app.config["EVALUATION"] = evaluation
 

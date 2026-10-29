@@ -8,11 +8,12 @@ import sqlite3
 from contextlib import closing
 from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 
 from jinja2 import DictLoader
 
 from app import chart_context, create_app, get_database
-from database import connect, read_company
+from database import connect, import_company, load_snapshot, read_company
 
 
 def employee(employee_id, level, manager=None, candidate=None, truth=None):
@@ -187,6 +188,45 @@ class AppTests(unittest.TestCase):
             self.assertEqual(connection.execute("SELECT count(*) FROM inference_runs").fetchone()[0], 1)
             self.assertEqual(connection.execute("SELECT count(*) FROM employees").fetchone()[0], 4)
             self.assertEqual(read_company(connection, self.run_id, "cmp_0001"), self.payload)
+
+    def test_unchanged_startup_reuses_the_checked_database_and_download(self):
+        paths = [self.config["DATABASE"], self.config["DATABASE_SNAPSHOT"]]
+        before = [path.stat().st_mtime_ns for path in paths]
+        with patch("database.load_snapshot", side_effect=AssertionError("Unexpected rebuild")):
+            reused = create_app(self.config)
+        self.assertTrue(reused.config["DATABASE_REUSED"])
+        self.assertEqual([path.stat().st_mtime_ns for path in paths], before)
+
+    def test_changed_model_rebuilds_instead_of_reusing_a_stale_snapshot(self):
+        self.config["MODEL_PATH"].write_text('{"seed": 2}')
+        with patch("database.load_snapshot", wraps=load_snapshot) as loader:
+            rebuilt = create_app(self.config)
+        self.assertEqual(loader.call_count, 1)
+        self.assertFalse(rebuilt.config["DATABASE_REUSED"])
+        self.assertNotEqual(rebuilt.config["ACTIVE_RUN_ID"], self.run_id)
+
+    def test_damaged_database_download_or_manifest_is_rebuilt(self):
+        paths = [self.config["DATABASE"], self.config["DATABASE_SNAPSHOT"],
+                 self.config["DATABASE"].with_suffix(".manifest.json")]
+        for path in paths:
+            with self.subTest(path=path.name):
+                path.write_bytes(b"damaged file")
+                rebuilt = create_app(self.config)
+                self.assertFalse(rebuilt.config["DATABASE_REUSED"])
+                with closing(connect(self.config["DATABASE"], readonly=True)) as connection:
+                    self.assertEqual(read_company(connection, self.run_id, "cmp_0001"), self.payload)
+                self.assertTrue(gzip.decompress(self.config["DATABASE_SNAPSHOT"].read_bytes()).startswith(b"SQLite format 3"))
+
+    def test_explicit_load_snapshot_still_forces_a_full_import(self):
+        data = self.config["DATA_DIR"]
+        with patch("database.import_company", wraps=import_company) as importer:
+            run_id = load_snapshot(
+                self.config["DATABASE"], data, self.config["RAW_DATA_DIR"],
+                self.config["MODEL_PATH"], json.loads((data / "index.json").read_text()),
+                json.loads((data / "evaluation.json").read_text()),
+            )
+        self.assertEqual(importer.call_count, 1)
+        self.assertEqual(run_id, self.run_id)
 
     def test_raw_blanks_stay_queryable_and_display_fallbacks_stay_in_the_app(self):
         path = self.config["RAW_DATA_DIR"] / "employees_messy.csv"

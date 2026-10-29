@@ -110,13 +110,7 @@ def source_fingerprint(files: list[tuple[str, Path]]) -> str:
     return digest.hexdigest()
 
 
-def load_snapshot(database: Path, data_dir: Path, raw_dir: Path, model_path: Path,
-                  index: dict, evaluation: dict) -> str:
-    """Build beside the old database, validate, then replace it atomically."""
-    raw = read_employee_csv(raw_dir / "employees_messy.csv")
-    truth = read_employee_csv(raw_dir / "employees_ground_truth.csv")
-    if set(raw) != set(truth):
-        raise ValueError("Raw and benchmark employee keys do not match")
+def snapshot_fingerprint(data_dir: Path, raw_dir: Path, model_path: Path, index: dict) -> str:
     company_ids = [company["id"] for company in index["companies"]]
     files = [
         ("predictions/index.json", data_dir / "index.json"),
@@ -125,12 +119,87 @@ def load_snapshot(database: Path, data_dir: Path, raw_dir: Path, model_path: Pat
         ("benchmark/employees_ground_truth.csv", raw_dir / "employees_ground_truth.csv"),
         ("model/model.json", model_path),
         ("pipeline/train_and_infer.py", ROOT / "pipeline/train_and_infer.py"),
+        ("schema.sql", ROOT / "schema.sql"),
+        ("database.py", ROOT / "database.py"),
     ]
     files.extend(
         (f"predictions/companies/{company_id}.json", data_dir / "companies" / f"{company_id}.json")
         for company_id in sorted(company_ids)
     )
-    source_hash = source_fingerprint(files)
+    return source_fingerprint(files)
+
+
+def file_digest(path: Path) -> str:
+    with path.open("rb") as source:
+        return hashlib.file_digest(source, "sha256").hexdigest()
+
+
+def cached_run(database: Path, snapshot: Path, fingerprint: str, index: dict) -> str | None:
+    """Reuse only the exact files produced by a successful checked load."""
+    try:
+        manifest = read_json(database.with_suffix(".manifest.json"))
+        if manifest["source_hash"] != fingerprint:
+            return None
+        if file_digest(database) != manifest["database_sha256"]:
+            return None
+        if file_digest(snapshot) != manifest["snapshot_sha256"]:
+            return None
+        with closing(connect(database, readonly=True)) as connection:
+            if connection.execute("PRAGMA quick_check(1)").fetchone()[0] != "ok":
+                return None
+            run = connection.execute("SELECT * FROM inference_runs").fetchone()
+            companies = connection.execute("SELECT count(*) FROM companies").fetchone()[0]
+            employees = connection.execute("SELECT count(*) FROM employees").fetchone()[0]
+            predictions = connection.execute("SELECT count(*) FROM reporting_predictions").fetchone()[0]
+            if (run is None or run["load_status"] != "ready"
+                    or run["source_hash"] != fingerprint or run["run_id"] != manifest["run_id"]
+                    or companies != len(index["companies"])
+                    or employees != index["summary"]["employeeCount"]
+                    or predictions != employees
+                    or run["loaded_company_count"] != companies
+                    or run["loaded_employee_count"] != employees
+                    or run["loaded_prediction_count"] != predictions):
+                return None
+            return run["run_id"]
+    except (OSError, ValueError, KeyError, sqlite3.Error):
+        return None
+
+
+def ensure_snapshot(database: Path, snapshot: Path, data_dir: Path, raw_dir: Path,
+                    model_path: Path, index: dict, evaluation: dict) -> tuple[str, bool]:
+    fingerprint = snapshot_fingerprint(data_dir, raw_dir, model_path, index)
+    run_id = cached_run(database, snapshot, fingerprint, index)
+    if run_id is not None:
+        return run_id, True
+    run_id = load_snapshot(database, data_dir, raw_dir, model_path, index, evaluation)
+    write_compressed_snapshot(database, snapshot)
+    manifest = {
+        "source_hash": fingerprint,
+        "run_id": run_id,
+        "database_sha256": file_digest(database),
+        "snapshot_sha256": file_digest(snapshot),
+    }
+    with NamedTemporaryFile(prefix=".manifest-", dir=database.parent, delete=False) as temporary:
+        staging = Path(temporary.name)
+    try:
+        staging.write_text(json.dumps(manifest), encoding="utf-8")
+        os.replace(staging, database.with_suffix(".manifest.json"))
+    finally:
+        staging.unlink(missing_ok=True)
+    return run_id, False
+
+
+def load_snapshot(database: Path, data_dir: Path, raw_dir: Path, model_path: Path,
+                  index: dict, evaluation: dict) -> str:
+    """Always import, validate, and atomically replace the snapshot when called."""
+    raw = read_employee_csv(raw_dir / "employees_messy.csv")
+    truth = read_employee_csv(raw_dir / "employees_ground_truth.csv")
+    if set(raw) != set(truth):
+        raise ValueError("Raw and benchmark employee keys do not match")
+    if len(raw) != index["summary"]["employeeCount"]:
+        raise ValueError("Raw employee count does not match the source index")
+    company_ids = [company["id"] for company in index["companies"]]
+    source_hash = snapshot_fingerprint(data_dir, raw_dir, model_path, index)
     run_id = f"run_{source_hash[:16]}"
     threshold = evaluation["model"]["threshold"]
     database.parent.mkdir(parents=True, exist_ok=True)

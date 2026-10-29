@@ -43,7 +43,9 @@ manager, and candidate links inside the same company and inference run.
 Each load records source and model hashes, thresholds, row counts, and a ready
 status. The importer builds and checks a staging database before replacing the
 previous snapshot. Failed loads leave the previous database intact. Starting
-again with the same files preserves the same keys, run ID, and query results.
+again with unchanged source, model, schema, and importer files reuses the
+checked database and compressed download. File digests, ready counts, and a
+SQLite quick check are verified once at startup, outside request handling.
 
 The app reconstructs its company pages with SQL joins. Request connections are
 read-only. The database page lets reviewers inspect tables and run read-only
@@ -68,11 +70,11 @@ python scripts/package-source.py
 python app.py
 ```
 
-Open <http://127.0.0.1:5000>. On startup, the app imports the included employee
-CSVs and prediction files into `instance/orggraph.sqlite3`. It does not generate
-data or train a model. Each request reads the selected company from SQLite
-using its own connection. The database is rebuilt from the saved source files
-when the app starts; this version does not save user edits.
+Open <http://127.0.0.1:5000>. The first start imports the included employee CSVs
+and predictions into `instance/orggraph.sqlite3`. Later starts reuse that
+checked snapshot; stale or damaged files trigger a fresh staged import. It
+does not generate data or train a model. Each request reads the selected
+company using its own read-only connection. This version does not save edits.
 
 The main routes are `/`, `/companies/cmp_0001.html`, `/results.html`,
 `/approach.html`, and `/data.html`. `/health` checks that the app and database
@@ -86,15 +88,16 @@ Create a Python web service in Render and connect that repository. The included
 `render.yaml` records the service settings. For a manual setup, use:
 
 ```text
-Build command: pip install -r requirements.txt && python scripts/package-source.py
+Build command: pip install -r requirements.txt && python scripts/build_database.py && python scripts/package-source.py
 Start command: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --preload
 Health check path: /health
 ```
 
-Preloading initializes SQLite before Gunicorn starts serving requests. Render's
-free services sleep when idle and use an ephemeral filesystem. That is fine
-for this read-only app: startup rebuilds SQLite from the committed prediction
-files. The first visit after sleeping may take longer.
+The build prepares SQLite and its compressed download before Gunicorn starts.
+Preloading verifies and reuses those checked files before workers serve
+requests. Render's free services sleep when idle and use an ephemeral
+filesystem. If the files are absent or stale, the app rebuilds them from the
+committed sources. The first visit after sleeping may take longer.
 
 Render's setup guide: <https://render.com/docs/deploy-flask>.
 Free service behavior: <https://render.com/docs/free>.
@@ -180,6 +183,7 @@ team or title information is missing, so some lines remain unresolved.
 app.py                       Flask routes, SQLite import, and chart context
 database.py                  Relational load, validation, and SQL reads
 schema.sql                   Tables, keys, checks, and indexes
+scripts/build_database.py     Prepares checked database files during deployment
 requirements.txt             Python dependencies
 templates/index.html         Pages and reusable person/chart markup
 public/style.css             Page styles

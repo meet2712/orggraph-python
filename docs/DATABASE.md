@@ -85,15 +85,22 @@ correct.
 
 `inference_runs` records the full source hash, model hash, pipeline hash,
 acceptance thresholds, expected and loaded row counts, status, and load time.
-The source hash covers the input and prediction artifacts used by the loader.
-The stable run key is derived from that hash.
+The source hash covers the input and prediction artifacts, model, pipeline,
+schema, and importer code. The stable run key is derived from that hash.
 
-Startup loads the current snapshot into a temporary database in a transaction.
-It checks that database before replacing the previous file. Repeating an
-import with the same files produces the same relational values and run key;
-the load time is refreshed. This is a rebuildable current-state database, not
-a historical warehouse. Older employee snapshots and prediction runs are not
-retained.
+`scripts/build_database.py` prepares the database and compressed download during
+deployment. Startup reuses those files only when the source fingerprint, file
+digests, ready metadata, stored row counts, and SQLite quick check agree. This
+avoids reimporting every employee and recompressing the download on a cold
+start. These checks run once at startup, not on individual page requests.
+
+Missing, changed, or damaged artifacts trigger a staged transactional import.
+The loader checks that database before replacing the previous file. Calling
+`load_snapshot` explicitly always performs that import. Repeating it with the
+same files produces the same relational values and run key; only an actual
+import refreshes the load time. This is a rebuildable current-state database,
+not a historical warehouse. Older employee snapshots and prediction runs are
+not retained.
 
 The database lives at `instance/orggraph.sqlite3` and is excluded from source
 control and the source package. Start the app to build it. To rebuild from scratch,
