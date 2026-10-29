@@ -4,10 +4,9 @@ OrgGraph turns a flat employee list into a possible org chart. Pick a company,
 look through its reporting lines, and check the confidence behind each one.
 When the evidence is weak, the manager stays unresolved.
 
-Live app: <https://orggraph-python.onrender.com>.
+Live app: <https://meet2712.github.io/orggraph-python/>.
 
-The results below describe the generated files in this checkout. The hosted
-app may show an earlier build until it is redeployed.
+The results below describe the generated files used by that hosted build.
 
 The app is written in Python with Flask, SQLite, and Jinja templates. A small
 JavaScript file handles search, filters, and person details in the browser.
