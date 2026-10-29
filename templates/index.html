@@ -1,0 +1,281 @@
+{% macro person_row(person) -%}
+  <button type="button" class="person-row" data-person="{{ person.id }}" aria-label="View {{ person.name }}">
+    <span class="person-avatar" aria-hidden="true">{{ person.name.split()[0][0] }}{{ person.name.split()[-1][0] }}</span>
+    <span class="person-name">
+      <strong>{{ person.name }}</strong>
+      <small>{{ person.title or 'Title missing' }}</small>
+    </span>
+    {% if person.predictedManagerId %}
+      <span class="person-status accepted" data-confidence="{{ person.confidence|percent }}" data-correct="{{ 'true' if person.isCorrect else 'false' }}">{{ person.confidence|percent }}</span>
+    {% elif person.inferredLevel == 'CEO' %}
+      <span class="person-status">Company root</span>
+    {% else %}
+      <span class="person-status unknown">Manager unknown</span>
+    {% endif %}
+    <span class="row-arrow" aria-hidden="true">›</span>
+  </button>
+{%- endmacro %}
+
+{% macro branch(person, depth=0) -%}
+  {% set reports = children.get(person.id, []) %}
+  <li class="tree-node" data-employee="{{ person.id }}" data-department="{{ person.inferredDepartment }}" data-search="{{ (person.name ~ ' ' ~ person.title ~ ' ' ~ person.inferredDepartment)|lower }}">
+    {% if reports %}
+      <details class="branch" data-depth="{{ depth }}" {% if depth == 0 %}open{% endif %}>
+        <summary class="branch-row" aria-label="Show or hide direct reports for {{ person.name }}">
+          <span class="branch-toggle" aria-hidden="true">›</span>
+          {{ person_row(person) }}
+        </summary>
+        <ul>
+          {% for report in reports %}{{ branch(report, depth + 1) }}{% endfor %}
+        </ul>
+      </details>
+    {% else %}
+      <div class="branch-row">
+        <span class="branch-spacer" aria-hidden="true"></span>
+        {{ person_row(person) }}
+      </div>
+    {% endif %}
+  </li>
+{%- endmacro %}
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Explore inferred reporting lines, review uncertain manager matches, and see how the model was tested.">
+  <title>{{ company.company.name ~ ' · ' if page == 'chart' else '' }}OrgGraph</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header">
+    <a class="brand" href="/" aria-label="OrgGraph home">
+      <svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 8v5M5 17v-4h14v4"/><rect x="9" y="2" width="6" height="6" rx="1"/><rect x="2" y="17" width="6" height="5" rx="1"/><rect x="9" y="17" width="6" height="5" rx="1"/><rect x="16" y="17" width="6" height="5" rx="1"/></svg>
+      <strong>OrgGraph<span class="brand-dot">.</span></strong>
+    </a>
+    <nav aria-label="Main navigation">
+      <a href="/" {% if page == 'chart' %}aria-current="page"{% endif %}>Org chart</a>
+      <a href="/results.html" {% if page == 'results' %}aria-current="page"{% endif %}>Results</a>
+      <a href="/approach.html" {% if page == 'approach' %}aria-current="page"{% endif %}>How it works</a>
+    </nav>
+    <a class="header-download" href="/downloads/orggraph-source.zip" download><span aria-hidden="true">↓</span> Download source</a>
+  </header>
+
+  {% if page == 'chart' %}
+  <div class="workspace">
+    <aside class="company-sidebar" aria-label="Company directory">
+      <div class="directory-heading"><h2>Companies</h2><span>{{ index.summary.companyCount|count }}</span></div>
+      <p class="directory-note muted">Choose a company to explore.</p>
+      <label class="search-field">
+        <span aria-hidden="true">⌕</span>
+        <span class="sr-only">Search companies by name or industry</span>
+        <input id="company-search" type="search" placeholder="Search name or industry" autocomplete="off">
+      </label>
+      <p id="company-result-count" class="result-count" aria-live="polite">{{ companies|length }} companies</p>
+      <div class="company-list" id="company-list">
+        {% for item in companies %}
+        <a href="/companies/{{ item.id }}.html" data-company-search="{{ (item.name ~ ' ' ~ item.industry ~ ' ' ~ item.id)|lower }}" {% if item.id == selected_id %}aria-current="page"{% endif %}>
+          <span class="company-initial" aria-hidden="true">{{ item.name[0] }}</span>
+          <span class="company-name"><strong>{{ item.name }}</strong><small>{{ item.industry }} · {{ item.employeeCount }} people</small></span>
+        </a>
+        {% endfor %}
+      </div>
+      <p id="no-companies" class="empty-state" hidden>No companies match this search.</p>
+      <div class="directory-footer"><span class="small-dot"></span>Synthetic dataset<p>{{ index.summary.employeeCount|count }} people across {{ index.summary.companyCount }} companies</p></div>
+    </aside>
+
+    <main class="company-workspace" id="main-content">
+      <header class="company-heading">
+        <p class="company-meta">{{ company.company.industry }}<span>·</span>{{ company.company.headquarters }}</p>
+        <h1>{{ company.company.name }}</h1>
+        <p>A closer look at who reports to whom.</p>
+      </header>
+      <dl class="company-stats">
+        <div><dt>People</dt><dd>{{ company.company.employeeCount|count }}</dd></div>
+        <div><dt>Inferred reporting lines</dt><dd>{{ company.summary.resolved|count }}</dd></div>
+        <div><dt>Managers unresolved</dt><dd>{{ unresolved|length }}</dd></div>
+      </dl>
+
+      <section class="chart-section" aria-label="Inferred reporting structure">
+        <div class="chart-tabs" aria-label="Choose chart or review list">
+          <button type="button" data-view="chart" aria-pressed="true" aria-controls="chart-view">Reporting lines</button>
+          <button type="button" data-view="review" aria-pressed="false" aria-controls="review-view">Needs review <span>{{ unresolved|length }}</span></button>
+        </div>
+        <div class="chart-toolbar">
+          <label class="department-filter">
+            <span class="sr-only">Filter by department</span>
+            <select id="department-filter">
+              <option value="">All departments</option>
+              {% for department in company.employees|map(attribute='inferredDepartment')|unique|sort %}
+              <option value="{{ department }}">{{ department }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="search-field people-search">
+            <span aria-hidden="true">⌕</span>
+            <span class="sr-only">Find a person or role</span>
+            <input id="people-search" type="search" placeholder="Find a person or role" autocomplete="off">
+          </label>
+          <button type="button" class="text-button expand-button" id="expand-teams">Expand all</button>
+        </div>
+        <p class="chart-explanation" id="chart-explanation">Each line is an accepted manager match. Select a person to see the evidence.<br class="desktop-break"> Separate groups stay disconnected when a manager is unknown.</p>
+        <div id="chart-view" class="tree-area">
+          <ul class="org-tree" aria-label="Accepted reporting lines">
+            {% for person in roots %}{{ branch(person) }}{% endfor %}
+          </ul>
+        </div>
+        <div id="review-view" class="unresolved-list" hidden>
+          {% for person in unresolved %}
+          <div data-review-person data-department="{{ person.inferredDepartment }}" data-search="{{ (person.name ~ ' ' ~ person.title ~ ' ' ~ person.inferredDepartment)|lower }}">{{ person_row(person) }}</div>
+          {% endfor %}
+        </div>
+        <p id="no-people" class="empty-state" hidden>No people match these filters. Try another department or search.</p>
+        <div class="chart-bottom">
+          <span id="people-result-count" aria-live="polite">{{ company.summary.resolved }} reporting lines · {{ company.summary.coverage|percent }} coverage</span>
+          <label><input type="checkbox" id="show-truth"> Compare with generated answers</label>
+        </div>
+      </section>
+      <p class="company-footnote">This company and its people are generated. A line is accepted when confidence is at least {{ evaluation.model.threshold.probability|percent }} and the lead over the next candidate is at least {{ evaluation.model.threshold.margin|points }} percentage points. Uncertain matches stay in Needs review.</p>
+      <noscript><p class="note">Company links and reporting branches work without JavaScript. Enable JavaScript to search, filter, and open a person’s details.</p></noscript>
+    </main>
+  </div>
+
+  <script type="application/json" id="company-records">{{ company.employees|tojson }}</script>
+  <dialog class="person-dialog" id="person-dialog" aria-labelledby="dialog-name" data-probability="{{ evaluation.model.threshold.probability }}" data-margin="{{ evaluation.model.threshold.margin }}">
+    <form method="dialog"><button class="close-button" aria-label="Close details">✕</button></form>
+    <span class="person-avatar large" id="dialog-avatar" aria-hidden="true"></span>
+    <h2 id="dialog-name" tabindex="-1"></h2>
+    <p class="muted" id="dialog-title"></p>
+    <dl class="person-facts">
+      <div><dt>Inferred department</dt><dd id="dialog-department"></dd></div>
+      <div><dt>Inferred seniority</dt><dd id="dialog-level"></dd></div>
+      <div><dt>Team in the input</dt><dd id="dialog-team"></dd></div>
+      <div><dt>Location</dt><dd id="dialog-location"></dd></div>
+    </dl>
+    <section class="decision-section">
+      <h3 id="dialog-decision-title"></h3>
+      <button type="button" class="manager-link" id="dialog-manager" hidden><span id="dialog-manager-name"></span> <span aria-hidden="true">↗</span></button>
+      <p id="dialog-decision-description"></p>
+      <dl class="decision-numbers" id="dialog-decision-numbers">
+        <div><dt>Confidence</dt><dd id="dialog-confidence"></dd><small>Needs {{ evaluation.model.threshold.probability|percent }}</small></div>
+        <div><dt>Lead over next candidate</dt><dd id="dialog-margin"></dd><small>Percentage points · needs {{ evaluation.model.threshold.margin|points }}</small></div>
+      </dl>
+      <div id="dialog-signals">
+        <h4>Signals behind the match</h4>
+        <ul class="reason-list" id="dialog-reasons"></ul>
+      </div>
+      <p class="small-note" id="dialog-confidence-note">Confidence is an estimate, not a guarantee. These signals can still lead to an incorrect match.</p>
+    </section>
+    <section class="record-section">
+      <details id="dialog-truth-disclosure">
+        <summary>Compare with the generated answer</summary>
+        <div class="detail-copy">
+          <p id="dialog-truth-manager"></p>
+          <p id="dialog-truth-result"></p>
+        </div>
+      </details>
+    </section>
+    <section class="record-section">
+      <details id="dialog-record-disclosure">
+        <summary>See the original record</summary>
+        <dl class="person-facts">
+          <div><dt>Original title</dt><dd id="dialog-original-title"></dd></div>
+          <div><dt>Original department</dt><dd id="dialog-original-department"></dd></div>
+          <div><dt>Record ID</dt><dd id="dialog-record-id"></dd></div>
+          <div><dt>Input noise</dt><dd id="dialog-noise"></dd></div>
+        </dl>
+      </details>
+    </section>
+  </dialog>
+
+  {% elif page == 'results' %}
+  {% set model = evaluation.model %}
+  {% set baseline = evaluation.baseline %}
+  <main class="document-page" id="main-content">
+    <header class="page-heading">
+      <p class="muted">Checking the predictions</p>
+      <h1>Results on unseen companies</h1>
+      <p>These results come from {{ evaluation.split.testCompanies }} companies kept out of training and threshold selection. All people and reporting lines in this project are generated.</p>
+    </header>
+    <dl class="stats-row" aria-label="Test results">
+      <div class="stat"><dt>Accepted matches that were right</dt><dd>{{ model.precision|percent }}</dd></div>
+      <div class="stat"><dt>Possible reporting lines accepted</dt><dd>{{ model.coverage|percent }}</dd></div>
+      <div class="stat"><dt>Reporting lines left unresolved</dt><dd>{{ model.unresolved_edges|count }}</dd></div>
+    </dl>
+    <section class="paper-section">
+      <h2>Compared with a simple rules baseline</h2>
+      <p>Both methods use the same test companies and can leave a manager unresolved.</p>
+      <div class="table-scroll">
+        <table class="simple-table">
+          <caption class="sr-only">Manager predictions across {{ evaluation.split.testCompanies }} test companies</caption>
+          <thead><tr><th scope="col">Measure</th><th scope="col">Rules baseline</th><th scope="col">Learned model</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Precision · right among accepted</th><td>{{ baseline.precision|percent }}</td><td><strong>{{ model.precision|percent }}</strong></td></tr>
+            <tr><th scope="row">Coverage · accepted among possible</th><td>{{ baseline.coverage|percent }}</td><td><strong>{{ model.coverage|percent }}</strong></td></tr>
+            <tr><th scope="row">Recall · right among possible</th><td>{{ baseline.recall|percent }}</td><td>{{ model.recall|percent }}</td></tr>
+            <tr><th scope="row">Accepted reporting lines</th><td>{{ baseline.predicted_edges|count }}</td><td>{{ model.predicted_edges|count }}</td></tr>
+            <tr><th scope="row">Correct reporting lines</th><td>{{ baseline.correct_edges|count }}</td><td>{{ model.correct_edges|count }}</td></tr>
+            <tr><th scope="row">Incorrect reporting lines</th><td>{{ (baseline.predicted_edges - baseline.correct_edges)|count }}</td><td>{{ (model.predicted_edges - model.correct_edges)|count }}</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note">Of {{ model.eligible_edges|count }} possible test reporting lines, the model accepted {{ model.predicted_edges|count }} and got {{ model.correct_edges|count }} right. It accepts {{ '%.1f'|format(model.predicted_edges / baseline.predicted_edges) }} times as many lines as the baseline, with slightly higher precision. Real company data still needs its own evaluation.</p>
+    </section>
+    <section class="paper-section">
+      <h2>Where it struggles</h2>
+      <p>Missing information and similar titles make some managers hard to distinguish. Accuracy varies across these groups.</p>
+      <div class="table-scroll">
+        <table class="simple-table">
+          <caption class="sr-only">Results by input noise on test companies</caption>
+          <thead><tr><th scope="col">Input group</th><th scope="col">People</th><th scope="col">Precision</th><th scope="col">Coverage</th></tr></thead>
+          <tbody>{% for name, metrics in model.by_noise_type|dictsort %}<tr><th scope="row">{{ name|replace('_', ' ') }}</th><td>{{ metrics.population|count }}</td><td>{{ metrics.precision|percent }}</td><td>{{ metrics.coverage|percent }}</td></tr>{% endfor %}</tbody>
+        </table>
+      </div>
+      <p class="note">A record can have several kinds of noise, so these groups overlap. The overall precision figure does not apply equally to every group.</p>
+    </section>
+    <section class="paper-section">
+      <h2>What confidence tells you</h2>
+      <p>Confidence estimates how likely the leading manager candidate is to be right. It is checked against validation data, but it is still an estimate. A high score can be wrong.</p>
+      <p>On test companies, the calibration gap, averaged by group size, is {{ model.expected_calibration_error|points }} percentage points. A line is only accepted when confidence reaches {{ model.threshold.probability|percent }} and the lead over the next candidate reaches {{ model.threshold.margin|points }} percentage points.</p>
+      <details>
+        <summary>See confidence groups</summary>
+        <div class="table-scroll">
+          <table class="simple-table">
+            <caption class="sr-only">Average confidence and correctness for all top manager candidates, including unresolved cases</caption>
+            <thead><tr><th scope="col">Score range</th><th scope="col">Candidates</th><th scope="col">Average confidence</th><th scope="col">Actually correct</th></tr></thead>
+            <tbody>{% for bin in model.calibration_bins %}<tr><th scope="row">{{ (bin.low * 100)|int }}–{{ (bin.high * 100)|int }}%</th><td>{{ bin.count|count }}</td><td>{{ bin.confidence|percent }}</td><td>{{ bin.accuracy|percent }}</td></tr>{% endfor %}</tbody>
+          </table>
+        </div>
+        <p class="note">This includes top candidates that were rejected. Groups with only a few examples can swing sharply, so treat them cautiously.</p>
+      </details>
+    </section>
+  </main>
+
+  {% elif page == 'approach' %}
+  {% set dataset = evaluation.dataset %}
+  {% set split = evaluation.split %}
+  {% set model = evaluation.model %}
+  <main class="document-page" id="main-content">
+    <header class="page-heading"><p class="muted">A short explanation</p><h1>From job titles to reporting lines</h1><p>The aim is to find managers when the evidence is useful and leave the rest open for review. A title alone will not always tell us who someone reports to.</p></header>
+    <section class="paper-section">
+      <h2>How it works</h2>
+      <ol class="steps">
+        <li><h3>Generate companies with a known hierarchy</h3><p>The Python generator creates {{ dataset.companies|count }} companies and {{ dataset.employees|count }} people across {{ dataset.industries }} industries, with {{ dataset.minimumCompanySize }}–{{ dataset.maximumCompanySize }} people per company. It adds abbreviations, typos, inconsistent casing, and missing fields. Clean reporting lines are saved separately to check predictions.</p></li>
+        <li><h3>Find plausible managers and score the matches</h3><p>Titles are cleaned up and used to infer function and seniority. Candidate managers come from the same company and must be more senior. A logistic regression model scores each pair using department, team, location, and the gap in seniority. Validation examples calibrate the scores.</p></li>
+        <li><h3>Keep a reporting line only when it clears both checks</h3><p>The leading candidate needs at least {{ model.threshold.probability|percent }} confidence and a {{ model.threshold.margin|points }} percentage point lead over the next candidate. Otherwise the manager stays unresolved. Each person has at most one inferred manager. Requiring a more senior manager prevents circular reporting chains.</p></li>
+        <li><h3>Test on companies the model has not seen</h3><p>The split uses whole companies: {{ split.trainCompanies }} for training, {{ split.validationCompanies }} for calibration and threshold selection, and {{ split.testCompanies }} for the final test. People from one company never appear in different splits. Predictions are compared with the generated direct manager.</p></li>
+      </ol>
+    </section>
+    <section class="paper-section"><h2>Why some people have no manager</h2><p>Two managers can have the same title, and missing team information can make them indistinguishable. Picking one would make the chart look more complete without making it more reliable. Those cases stay visible under “Needs review,” along with the leading candidate and its score.</p><p>The chart uses inferred reporting lines. The generated answer is available separately in each person’s details, so you can inspect good matches and mistakes.</p></section>
+    <section class="paper-section"><h2>What this version can tell us</h2><p>It shows how the approach handles messy generated records. It does not establish accuracy on real companies, where titles, reporting customs, and data quality will differ. The current model also misses many reporting lines in the generated data. Precision and coverage are shown together to make that tradeoff visible.</p></section>
+    <section class="paper-section"><h2>Built in Python</h2><p>Python generates the dataset, trains the inference model, and renders the app with Flask and Jinja. The hosted version uses HTML pages exported by that same app. A small browser script handles search, filters, and opening a person’s details.</p></section>
+    <section class="paper-section"><h2>Try it yourself</h2><p>The dataset package includes input records, generated answers, and the generator. The source package includes the Python app, inference pipeline, and instructions to run the checks.</p><div class="download-row"><a class="button" href="/downloads/firmable-org-chart-dataset.zip" download>Download dataset</a><a class="button" href="/downloads/orggraph-source.zip" download>Download source</a></div></section>
+  </main>
+  {% endif %}
+
+  <footer class="site-footer"><span>OrgGraph · Firmable data take-home</span><span>Synthetic data · {{ index.summary.companyCount }} companies · {{ index.summary.employeeCount|count }} people</span></footer>
+</body>
+</html>

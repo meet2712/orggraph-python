@@ -1,0 +1,35 @@
+{
+  "companies": 500,
+  "employees": 87873,
+  "industries": {
+    "B2B SaaS": 53,
+    "Clean Energy": 45,
+    "Cybersecurity": 52,
+    "E-commerce": 48,
+    "EdTech": 54,
+    "FinTech": 52,
+    "HealthTech": 56,
+    "Logistics": 51,
+    "Professional Services": 45,
+    "Telecommunications": 44
+  },
+  "maximum_company_size": 250,
+  "minimum_company_size": 100,
+  "missing_job_title_rows": 1292,
+  "missing_location_rows": 6491,
+  "missing_or_sentinel_department_rows": 16720,
+  "missing_or_sentinel_team_rows": 22739,
+  "noise_profiles": {
+    "abbreviation": 13142,
+    "case": 4875,
+    "clean": 49734,
+    "missing_title": 1292,
+    "punctuation": 9323,
+    "regional_suffix": 5297,
+    "removed_connector": 768,
+    "spacing": 11202,
+    "typo": 771
+  },
+  "reporting_edges": 87373,
+  "seed": 20261029
+}

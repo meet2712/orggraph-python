@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: orggraph-python
+    runtime: python
+    plan: free
+    region: singapore
+    buildCommand: pip install -r requirements.txt && python scripts/package-source.py
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --preload
+    healthCheckPath: /health
+    autoDeployTrigger: "off"

@@ -1,0 +1,19 @@
+# Local Python environment and data store
+.venv/
+venv/
+__pycache__/
+*.pyc
+instance/
+
+# Builds and local work
+dist/
+outputs/
+work/
+
+# Hidden tool directories and local settings
+.*/
+.env*
+.dev.vars*
+*.pem
+*.log
+.DS_Store

@@ -1,0 +1,63 @@
+# Dataset columns
+
+Start with `employees_messy.csv` for inference. The other employee file is the
+answer key: it lets us measure whether a suggested manager is right.
+
+## `companies.csv`
+
+| Column | Meaning |
+|---|---|
+| `company_id` | Stable synthetic company key. |
+| `company_name` | Synthetic company name. |
+| `industry` | Industry used to vary the department mix. |
+| `size_band` | Small, Growth, or Mid-market. |
+| `employee_count` | Generated headcount. |
+| `headquarters` | Synthetic headquarters location. |
+
+## `employees_messy.csv`
+
+This is the employee list the model uses. Titles and other fields contain
+inconsistent formatting, abbreviations, typos, and missing values. Blank
+values and labels such as `N/A`, `Unknown`, or `-` mean information is missing.
+
+| Column | Meaning |
+|---|---|
+| `employee_id` | Stable employee key. |
+| `company_id` | Employee's company. |
+| `full_name` | Synthetic name. |
+| `job_title` | Noisy title; can be blank. |
+| `department` | Department; may be abbreviated, wrong, or missing. |
+| `team` | Team label; may have inconsistent case or spacing, be wrong, or be missing. |
+| `location` | Location; can be missing. |
+| `work_email` | Synthetic `.example` address, never a real contact. |
+
+## `employees_ground_truth.csv`
+
+This is the clean answer key used for training and evaluation. Its manager and
+canonical fields are never input features when the model scores a reporting
+line.
+
+| Column | Meaning |
+|---|---|
+| `employee_id` | Stable employee key. |
+| `company_id` | Employee's company. |
+| `full_name` | Synthetic name. |
+| `canonical_title` | Clean generated title. |
+| `canonical_department` | True department. |
+| `canonical_team` | Clean team label, kept in the answer key. |
+| `canonical_level` | True seniority level. |
+| `manager_employee_id` | True direct manager; blank only for the CEO/root. |
+| `is_people_manager` | `1` when the employee has direct reports. |
+| `noise_profile` | Changes applied to the title, used to compare results for different kinds of messy input. |
+
+## `reporting_edges.csv`
+
+The answer key as one row per true reporting line. CEOs have no manager, so
+there is no row for them in this file.
+
+| Column | Meaning |
+|---|---|
+| `company_id` | Company key. |
+| `employee_id` | Direct report. |
+| `manager_employee_id` | True direct manager. |
+
