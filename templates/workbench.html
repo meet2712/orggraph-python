@@ -1,0 +1,62 @@
+<main class="data-workbench" id="main-content">
+  <header class="workbench-heading">
+    <div>
+      <p class="muted">Behind the chart</p>
+      <h1>Explore the data</h1>
+      <p>Browse the tables or write a query to inspect the records and reporting decisions.</p>
+    </div>
+    <span class="read-only-label">Read-only SQL</span>
+  </header>
+
+  <div class="workbench-notice">
+    <p>Queries run on a read-only copy in your browser. They cannot change the source database.</p>
+    <span>One query · up to 200 rows · 5 second limit</span>
+  </div>
+
+  <div class="workbench-layout">
+    <aside class="database-browser" aria-label="Database tables">
+      <div class="browser-heading"><h2>Tables</h2><span id="database-table-count"></span></div>
+      <div id="database-tables" class="database-tables"><p class="muted">Loading tables…</p></div>
+      <p class="browser-footnote">Generated records, inferred features, decisions, and a separate answer key.</p>
+    </aside>
+
+    <section class="query-workspace" aria-label="SQL query workspace">
+      <div class="query-heading">
+        <h2>SQL editor</h2>
+        <label class="example-picker">Example
+          <select id="sql-example">
+            <option value="counts">Dataset counts</option>
+            <option value="unresolved">Unresolved by department</option>
+            <option value="matches">Accepted manager matches</option>
+            <option value="chain">Follow a manager chain</option>
+            <option value="quality">Missing source fields</option>
+            <option value="lineage">Load and model lineage</option>
+          </select>
+        </label>
+      </div>
+      <label for="sql-query" class="sr-only">Read-only SQL query</label>
+      <textarea id="sql-query" class="sql-editor" spellcheck="false" autocapitalize="off" autocomplete="off" rows="8" aria-describedby="sql-shortcut"></textarea>
+      <div class="query-actions">
+        <button type="button" class="button run-query" id="run-query" disabled>Run query</button>
+        <button type="button" class="text-button" id="reset-database" hidden>Reload database</button>
+        <span id="sql-shortcut">Ctrl / Cmd + Enter to run</span>
+      </div>
+      <p class="query-status" id="query-status" role="status" aria-live="polite">Loading the read-only database…</p>
+      <p class="query-error" id="query-error" role="alert" hidden></p>
+
+      <details class="schema-inspector" id="schema-inspector" hidden>
+        <summary id="schema-heading">Table structure</summary>
+        <div class="schema-columns table-scroll">
+          <table class="schema-table"><caption class="sr-only">Columns in the selected table</caption><thead><tr><th scope="col">Column</th><th scope="col">Type</th><th scope="col">Key / rule</th></tr></thead><tbody id="schema-columns"></tbody></table>
+        </div>
+        <div id="schema-relations" class="schema-relations"></div>
+      </details>
+
+      <section class="query-results" aria-labelledby="query-results-heading">
+        <div class="results-heading"><h2 id="query-results-heading">Results</h2><span id="query-result-count"></span></div>
+        <div class="query-result-table" id="query-results" tabindex="0"><p class="result-placeholder">The first example will open when the database is ready.</p></div>
+      </section>
+    </section>
+  </div>
+  <noscript><p class="note">The database explorer needs JavaScript to run SQLite in your browser. The org chart and results pages are still available.</p></noscript>
+</main>

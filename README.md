@@ -4,9 +4,57 @@ OrgGraph turns a flat employee list into a possible org chart. Pick a company,
 look through its reporting lines, and check the confidence behind each one.
 When the evidence is weak, the manager stays unresolved.
 
+Live app: <https://orggraph-python.onrender.com>.
+
 The app is written in Python with Flask, SQLite, and Jinja templates. A small
 JavaScript file handles search, filters, and person details in the browser.
 There is no React build or Node dependency.
+
+## Task coverage
+
+| Requirement | What to inspect |
+|---|---|
+| At least 500 companies, 100+ employees each | 500 companies, 87,873 employees; size range 100–250. The dataset validator checks every company. |
+| Realistic titles, functions, industries, and messy fields | Ten industries; abbreviated and misspelled titles, missing fields, and conflicting labels. Raw fields are preserved in `employees`. |
+| Infer reporting lines with confidence | `reporting_predictions` stores the accepted manager, leading candidate, confidence, margin, and decision for each person and run. |
+| Leave uncertain managers unresolved | The model uses both confidence and candidate separation. Unknown links remain disconnected in the chart. |
+| Working hosted company explorer | The live app lets a reviewer choose a company, navigate its chart, and inspect each decision. |
+| Source, generator, and a short account of decisions and measurement | The generator and inference pipeline are in `pipeline/`; this README covers the approach and results; `docs/DATABASE.md` covers the data model. |
+
+## Inspect the data
+
+The Database & SQL page shows the real tables, their keys, row counts, and
+relationships. Examples cover dataset counts, accepted matches, unresolved
+people, missing source fields, manager chains, and load lineage.
+
+Queries run on a downloaded SQLite copy inside a browser worker. The editor
+accepts one read-only query at a time, returns at most 200 rows, and stops a
+query after five seconds. Writes and schema changes are blocked. There is no
+server endpoint that accepts user SQL, and ordinary app connections use
+SQLite read-only mode. This keeps a public demo separate from data loading.
+
+## Database design
+
+SQLite stores the data in relational tables rather than one JSON document per
+company. Raw employee records, inferred features, manager predictions, and the
+generated answer key stay separate. Composite foreign keys keep employee,
+manager, and candidate links inside the same company and inference run.
+
+Each load records source and model hashes, thresholds, row counts, and a ready
+status. The importer builds and checks a staging database before replacing the
+previous snapshot. Failed loads leave the previous database intact. Starting
+again with the same files preserves the same keys, run ID, and query results.
+
+The app reconstructs its company pages with SQL joins. Request connections are
+read-only. The database page lets reviewers inspect tables and run read-only
+SQL against a downloaded browser copy; it cannot change the server database.
+
+See [the database notes](docs/DATABASE.md) for the table grains, relationship
+diagram, load checks, and limitations. To run the inspection queries locally:
+
+```bash
+sqlite3 -header -column instance/orggraph.sqlite3 < scripts/quality_checks.sql
+```
 
 ## Run it locally
 
@@ -20,14 +68,16 @@ python scripts/package-source.py
 python app.py
 ```
 
-Open <http://127.0.0.1:5000>. On startup, the app imports the included prediction
-files into `instance/orggraph.sqlite3`. It does not generate data or train a
-model. Each request reads the selected company from SQLite using its own
-connection. The database is rebuilt from the saved predictions when the app
-starts, so it is safe to recreate; this version does not save user edits.
+Open <http://127.0.0.1:5000>. On startup, the app imports the included employee
+CSVs and prediction files into `instance/orggraph.sqlite3`. It does not generate
+data or train a model. Each request reads the selected company from SQLite
+using its own connection. The database is rebuilt from the saved source files
+when the app starts; this version does not save user edits.
 
-The main routes are `/`, `/companies/cmp_0001.html`, `/results.html`, and
-`/approach.html`. `/health` checks that the app and database are ready.
+The main routes are `/`, `/companies/cmp_0001.html`, `/results.html`,
+`/approach.html`, and `/data.html`. `/health` checks that the app and database
+are ready. `/database/snapshot.sqlite.gz` provides the synthetic database copy
+used by the browser SQL editor.
 
 ## Deploy the Python app on Render
 
@@ -52,18 +102,19 @@ Free service behavior: <https://render.com/docs/free>.
 ## Export static pages
 
 The same Flask templates can be exported as HTML for static hosting. This
-export does not run Python or SQLite; use the deployment instructions above
-to run the full Python app. To create the static pages:
+export includes the chart and a compressed database snapshot for browser SQL.
+It does not run a Python server; use the deployment instructions above for
+the full Flask app. To create the static pages:
 
 ```bash
 python scripts/export_site.py
 ```
 
-This renders the home page, all 500 company pages, results, and approach into
+This renders the home page, all 500 company pages, results, approach, and database explorer into
 `dist/`, then copies the browser assets and downloads. It creates a fresh source
 download before exporting, including when run from an extracted source ZIP.
-Filtering and person details work in the browser. The full Flask source is
-included separately.
+Filtering, person details, and read-only SQL work in the browser. The full
+Flask source is included separately.
 
 ## How the inference works
 
@@ -127,6 +178,8 @@ team or title information is missing, so some lines remain unresolved.
 
 ```text
 app.py                       Flask routes, SQLite import, and chart context
+database.py                  Relational load, validation, and SQL reads
+schema.sql                   Tables, keys, checks, and indexes
 requirements.txt             Python dependencies
 templates/index.html         Pages and reusable person/chart markup
 public/style.css             Page styles
@@ -135,6 +188,8 @@ public/data/                 Saved predictions for each company
 public/downloads/            Downloadable data and source
 scripts/export_site.py       Exports Flask pages as static HTML
 tests/test_app.py             Backend and no-guessing checks
+scripts/quality_checks.sql    Data-quality and exploration queries
+docs/DATABASE.md              Table grains, relationships, and lineage
 data/                        Generated employee lists and answer key
 model/model.json             Fitted weights and acceptance thresholds
 pipeline/generate_dataset.py Dataset generator

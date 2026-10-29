@@ -8,7 +8,7 @@ DESTINATION = ROOT / "public/downloads/orggraph-source.zip"
 EXCLUDED_DIRECTORIES = {
     "__pycache__", "venv", "instance", "dist", "outputs", "work", "node_modules",
 }
-ALLOWED_HIDDEN_FILES = {".gitignore", ".python-version"}
+ALLOWED_HIDDEN_FILES = {".gitignore", ".python-version", ".gitattributes"}
 
 
 def include_file(path):
@@ -20,7 +20,7 @@ def include_file(path):
         return False
     if path.name.startswith(".") and path.name not in ALLOWED_HIDDEN_FILES:
         return False
-    if path == DESTINATION or path.suffix in {".pyc", ".pem", ".log"}:
+    if path == DESTINATION or path.name == "design-qa.md" or path.suffix in {".pyc", ".pem", ".log"}:
         return False
     return not path.is_symlink()
 

@@ -9,6 +9,7 @@ instance/
 dist/
 outputs/
 work/
+design-qa.md
 
 # Hidden tool directories and local settings
 .*/

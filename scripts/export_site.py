@@ -25,6 +25,7 @@ def export_site() -> None:
         ("/", "index.html"),
         ("/results.html", "results.html"),
         ("/approach.html", "approach.html"),
+        ("/data.html", "data.html"),
     ]
     routes.extend(
         (f"/companies/{company['id']}.html", f"companies/{company['id']}.html")
@@ -41,12 +42,16 @@ def export_site() -> None:
                     raise RuntimeError(f"Could not render {url}: {response.status_code}")
                 target = output / filename
                 target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_bytes(response.data)
+                html = response.data.decode("utf-8")
+                target.write_text("\n".join(line.strip() for line in html.splitlines() if line.strip()), encoding="utf-8")
 
         public = ROOT / "public"
-        for filename in ("style.css", "app.js"):
+        for filename in ("style.css", "app.js", "workbench.css", "sql-workbench.js", "sql-worker.js"):
             shutil.copy2(public / filename, output / filename)
         shutil.copytree(public / "downloads", output / "downloads")
+        shutil.copytree(public / "vendor", output / "vendor")
+        (output / "database").mkdir()
+        shutil.copy2(app.config["DATABASE_SNAPSHOT"], output / "database" / "snapshot.sqlite.gz")
         favicon = public / "favicon.svg"
         if favicon.exists():
             shutil.copy2(favicon, output / favicon.name)

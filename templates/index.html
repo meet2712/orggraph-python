@@ -16,24 +16,33 @@
   </button>
 {%- endmacro %}
 
-{% macro branch(person, depth=0) -%}
+{% macro person_card(person) -%}
+  <button type="button" class="org-person-card" data-person="{{ person.id }}" aria-label="View {{ person.name }}">
+    <span class="card-avatar" aria-hidden="true">{{ person.name.split()[0][0] }}{{ person.name.split()[-1][0] }}</span>
+    <strong class="card-name">{{ person.name }}</strong>
+    <span class="card-title">{{ person.title or 'Title missing' }}</span>
+    <span class="card-meta" title="{{ person.inferredDepartment }} · {{ person.location }}">{{ person.inferredDepartment }} · {{ person.location }}</span>
+    {% if person.predictedManagerId %}
+      <span class="card-status accepted" data-confidence="{{ person.confidence|percent }}" data-correct="{{ 'true' if person.isCorrect else 'false' }}">{{ person.confidence|percent }} confidence</span>
+    {% elif person.inferredLevel == 'CEO' %}
+      <span class="card-status root-status">Company root</span>
+    {% else %}
+      <span class="card-status unknown">Manager unknown</span>
+    {% endif %}
+  </button>
+{%- endmacro %}
+
+{% macro branch(person, depth=0, first=true, last=true) -%}
   {% set reports = children.get(person.id, []) %}
-  <li class="tree-node" data-employee="{{ person.id }}" data-department="{{ person.inferredDepartment }}" data-search="{{ (person.name ~ ' ' ~ person.title ~ ' ' ~ person.inferredDepartment)|lower }}">
+  <li class="tree-node{% if first %} first{% endif %}{% if last %} last{% endif %}" data-employee="{{ person.id }}" data-manager="{{ person.predictedManagerId or '' }}" data-department="{{ person.inferredDepartment }}" data-search="{{ (person.name ~ ' ' ~ person.title ~ ' ' ~ person.inferredDepartment)|lower }}">
+    {{ person_card(person) }}
     {% if reports %}
       <details class="branch" data-depth="{{ depth }}" {% if depth == 0 %}open{% endif %}>
-        <summary class="branch-row" aria-label="Show or hide direct reports for {{ person.name }}">
-          <span class="branch-toggle" aria-hidden="true">›</span>
-          {{ person_row(person) }}
-        </summary>
-        <ul>
-          {% for report in reports %}{{ branch(report, depth + 1) }}{% endfor %}
+        <summary class="report-toggle" aria-label="Show or hide {{ reports|length }} direct reports for {{ person.name }}"><span>{{ reports|length }}</span> direct {{ 'report' if reports|length == 1 else 'reports' }} <span class="report-chevron" aria-hidden="true">⌄</span></summary>
+        <ul class="tree-children">
+          {% for report in reports %}{{ branch(report, depth + 1, loop.first, loop.last) }}{% endfor %}
         </ul>
       </details>
-    {% else %}
-      <div class="branch-row">
-        <span class="branch-spacer" aria-hidden="true"></span>
-        {{ person_row(person) }}
-      </div>
     {% endif %}
   </li>
 {%- endmacro %}
@@ -48,6 +57,10 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/style.css">
   <script src="/app.js" defer></script>
+  {% if page == 'data' %}
+  <link rel="stylesheet" href="/workbench.css">
+  <script src="/sql-workbench.js" defer></script>
+  {% endif %}
 </head>
 <body>
   <a class="skip-link" href="#main-content">Skip to content</a>
@@ -60,6 +73,7 @@
       <a href="/" {% if page == 'chart' %}aria-current="page"{% endif %}>Org chart</a>
       <a href="/results.html" {% if page == 'results' %}aria-current="page"{% endif %}>Results</a>
       <a href="/approach.html" {% if page == 'approach' %}aria-current="page"{% endif %}>How it works</a>
+      <a href="/data.html" {% if page == 'data' %}aria-current="page"{% endif %}>Database &amp; SQL</a>
     </nav>
     <a class="header-download" href="/downloads/orggraph-source.zip" download><span aria-hidden="true">↓</span> Download source</a>
   </header>
@@ -88,6 +102,7 @@
     </aside>
 
     <main class="company-workspace" id="main-content">
+      <div class="company-context">
       <header class="company-heading">
         <p class="company-meta">{{ company.company.industry }}<span>·</span>{{ company.company.headquarters }}</p>
         <h1>{{ company.company.name }}</h1>
@@ -98,6 +113,7 @@
         <div><dt>Inferred reporting lines</dt><dd>{{ company.summary.resolved|count }}</dd></div>
         <div><dt>Managers unresolved</dt><dd>{{ unresolved|length }}</dd></div>
       </dl>
+      </div>
 
       <section class="chart-section" aria-label="Inferred reporting structure">
         <div class="chart-tabs" aria-label="Choose chart or review list">
@@ -119,13 +135,44 @@
             <span class="sr-only">Find a person or role</span>
             <input id="people-search" type="search" placeholder="Find a person or role" autocomplete="off">
           </label>
+        <div class="group-toolbar" id="group-toolbar">
+          <label for="group-filter" class="sr-only">Reporting group</label>
+          <select id="group-filter">
+            <option value="">All {{ roots|length }} reporting groups</option>
+            {% for person in roots %}
+            <option value="{{ person.id }}" {% if person.inferredLevel == 'CEO' %}selected{% endif %}>{{ 'Company leadership' if person.inferredLevel == 'CEO' else 'Separate group' }} · {{ person.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
           <button type="button" class="text-button expand-button" id="expand-teams">Expand all</button>
         </div>
-        <p class="chart-explanation" id="chart-explanation">Each line is an accepted manager match. Select a person to see the evidence.<br class="desktop-break"> Separate groups stay disconnected when a manager is unknown.</p>
-        <div id="chart-view" class="tree-area">
-          <ul class="org-tree" aria-label="Accepted reporting lines">
-            {% for person in roots %}{{ branch(person) }}{% endfor %}
-          </ul>
+        <p class="chart-explanation" id="chart-explanation">Follow the lines from each manager to their direct reports. Select a person for details, or open the report count to see their team.</p>
+        <div class="chart-stage">
+        <div id="chart-view" class="chart-viewport" tabindex="0" role="region" aria-label="Org chart. Scroll or use arrow keys to move around the chart.">
+          <div class="chart-scale" id="chart-scale">
+            <div class="chart-canvas" id="chart-canvas">
+              {% for person in roots %}
+              <section class="reporting-group" data-root-id="{{ person.id }}" aria-label="{{ 'Company leadership' if person.inferredLevel == 'CEO' else 'Separate reporting group for ' ~ person.name }}">
+                <div class="group-caption">
+                  <span class="group-kind">{{ 'Company leadership' if person.inferredLevel == 'CEO' else 'Separate reporting group' }}</span>
+                  {% if person.inferredLevel != 'CEO' %}<span class="group-reason">{{ person.name }}’s manager is unknown. Their accepted reports are shown below.</span>{% endif %}
+                </div>
+                <ul class="org-tree" aria-label="{{ person.name }} and accepted direct reports">{{ branch(person) }}</ul>
+              </section>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        <div class="canvas-controls" id="canvas-controls">
+          <span>Drag the background to move around</span>
+          <div class="zoom-controls" aria-label="Chart zoom">
+            <button type="button" id="zoom-out" aria-label="Zoom out">−</button>
+            <output id="zoom-level" aria-live="polite">100%</output>
+            <button type="button" id="zoom-in" aria-label="Zoom in">+</button>
+            <button type="button" id="zoom-fit">Fit</button>
+            <button type="button" id="zoom-reset">Reset</button>
+          </div>
+        </div>
         </div>
         <div id="review-view" class="unresolved-list" hidden>
           {% for person in unresolved %}
@@ -190,6 +237,9 @@
       </details>
     </section>
   </dialog>
+
+  {% elif page == 'data' %}
+  {% include 'workbench.html' %}
 
   {% elif page == 'results' %}
   {% set model = evaluation.model %}

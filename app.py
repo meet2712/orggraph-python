@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import json
 import re
 import sqlite3
-from contextlib import closing
 from pathlib import Path
 
-from flask import Flask, abort, current_app, g, render_template
+from flask import Flask, abort, current_app, g, render_template, send_file
+
+from database import connect, load_snapshot, read_company, read_json, write_compressed_snapshot
 
 
 ROOT = Path(__file__).resolve().parent
@@ -16,56 +16,14 @@ COMPANY_ID = re.compile(r"cmp_\d{4}\Z")
 DEFAULT_COMPANY = "cmp_0001"
 
 
-def read_json(path: Path) -> dict:
-    value = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(value, dict):
-        raise ValueError(f"Expected a JSON object in {path.name}")
-    return value
-
-
-def validate_company(payload: dict, company_id: str) -> None:
-    """Reject incomplete records and broken reporting links before serving them."""
-    if payload.get("company", {}).get("id") != company_id:
-        raise ValueError(f"Company ID does not match its file: {company_id}")
-    employees = payload.get("employees")
-    if not isinstance(employees, list) or not employees:
-        raise ValueError(f"Company has no employee records: {company_id}")
-    people = {}
-    for employee in employees:
-        if not isinstance(employee, dict):
-            raise ValueError(f"Invalid employee record in {company_id}")
-        employee_id = employee.get("id")
-        if not isinstance(employee_id, str) or not employee_id or employee_id in people:
-            raise ValueError(f"Missing or duplicate employee ID in {company_id}")
-        people[employee_id] = employee
-
-    for employee in employees:
-        manager_id = employee.get("predictedManagerId")
-        if manager_id is not None and not isinstance(manager_id, str):
-            raise ValueError(f"Invalid manager ID in {company_id}")
-        if manager_id and manager_id not in people:
-            raise ValueError(f"Manager is outside the company: {company_id}")
-
-    for employee in employees:
-        visited = set()
-        cursor = employee["id"]
-        while cursor:
-            if cursor in visited:
-                raise ValueError(f"Circular reporting line in {company_id}")
-            visited.add(cursor)
-            cursor = people[cursor].get("predictedManagerId")
-
-
 def initialize_database(app: Flask) -> None:
-    """Import saved predictions into SQLite. Starting the app never trains a model."""
+    """Load a checked relational snapshot without running inference."""
     data_dir = Path(app.config["DATA_DIR"])
     index = read_json(data_dir / "index.json")
     evaluation = read_json(data_dir / "evaluation.json")
     companies = index.get("companies")
     if not isinstance(companies, list) or not companies:
         raise ValueError("The company directory is empty")
-
-    rows = []
     seen = set()
     for company in companies:
         if not isinstance(company, dict):
@@ -76,23 +34,12 @@ def initialize_database(app: Flask) -> None:
         if company_id in seen:
             raise ValueError(f"Duplicate company ID: {company_id}")
         seen.add(company_id)
-        payload = read_json(data_dir / "companies" / f"{company_id}.json")
-        validate_company(payload, company_id)
-        rows.append((company_id, json.dumps(payload, separators=(",", ":"))))
-
-    database = Path(app.config["DATABASE"])
-    database.parent.mkdir(parents=True, exist_ok=True)
-    with closing(sqlite3.connect(database)) as connection:
-        with connection:
-            connection.execute(
-                "CREATE TABLE IF NOT EXISTS companies "
-                "(company_id TEXT PRIMARY KEY, payload TEXT NOT NULL)"
-            )
-            connection.execute("DELETE FROM companies")
-            connection.executemany(
-                "INSERT INTO companies (company_id, payload) VALUES (?, ?)", rows
-            )
-
+    run_id = load_snapshot(
+        Path(app.config["DATABASE"]), data_dir, Path(app.config["RAW_DATA_DIR"]),
+        Path(app.config["MODEL_PATH"]), index, evaluation,
+    )
+    write_compressed_snapshot(Path(app.config["DATABASE"]), Path(app.config["DATABASE_SNAPSHOT"]))
+    app.config["ACTIVE_RUN_ID"] = run_id
     app.config["DATASET_INDEX"] = index
     app.config["EVALUATION"] = evaluation
 
@@ -100,8 +47,7 @@ def initialize_database(app: Flask) -> None:
 def get_database() -> sqlite3.Connection:
     """Use one connection per request, closed when that request ends."""
     if "database" not in g:
-        g.database = sqlite3.connect(current_app.config["DATABASE"])
-        g.database.row_factory = sqlite3.Row
+        g.database = connect(current_app.config["DATABASE"], readonly=True)
     return g.database
 
 
@@ -138,12 +84,9 @@ def chart_context(payload: dict) -> dict:
 def page_context(page: str, company_id: str = DEFAULT_COMPANY) -> dict:
     if not COMPANY_ID.fullmatch(company_id):
         abort(404)
-    row = get_database().execute(
-        "SELECT payload FROM companies WHERE company_id = ?", (company_id,)
-    ).fetchone()
-    if row is None:
+    payload = read_company(get_database(), current_app.config["ACTIVE_RUN_ID"], company_id)
+    if payload is None:
         abort(404)
-    payload = json.loads(row["payload"])
     index = current_app.config["DATASET_INDEX"]
     return {
         "page": page,
@@ -161,6 +104,9 @@ def create_app(test_config: dict | None = None) -> Flask:
     app.config.from_mapping(
         DATABASE=ROOT / "instance" / "orggraph.sqlite3",
         DATA_DIR=ROOT / "public" / "data",
+        RAW_DATA_DIR=ROOT / "data",
+        MODEL_PATH=ROOT / "model" / "model.json",
+        DATABASE_SNAPSHOT=ROOT / "instance" / "snapshot.sqlite.gz",
     )
     if test_config:
         app.config.update(test_config)
@@ -192,9 +138,25 @@ def create_app(test_config: dict | None = None) -> Flask:
     def approach_page():
         return render_template("index.html", **page_context("approach"))
 
+    @app.get("/data.html")
+    def data_page():
+        return render_template("index.html", **page_context("data"))
+
+    @app.get("/database/snapshot.sqlite.gz")
+    def database_snapshot():
+        return send_file(
+            app.config["DATABASE_SNAPSHOT"], mimetype="application/octet-stream",
+            as_attachment=True, download_name="orggraph.sqlite.gz", max_age=0,
+        )
+
     @app.get("/health")
     def health():
-        get_database().execute("SELECT 1").fetchone()
+        row = get_database().execute(
+            "SELECT load_status FROM inference_runs WHERE run_id = ?",
+            (app.config["ACTIVE_RUN_ID"],),
+        ).fetchone()
+        if row is None or row["load_status"] != "ready":
+            abort(503)
         return {"status": "ok"}
 
     return app
