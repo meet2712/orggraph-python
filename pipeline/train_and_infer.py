@@ -37,48 +37,51 @@ DEPARTMENTS = [
     "Legal",
 ]
 
-DEPARTMENT_TERMS = {
-    "Executive": ["chief executive", " ceo "],
-    "Engineering": ["engineering", "engineer", "developer", "software", "devops", " qa ", "tech", "r&d"],
-    "Sales": ["sales", "revenue", "account executive", "business development", "commercial", "sdr", "bdr", "gtm"],
-    "Customer Success": ["customer success", "cust success", "client success", "support", "onboarding", "implementation", " cx "],
-    "Operations": ["operations", " ops ", "bizops", "business ops", "program", "project coordinator"],
-    "Product": ["product", " ux ", "designer", "researcher"],
-    "Marketing": ["marketing", "mktg", "growth", "demand gen", "content"],
-    "Data & Analytics": ["data", "analytics", "analtyics", "bi analyst", "machine learning", " ml ", " ai "],
-    "Finance": ["finance", "financial", "fp&a", "accountant", "payroll"],
-    "People": ["people", "human resources", " hr ", "recruit", "talent"],
-    "Security": ["security", "securty", "infosec", "cyber", "grc", "incident response", "ciso"],
-    "IT": ["information technology", "info tech", " it ", "infrastructure", "systems administrator", "network engineer", "cio"],
-    "Legal": ["legal", "counsel", "paralegal", "compliance", "contracts"],
-}
+# Specific function words take precedence over generic words such as
+# "engineer", "support", and "operations" in a compound title.
+DEPARTMENT_TITLE_PRIORITY = [
+    ("Executive", ["chief executive", "ceo"]),
+    ("People", ["cpo people", "people", "human resources", "hr", "recruiter", "recruiting", "talent"]),
+    ("Product", ["product", "ux", "designer", "researcher", "cpo"]),
+    ("Operations", ["revenue operations", "sales operations"]),
+    ("Data & Analytics", ["data", "analytics", "analtyics", "bi analyst", "machine learning", "ml", "ai", "cdo"]),
+    ("Security", ["security", "securty", "infosec", "cyber", "grc", "incident response", "ciso"]),
+    ("IT", ["information technology", "info tech", "it", "infrastructure", "systems administrator", "network engineer", "cloud administrator", "service desk", "chief information officer", "cio"]),
+    ("Legal", ["legal", "counsel", "paralegal", "compliance", "contracts"]),
+    ("Customer Success", ["customer success", "cust success", "client success", "onboarding", "implementation", "chief customer officer", "cco"]),
+    ("Sales", ["sales", "revenue", "account executive", "account manager", "account mgr", "account manger", "business development", "commercial", "sdr", "bdr", "gtm", "cro"]),
+    ("Finance", ["finance", "financial", "fp&a", "accountant", "accounting", "payroll", "cfo"]),
+    ("Marketing", ["marketing", "mktg", "growth", "demand gen", "demand generation", "content", "cmo"]),
+    ("Operations", ["operations", "ops", "bizops", "business ops", "program", "project coordinator", "chief operating officer", "coo"]),
+    ("Engineering", ["engineering", "engineer", "developer", "software", "devops", "qa", "technology", "cto", "eng", "r&d"]),
+    ("Customer Success", ["support", "cx"]),
+]
 
 DEPARTMENT_ALIASES = {
-    "eng": "Engineering", "tech": "Engineering", "r&d": "Engineering", "software": "Engineering",
+    "eng": "Engineering", "tech": "Engineering", "r and d": "Engineering", "software": "Engineering",
     "revenue": "Sales", "commercial": "Sales", "gtm": "Sales",
     "cs": "Customer Success", "cust success": "Customer Success", "client success": "Customer Success", "cx": "Customer Success",
     "ops": "Operations", "bizops": "Operations", "business ops": "Operations",
-    "prod": "Product", "product & design": "Product",
+    "prod": "Product", "product and design": "Product",
     "mktg": "Marketing", "growth": "Marketing", "demand gen": "Marketing",
     "data": "Data & Analytics", "analytics": "Data & Analytics", "bi": "Data & Analytics", "data/ai": "Data & Analytics",
     "fin": "Finance", "accounting": "Finance",
-    "hr": "People", "people ops": "People", "people & culture": "People",
+    "hr": "People", "people ops": "People", "people and culture": "People",
     "infosec": "Security", "cyber": "Security", "grc": "Security",
     "info tech": "IT", "infrastructure": "IT",
-    "compliance": "Legal", "risk & legal": "Legal",
+    "compliance": "Legal", "risk and legal": "Legal",
 }
 
 AMBIGUOUS_IC_MANAGER_TITLES = {
     "product manager",
     "customer success manager",
     "account manager",
-    "senior product manager",
-    "senior customer success manager",
-    "senior account manager",
-    "lead product manager",
-    "lead customer success manager",
-    "principal product manager",
 }
+
+REGIONAL_TITLE_SUFFIXES = [
+    "sydney", "melbourne", "brisbane", "perth", "bengaluru",
+    "singapore", "london", "new york", "san francisco", "toronto",
+]
 
 FEATURE_NAMES = [
     "same_department",
@@ -97,6 +100,7 @@ FEATURE_NAMES = [
     "report_rank_scaled",
     "same_team",
     "report_team_missing",
+    "parent_team_match",
 ]
 
 
@@ -114,7 +118,6 @@ class ParsedEmployee:
     department_confidence: float
     rank: int
     rank_label: str
-    manager_likelihood: float
     title_missing: bool
     department_missing: bool
     team_missing: bool
@@ -156,7 +159,7 @@ def normalize_text(value: str) -> str:
     return f" {' '.join(text.split())} "
 
 
-def infer_department(title: str, raw_department: str) -> tuple[str, float, bool]:
+def infer_department(title: str, raw_department: str, raw_team: str = "") -> tuple[str, float, bool]:
     title_text = normalize_text(title)
     raw_text = normalize_text(raw_department).strip()
     missing = raw_text in {"", "n/a", "unknown", "-"}
@@ -169,20 +172,26 @@ def infer_department(title: str, raw_department: str) -> tuple[str, float, bool]
                 break
         raw_match = raw_match or DEPARTMENT_ALIASES.get(raw_text)
 
-    title_scores: dict[str, float] = defaultdict(float)
-    for department, terms in DEPARTMENT_TERMS.items():
-        for term in terms:
-            normalized_term = normalize_text(term)
-            if normalized_term.strip() and normalized_term in title_text:
-                title_scores[department] += 1.0 + min(len(normalized_term.strip()) / 30.0, 0.8)
-
-    title_match = max(title_scores, key=title_scores.get) if title_scores else None
+    title_match = next(
+        (
+            department
+            for department, terms in DEPARTMENT_TITLE_PRIORITY
+            if any(normalize_text(term) in title_text for term in terms)
+        ),
+        None,
+    )
     if raw_match and title_match == raw_match:
         return raw_match, 0.98, missing
-    if title_match and title_scores[title_match] >= 1.0:
+    if title_match:
         return title_match, 0.88 if raw_match is None else 0.72, missing
     if raw_match:
         return raw_match, 0.76, missing
+    team_department = normalize_text(raw_team).split("/", 1)[0].strip()
+    for department in DEPARTMENTS:
+        if team_department == normalize_text(department).strip():
+            return department, 0.68, missing
+    if team_department in DEPARTMENT_ALIASES:
+        return DEPARTMENT_ALIASES[team_department], 0.68, missing
     return "Unknown", 0.22, True
 
 
@@ -191,6 +200,15 @@ def infer_rank(title: str) -> tuple[int, str, float]:
     compact = text.strip()
     if not compact:
         return 1, "Unknown", 0.15
+    words = [
+        {"sr": "senior", "mgr": "manager", "manger": "manager", "cust": "customer"}.get(word, word)
+        for word in compact.split()
+    ]
+    compact = " ".join(words)
+    for city in REGIONAL_TITLE_SUFFIXES:
+        if compact.endswith(f" {city}"):
+            compact = compact[: -(len(city) + 1)]
+            break
     if "chief executive officer" in compact or compact == "ceo":
         return 8, "CEO", 1.0
     c_suite_abbreviations = {"cto", "cro", "coo", "cpo", "cmo", "cdo", "cfo", "ciso", "cio", "cco", "cpo people"}
@@ -201,19 +219,19 @@ def infer_rank(title: str) -> tuple[int, str, float]:
     if "director" in compact:
         return 5, "Director", 0.94
 
-    unpunctuated = compact.replace("sr ", "senior ").replace("mgr", "manager").replace("manger", "manager")
-    if unpunctuated in AMBIGUOUS_IC_MANAGER_TITLES:
-        if unpunctuated.startswith("lead ") or unpunctuated.startswith("principal "):
-            return 3, "Lead / Principal IC", 0.87
-        if unpunctuated.startswith("senior "):
+    modifier = compact.split(" ", 1)[0]
+    base = compact.split(" ", 1)[1] if modifier in {"junior", "senior", "lead", "principal"} else compact
+    if base in AMBIGUOUS_IC_MANAGER_TITLES:
+        if modifier == "junior":
+            return 0, "Junior IC", 0.87
+        if modifier == "senior":
             return 2, "Senior IC", 0.88
+        if modifier in {"lead", "principal"}:
+            return 3, "Lead / Principal IC", 0.87
         return 1, "Individual Contributor", 0.86
 
-    management_terms = [
-        " manager", "manager ", " team lead", "group product", "program lead",
-        "client success lead", "support manager", "senior counsel",
-    ]
-    if any(term in f" {unpunctuated} " for term in management_terms):
+    management_terms = ["manager", "team lead", "group product", "program lead", "client success lead", "senior counsel"]
+    if any(f" {term} " in f" {compact} " for term in management_terms):
         return 4, "Manager", 0.88
     if compact.startswith("lead ") or compact.startswith("principal "):
         return 3, "Lead / Principal IC", 0.88
@@ -228,11 +246,13 @@ def parse_employees(messy: pd.DataFrame, truth: pd.DataFrame) -> list[ParsedEmpl
     truth_fields = truth.set_index("employee_id")[["manager_employee_id", "noise_profile"]].to_dict("index")
     parsed: list[ParsedEmployee] = []
     for row in messy.itertuples(index=False):
-        department, department_confidence, department_missing = infer_department(row.job_title, row.department)
+        department, department_confidence, department_missing = infer_department(
+            row.job_title, row.department, row.team
+        )
         raw_team = str(row.team or "")
         normalized_team = normalize_text(raw_team).strip()
         team_missing = normalized_team in {"", "n/a", "unknown", "-"}
-        rank, rank_label, rank_confidence = infer_rank(row.job_title)
+        rank, rank_label, _ = infer_rank(row.job_title)
         truth_row = truth_fields[row.employee_id]
         parsed.append(
             ParsedEmployee(
@@ -248,7 +268,6 @@ def parse_employees(messy: pd.DataFrame, truth: pd.DataFrame) -> list[ParsedEmpl
                 department_confidence=department_confidence,
                 rank=rank,
                 rank_label=rank_label,
-                manager_likelihood=min(1.0, rank / 6.0 + rank_confidence * 0.2),
                 title_missing=not bool(str(row.job_title).strip()),
                 department_missing=department_missing,
                 team_missing=team_missing,
@@ -267,6 +286,7 @@ def feature_vector(report: ParsedEmployee, manager: ParsedEmployee) -> tuple[flo
         and normalize_text(report.raw_department) == normalize_text(manager.raw_department)
     )
     same_team = report.team != "Unknown" and report.team == manager.team
+    parent_team = report.team.rsplit(" / ", 1)[0] if " / " in report.team else ""
     return (
         float(same_department),
         float(rank_gap == 1),
@@ -284,6 +304,7 @@ def feature_vector(report: ParsedEmployee, manager: ParsedEmployee) -> tuple[flo
         report.rank / 8.0,
         float(same_team),
         float(report.team_missing),
+        float(bool(parent_team) and parent_team == manager.team),
     )
 
 
@@ -293,6 +314,7 @@ def heuristic_score(report: ParsedEmployee, manager: ParsedEmployee, features: t
     score += 2.6 if rank_gap == 1 else 1.6 if rank_gap == 2 else 0.5
     score += 0.9 * features[4] + 0.8 * features[5] + 0.35 * features[11]
     score += 5.0 * features[14]
+    score += 4.0 * features[16]
     score += 0.25 * features[9] + 0.2 * features[10]
     if manager.rank == 8 and report.rank >= 6:
         score += 4.0
@@ -310,12 +332,21 @@ def build_candidates(company: list[ParsedEmployee], limit: int = 48) -> dict[str
         if report.rank == 8:
             candidates[report.employee_id] = []
             continue
-        pool = [person for person in company if person.employee_id != report.employee_id and person.rank > report.rank]
+        # Senior individual contributors are not assumed to manage people.
+        # A missing or ambiguous manager title may leave a report unresolved.
+        pool = [
+            person for person in company
+            if person.employee_id != report.employee_id
+            and person.rank > report.rank
+            and person.rank >= 4
+        ]
         same_department = [person for person in pool if report.department != "Unknown" and person.department == report.department]
         same_team = [person for person in pool if report.team != "Unknown" and person.team == report.team]
-        if same_team or same_department:
-            team_ids = {person.employee_id for person in same_team}
-            pool = same_team + [person for person in same_department if person.employee_id not in team_ids]
+        parent_team = report.team.rsplit(" / ", 1)[0] if " / " in report.team else ""
+        same_parent_team = [person for person in pool if parent_team and person.team == parent_team]
+        if same_team or same_parent_team or same_department:
+            preferred = same_team + same_parent_team + same_department
+            pool = list({person.employee_id: person for person in preferred}.values())
             preferred_ids = {person.employee_id for person in pool}
             pool += [person for person in company if person.rank == 8 and person.employee_id not in preferred_ids]
         elif report.rank >= 6:
@@ -401,6 +432,25 @@ def pair_matrix(
     )
 
 
+def top_choice_logits(
+    company_groups: dict[str, list[ParsedEmployee]], company_ids: set[str], model: LogisticModel
+) -> tuple[np.ndarray, np.ndarray]:
+    """Use one validation example per report to calibrate the leading choice."""
+    scores: list[float] = []
+    labels: list[float] = []
+    for company_id in sorted(company_ids):
+        candidates = build_candidates(company_groups[company_id])
+        for report in company_groups[company_id]:
+            if not report.true_manager_id or not candidates[report.employee_id]:
+                continue
+            choices = candidates[report.employee_id]
+            logits = model.logits(np.asarray([choice.features for choice in choices]))
+            best = int(np.argmax(logits))
+            scores.append(float(logits[best]))
+            labels.append(float(choices[best].manager_id == report.true_manager_id))
+    return np.asarray(scores), np.asarray(labels)
+
+
 def top_choice_summaries(
     company_groups: dict[str, list[ParsedEmployee]],
     company_ids: set[str],
@@ -454,7 +504,7 @@ def tune_threshold(summaries: list[dict[str, object]], target_precision: float =
     total = len(summaries)
     candidates: list[dict[str, float]] = []
     for probability_threshold in np.arange(0.45, 0.961, 0.025):
-        for margin_threshold in np.arange(0.0, 0.351, 0.025):
+        for margin_threshold in np.arange(0.0, 0.951, 0.025):
             selected = [
                 row for row in summaries
                 if row["top"]
@@ -563,6 +613,8 @@ def prediction_reasons(report: ParsedEmployee, manager: ParsedEmployee, margin: 
         reasons.append("same department")
     if report.team == manager.team and report.team != "Unknown":
         reasons.append("same team")
+    if " / " in report.team and report.team.rsplit(" / ", 1)[0] == manager.team:
+        reasons.append("parent team")
     rank_gap = manager.rank - report.rank
     reasons.append("one level above" if rank_gap == 1 else "senior leadership match")
     if report.location and report.location == manager.location:
@@ -664,7 +716,6 @@ def export_predictions(
         index_rows.append({**payload["company"], **payload["summary"]})
 
     index_payload = {
-        "generatedAt": "2026-10-29",
         "companies": index_rows,
         "summary": {
             "companyCount": len(index_rows),
@@ -693,14 +744,15 @@ def main() -> None:
     test_ids = set(company_ids[425:])
 
     train_matrix, train_labels, train_candidate_recall = pair_matrix(company_groups, train_ids)
-    validation_matrix, validation_labels, validation_candidate_recall = pair_matrix(company_groups, validation_ids)
+    _, _, validation_candidate_recall = pair_matrix(company_groups, validation_ids)
     model = fit_logistic(train_matrix, train_labels)
-    platt = fit_platt(model.logits(validation_matrix), validation_labels)
+    validation_logits, validation_labels = top_choice_logits(company_groups, validation_ids, model)
+    platt = fit_platt(validation_logits, validation_labels)
 
     validation_model_summaries = top_choice_summaries(company_groups, validation_ids, model, platt)
     validation_baseline_summaries = top_choice_summaries(company_groups, validation_ids, None, None)
-    # Tune above the reporting target to reduce split-to-split precision drift.
-    model_threshold = tune_threshold(validation_model_summaries, target_precision=0.92)
+    # Favor precision: a wrong reporting line is costlier than an unresolved one.
+    model_threshold = tune_threshold(validation_model_summaries, target_precision=0.95)
     baseline_threshold = tune_threshold(validation_baseline_summaries)
 
     test_model_summaries = top_choice_summaries(company_groups, test_ids, model, platt)
@@ -738,7 +790,7 @@ def main() -> None:
         },
         "featureNames": FEATURE_NAMES,
         "modelType": "Calibrated logistic pair scorer with deterministic candidate blocking",
-        "primaryObjective": "Maximize coverage while holding validation precision at or above 92% to protect a 90% held-out target",
+        "primaryObjective": "Maximize coverage while holding validation precision at or above 95%",
         "limitations": [
             "Synthetic reporting assignments between otherwise identical managers are not always observable when team, title, or department values are missing.",
             "The system intentionally abstains when the best candidate is not clearly separated from alternatives.",

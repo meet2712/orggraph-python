@@ -4,13 +4,16 @@
     <span class="person-name">
       <strong>{{ person.name }}</strong>
       <small>{{ person.title or 'Title missing' }}</small>
+      {% if not person.predictedManagerId and person.bestCandidateId %}
+        <small>Unconfirmed candidate: {{ employees_by_id[person.bestCandidateId].name }}</small>
+      {% endif %}
     </span>
     {% if person.predictedManagerId %}
       <span class="person-status accepted" data-confidence="{{ person.confidence|percent }}" data-correct="{{ 'true' if person.isCorrect else 'false' }}">{{ person.confidence|percent }}</span>
     {% elif person.inferredLevel == 'CEO' %}
       <span class="person-status">Company root</span>
     {% else %}
-      <span class="person-status unknown">Manager unknown</span>
+      <span class="person-status unknown">Review evidence</span>
     {% endif %}
     <span class="row-arrow" aria-hidden="true">›</span>
   </button>
@@ -314,14 +317,14 @@
       <h2>How it works</h2>
       <ol class="steps">
         <li><h3>Generate companies with a known hierarchy</h3><p>The Python generator creates {{ dataset.companies|count }} companies and {{ dataset.employees|count }} people across {{ dataset.industries }} industries, with {{ dataset.minimumCompanySize }}–{{ dataset.maximumCompanySize }} people per company. It adds abbreviations, typos, inconsistent casing, and missing fields. Clean reporting lines are saved separately to check predictions.</p></li>
-        <li><h3>Find plausible managers and score the matches</h3><p>Titles are cleaned up and used to infer function and seniority. Candidate managers come from the same company and must be more senior. A logistic regression model scores each pair using department, team, location, and the gap in seniority. Validation examples calibrate the scores.</p></li>
+        <li><h3>Find plausible managers and score the matches</h3><p>Titles are cleaned up to infer function and seniority. Candidates must be in the same company, more senior, and have a people-management title or equivalent rank. The model scores each pair using department, team scope, location, and seniority gap. When present, the generated team hierarchy helps identify parent units. Validation examples calibrate the scores.</p></li>
         <li><h3>Keep a reporting line only when it clears both checks</h3><p>The leading candidate needs at least {{ model.threshold.probability|percent }} confidence and a {{ model.threshold.margin|points }} percentage point lead over the next candidate. Otherwise the manager stays unresolved. Each person has at most one inferred manager. Requiring a more senior manager prevents circular reporting chains.</p></li>
         <li><h3>Test on companies the model has not seen</h3><p>The split uses whole companies: {{ split.trainCompanies }} for training, {{ split.validationCompanies }} for calibration and threshold selection, and {{ split.testCompanies }} for the final test. People from one company never appear in different splits. Predictions are compared with the generated direct manager.</p></li>
       </ol>
     </section>
     <section class="paper-section"><h2>Why some people have no manager</h2><p>Two managers can have the same title, and missing team information can make them indistinguishable. Picking one would make the chart look more complete without making it more reliable. Those cases stay visible under “Needs review,” along with the leading candidate and its score.</p><p>The chart uses inferred reporting lines. The generated answer is available separately in each person’s details, so you can inspect good matches and mistakes.</p></section>
     <section class="paper-section"><h2>What this version can tell us</h2><p>It shows how the approach handles messy generated records. It does not establish accuracy on real companies, where titles, reporting customs, and data quality will differ. The current model also misses many reporting lines in the generated data. Precision and coverage are shown together to make that tradeoff visible.</p></section>
-    <section class="paper-section"><h2>Built in Python</h2><p>Python generates the dataset, trains the inference model, and renders the app with Flask and Jinja. The hosted version uses HTML pages exported by that same app. A small browser script handles search, filters, and opening a person’s details.</p></section>
+    <section class="paper-section"><h2>Built in Python</h2><p>Python generates the dataset and trains the inference model. The hosted app runs Flask and Jinja on Render and reads from SQLite. A separate script can export static HTML pages. A small browser script handles search, filters, and person details.</p></section>
     <section class="paper-section"><h2>Try it yourself</h2><p>The dataset package includes input records, generated answers, and the generator. The source package includes the Python app, inference pipeline, and instructions to run the checks.</p><div class="download-row"><a class="button" href="/downloads/firmable-org-chart-dataset.zip" download>Download dataset</a><a class="button" href="/downloads/orggraph-source.zip" download>Download source</a></div></section>
   </main>
   {% endif %}

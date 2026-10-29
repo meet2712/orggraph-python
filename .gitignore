@@ -13,6 +13,7 @@ design-qa.md
 
 # Hidden tool directories and local settings
 .*/
+!.github/
 .env*
 .dev.vars*
 *.pem

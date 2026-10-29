@@ -337,7 +337,7 @@ def employee_record(
 
 def write_csv(path: Path, rows: list[dict[str, object]], fieldnames: list[str]) -> None:
     with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
 
@@ -385,9 +385,10 @@ def main() -> None:
         for department, department_count in allocations.items():
             leader_id = next_employee_id()
             title, level = leader_title(department, target_size, rng)
+            leader_team = department
             leader = employee_record(
                 leader_id, company_id, unique_person_name(rng, used_names), title,
-                department, f"{department} Leadership", level, ceo_id,
+                department, leader_team, level, ceo_id,
                 rng.choice(LOCATIONS) if rng.random() < 0.28 else headquarters,
             )
             company_employees.append(leader)
@@ -398,25 +399,35 @@ def main() -> None:
                 manager_count = director_count
 
             directors: list[str] = []
+            director_teams: dict[str, str] = {}
             for director_index in range(director_count):
                 director_id = next_employee_id()
+                director_team = f"{department} / {DEPARTMENT_TEAMS[department][director_index]}"
                 director_title = DIRECTOR_TITLES[department][
                     1 if director_index == 0 and rng.random() < 0.35 else 0
                 ]
                 company_employees.append(employee_record(
                     director_id, company_id, unique_person_name(rng, used_names),
-                    director_title, department, f"{department} Division {director_index + 1}",
+                    director_title, department, director_team,
                     "Director", leader_id, leader["location"],
                 ))
                 directors.append(director_id)
+                director_teams[director_id] = director_team
 
             managers: list[str] = []
             for manager_index in range(manager_count):
                 manager_id = next_employee_id()
                 parent_id = directors[manager_index % len(directors)] if directors else leader_id
-                team_base = DEPARTMENT_TEAMS[department][manager_index % len(DEPARTMENT_TEAMS[department])]
-                team_cycle = manager_index // len(DEPARTMENT_TEAMS[department])
-                manager_team = team_base if team_cycle == 0 else f"{team_base} {team_cycle + 1}"
+                parent_team = director_teams.get(parent_id, leader_team)
+                team_names = [
+                    value for value in DEPARTMENT_TEAMS[department]
+                    if value != parent_team.split(" / ")[-1]
+                ]
+                team_base = team_names[manager_index % len(team_names)]
+                team_cycle = manager_index // len(team_names)
+                if team_cycle:
+                    team_base = f"{team_base} {team_cycle + 1}"
+                manager_team = f"{parent_team} / {team_base}"
                 company_employees.append(employee_record(
                     manager_id, company_id, unique_person_name(rng, used_names),
                     rng.choice(MANAGER_TITLES[department]), department, manager_team,

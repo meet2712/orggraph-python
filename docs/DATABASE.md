@@ -47,6 +47,12 @@ page payload is reconstructed, not written over the raw records.
 `source_row_number` points back to the CSV line, including its header, and
 preserves the original employee order when reconstructing a company page.
 
+An observed team can contain a slash-separated path from a department to a
+subteam. The model uses that input to compare same-team and parent-unit scope.
+Missing or incorrect team values leave those signals weak or misleading. The
+clean team path and manager ID in the generated answer file are not imported
+as prediction features.
+
 The exported company files supply inferred attributes, scores, decisions, and
 explanations. The model is not rerun during database loading. A prediction can
 be `accepted`, `unresolved`, or `company_root`; only an accepted manager creates
@@ -76,10 +82,10 @@ individual prediction rows.
 - Startup validation checks reporting cycles and seniority before publishing
   the imported snapshot. A manager must be more senior than the report.
 
-The current source contains 500 companies, 87,873 employee records, and 33,123
-accepted reporting lines. The source requirements are checked separately from
-model quality: satisfying a foreign key does not prove a reporting line is
-correct.
+The regenerated local source contains 500 companies, 88,367 employee records,
+58,672 accepted reporting lines, and 29,195 unresolved managers. The source
+requirements are checked separately from model quality: satisfying a foreign
+key does not prove a reporting line is correct.
 
 ## Lineage and rebuilding
 

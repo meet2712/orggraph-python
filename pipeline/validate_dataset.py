@@ -81,6 +81,13 @@ def main() -> None:
             LEVEL_RANK[manager["canonical_level"]] > LEVEL_RANK[row["canonical_level"]],
             f"manager is not more senior for {row['employee_id']}",
         )
+        if manager["canonical_department"] == row["canonical_department"]:
+            manager_team = manager["canonical_team"]
+            report_team = row["canonical_team"]
+            require(
+                report_team == manager_team or report_team.startswith(manager_team + " / "),
+                f"team scope does not contain its manager for {row['employee_id']}",
+            )
 
     parent = {row["employee_id"]: row["manager_employee_id"] for row in truth}
     for employee_id in parent:

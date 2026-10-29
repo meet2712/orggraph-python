@@ -6,6 +6,9 @@ When the evidence is weak, the manager stays unresolved.
 
 Live app: <https://orggraph-python.onrender.com>.
 
+The results below describe the generated files in this checkout. The hosted
+app may show an earlier build until it is redeployed.
+
 The app is written in Python with Flask, SQLite, and Jinja templates. A small
 JavaScript file handles search, filters, and person details in the browser.
 There is no React build or Node dependency.
@@ -14,7 +17,7 @@ There is no React build or Node dependency.
 
 | Requirement | What to inspect |
 |---|---|
-| At least 500 companies, 100+ employees each | 500 companies, 87,873 employees; size range 100–250. The dataset validator checks every company. |
+| At least 500 companies, 100+ employees each | 500 companies, 88,367 employees; size range 100–250. The dataset validator checks every company. |
 | Realistic titles, functions, industries, and messy fields | Ten industries; abbreviated and misspelled titles, missing fields, and conflicting labels. Raw fields are preserved in `employees`. |
 | Infer reporting lines with confidence | `reporting_predictions` stores the accepted manager, leading candidate, confidence, margin, and decision for each person and run. |
 | Leave uncertain managers unresolved | The model uses both confidence and candidate separation. Unknown links remain disconnected in the chart. |
@@ -70,6 +73,8 @@ python scripts/package-source.py
 python app.py
 ```
 
+The package script refreshes both the dataset and source ZIP downloads.
+
 Open <http://127.0.0.1:5000>. The first start imports the included employee CSVs
 and predictions into `instance/orggraph.sqlite3`. Later starts reuse that
 checked snapshot; stale or damaged files trigger a fresh staged import. It
@@ -114,35 +119,56 @@ python scripts/export_site.py
 ```
 
 This renders the home page, all 500 company pages, results, approach, and database explorer into
-`dist/`, then copies the browser assets and downloads. It creates a fresh source
-download before exporting, including when run from an extracted source ZIP.
+`dist/`, then copies the browser assets and downloads. It creates fresh dataset
+and source downloads before exporting, including when run from an extracted source ZIP.
 Filtering, person details, and read-only SQL work in the browser. The full
 Flask source is included separately.
 
+For GitHub Pages, export under the repository path:
+
+```bash
+python scripts/export_site.py --base-path /orggraph-python
+```
+
+The Pages workflow validates the data and app, exports the site, then publishes
+`dist/` when `main` is pushed. Set the repository's Pages source to **GitHub
+Actions** before its first deployment. The published Pages site is a static
+copy; the Render service above runs the Python app.
+
 ## How the inference works
 
-The dataset is synthetic: 500 companies, 87,873 employees, ten industries, and
+The dataset is synthetic: 500 companies, 88,367 employees, ten industries, and
 100–250 people per company. Names, email addresses, and reporting lines are
 made up. The `.example` email addresses cannot receive mail.
 
-The generator first creates a clean company structure. It then adds abbreviated
-titles, typos, conflicting departments, and missing titles, teams, or locations.
-The clean structure is kept separately as an answer key.
+The generator first creates a clean company structure. The observed team field
+can show a path such as `Engineering / Platform / Core Services`, which gives
+the model evidence about team scope. It then adds abbreviated titles, typos,
+conflicting departments, and missing or incorrect teams and other fields.
+The clean manager IDs and canonical fields stay in a separate answer key.
 
 The inference pipeline has four main steps:
 
-1. Read the messy titles and infer each person's function and seniority.
-2. Shortlist more-senior people in the same company, using team and department
-   matches where available.
+1. Normalize case, punctuation, common abbreviations, and regional suffixes in
+   titles; infer each person's function and seniority. Titles such as Product
+   Manager and Account Manager remain individual contributor roles.
+2. Shortlist more-senior people in the same company with a management title or
+   equivalent rank. Senior individual contributors are not assumed to manage
+   people. Team paths help identify a same-team manager or a parent unit when
+   that field is present.
 3. Score each employee–manager pair with a small logistic model. Inputs include
-   team, department, seniority gap, and location.
+   the observed team and department, seniority gap, missing-field signals, and
+   location.
 4. Keep a reporting line only when its confidence is high enough and the best
    candidate is clearly ahead of the next one.
 
-Confidence is adjusted against validation examples so the scores better match
-observed correctness. The acceptance threshold is chosen to reach at least
-92% precision on validation companies. If no threshold meets that target with
-at least 50 accepted examples, the pipeline accepts no links.
+The model learns from candidate pairs in training companies. It then calibrates
+the leading candidate's score using one top-choice example per employee in the
+validation companies. Confidence and lead-over-runner-up thresholds are chosen
+to reach at least 95% precision there, with at least 50 accepted examples. The
+selected cutoffs are 45% calibrated confidence and a 10 percentage-point lead;
+both must pass. If no pair of thresholds meets the precision target, the
+pipeline accepts no links.
 
 Every accepted employee has one manager. Managers must be more senior and
 belong to the same company, which also prevents cycles. The chart uses only
@@ -153,25 +179,30 @@ a chart edge on its own.
 
 Companies are split into 350 for training, 75 for validation, and 75 for the
 final test. Everyone from a company stays in the same split. The model sees
-only the messy fields when scoring a pair; the answer key is used for training
-labels and evaluation.
+only the observed messy fields when scoring a pair. The answer key supplies
+training labels and evaluation, never manager IDs or canonical fields as
+scoring features.
 
 These results are from the 75 test companies:
 
 | Method | Precision | Coverage | Recall | F1 |
 |---|---:|---:|---:|---:|
-| Rules alone | 90.81% | 12.66% | 11.49% | 20.41% |
-| Learned pair scores | 91.63% | 37.37% | 34.24% | 49.85% |
+| Rules alone | 92.00% | 23.10% | 21.25% | 34.53% |
+| Learned pair scores | 95.43% | 67.71% | 64.61% | 77.06% |
 
 Precision asks: of the reporting lines we accepted, how many were right?
 Coverage asks: for how many employees who have a manager did we accept one?
 Recall asks: how many of all the true reporting lines did we recover?
 
-The learned scores accept nearly three times as many links while keeping
-precision above 90% on the test split. The shortlist contains the true manager
-for 89.39% of test employees who have a manager. All exported charts pass checks
-for cycles, cross-company links, and links to someone with the same or lower
-inferred seniority.
+The learned scores accept about 2.9 times as many links as the rules baseline
+while keeping precision above 95% on the test split. The shortlist contains the
+true manager for 99.23% of test employees who have a manager. Across all 500
+companies, 58,672 reporting lines are accepted and 29,195 remain unresolved.
+For Nimbus Grid, 159 of 233 possible lines are accepted, 74 are unresolved,
+and 97.48% of accepted lines match the generated answer. The stricter threshold
+leaves more people without a manager rather than adding weak reporting lines.
+All exported charts pass checks for cycles, cross-company links, and links to
+someone with the same or lower inferred seniority.
 
 These figures measure recovery of generated reporting lines. They do not
 establish accuracy on real companies. Two managers can look identical when

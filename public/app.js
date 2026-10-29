@@ -194,7 +194,7 @@ if (chartView) {
       view = button.dataset.view;
       for (const other of viewButtons) other.setAttribute("aria-pressed", String(other === button));
       explanation.textContent = view === "review"
-        ? "These people have no accepted manager match. Select a person to see the leading candidate and why the model left it unresolved."
+        ? "Only people without an accepted reporting line appear here. The candidate shown is unconfirmed. Open a person to see why no line was added."
         : "Follow the lines from each manager to their direct reports. Select a person for details, or open the report count to see their team.";
       updatePeople();
     });
