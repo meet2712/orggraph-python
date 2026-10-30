@@ -62,7 +62,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Explore reporting lines inferred by SQL views, review uncertain matches, and see how the rules were tested.">
   <title>{{ company.company.name ~ ' · ' if page == 'chart' else '' }}OrgGraph</title>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/style.css{% if page == 'schema' %}?v=schema-width{% endif %}">
   <script src="/app.js?v=reporting-groups" defer></script>
   {% if page == 'data' %}

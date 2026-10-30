@@ -92,10 +92,6 @@ def export_site(base_path: str = "") -> None:
         shutil.copytree(public / "vendor", output / "vendor")
         (output / "database").mkdir()
         shutil.copy2(app.config["DATABASE_SNAPSHOT"], output / "database" / "snapshot.sqlite.gz")
-        favicon = public / "favicon.svg"
-        if favicon.exists():
-            shutil.copy2(favicon, output / favicon.name)
-
         destination = ROOT / "dist"
         if destination.is_symlink():
             raise RuntimeError("The export directory must not be a symbolic link")
