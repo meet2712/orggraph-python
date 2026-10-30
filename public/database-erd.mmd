@@ -27,8 +27,8 @@ flowchart TB
     employees -.-> candidate_scores
     employee_text -.-> candidate_scores
     manager_candidates -.-> candidate_scores
-    employees -.-> employee_top_candidates
     candidate_scores -.-> employee_top_candidates
+    employees -.-> employee_top_candidates
     employees -.-> reporting_predictions
     employee_features -.-> reporting_predictions
     employee_top_candidates -.-> reporting_predictions

@@ -22,6 +22,14 @@ class SchemaViewTests(unittest.TestCase):
         self.db.execute('INSERT INTO employees VALUES (?,?,?,?,?,?,?,?)',
                         ('example', name, name, title, 'Engineering', team, 'London', ''))
 
+    def test_shortlist_keeps_people_without_manager_candidates(self):
+        self.add('ceo', 'CEO', 'Company')
+        self.add('unassigned', 'Senior Engineer', '')
+        shortlist = self.db.execute('SELECT * FROM employee_top_candidates ORDER BY employee_id').fetchall()
+        self.assertEqual(shortlist, [('example', 'ceo', None, None, None),
+                                     ('example', 'unassigned', 'ceo', 0.452, None)])
+        self.assertEqual(self.prediction('unassigned'), (None, 'unresolved'))
+
     def test_company_query_is_built_from_current_view_rules(self):
         self.assertEqual((ROOT / 'sql/company_predictions.sql').read_text(), company_query())
 

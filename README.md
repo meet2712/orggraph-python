@@ -64,6 +64,7 @@ The browser SQL editor opens a read-only copy of the published database. You can
 python pipeline/generate_dataset.py --companies 500 --min-employees 100 --max-employees 250 --seed 20261029 --output-dir data
 python -m unittest discover -s tests -p 'test_*.py'
 python pipeline/validate_dataset.py --data-dir data
+python scripts/check_database_views.py
 ```
 
 The generator writes messy observations and the separate benchmark CSV. The operational inference reads only the observations. Accuracy must be measured independently against the benchmark CSV; coverage and evidence scores alone do not establish correctness on synthetic or real companies. `pipeline/train_and_infer.py` and the older `public/data/companies/*.json` predictions remain as a historical offline experiment. The current site and SQLite reporting views do not read those prediction files; their manager decisions are calculated in SQL.

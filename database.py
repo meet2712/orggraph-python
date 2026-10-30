@@ -18,6 +18,10 @@ ROOT = Path(__file__).resolve().parent
 COMPANY_PREDICTIONS_SQL = (ROOT / "sql" / "company_predictions.sql").read_text(
     encoding="utf-8"
 ).strip().removesuffix(";")
+# Reuse the same scoped features when assembling a company page.
+COMPANY_INFERENCE_CTES = COMPANY_PREDICTIONS_SQL.removesuffix(
+    "\nSELECT * FROM reporting_predictions"
+)
 RANKS = {
     "Unknown": 1, "Junior IC": 0, "Individual Contributor": 1, "Senior IC": 2,
     "Lead / Principal IC": 3, "Principal / Staff IC": 3, "Team Lead / Supervisor": 3,
@@ -267,7 +271,8 @@ def read_company(connection: sqlite3.Connection, company_id: str) -> dict | None
     # SQLite views cannot accept parameters. Scope the same SQL scoring rules
     # to one company so a page never ranks all 87,000 employees at once.
     query = f"""
-        WITH predictions AS MATERIALIZED ({COMPANY_PREDICTIONS_SQL}),
+        {COMPANY_INFERENCE_CTES},
+        predictions AS MATERIALIZED (SELECT * FROM reporting_predictions),
         person_rows AS MATERIALIZED (
             SELECT e.*, f.inferred_department, f.inferred_level,
                    p.accepted_manager_id, p.best_candidate_id,

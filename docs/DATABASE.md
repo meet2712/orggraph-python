@@ -71,3 +71,5 @@ After an `INSERT` into `employees`, rerun these queries. Headcount, size band an
 `employees.company_id` has a foreign key to `companies.company_id`; `(company_id, employee_id)` uniquely identifies a person. The SQL inference view restricts candidate managers to the same company and requires a higher leadership level. `scripts/quality_checks.sql` checks source keys, view cardinality, score bounds, decision consistency and reporting cycles. The loader creates a new database atomically if the source files or schema change; ordinary local employee edits are preserved across app restarts.
 
 The downloadable database is a snapshot of the published source rows and SQL views. It is not a live hosted database connection.
+
+The summary views parse titles and score candidates in batches. Each intermediate result is calculated once per query, then the shortlist is ranked once per employee. `scripts/check_database_views.py` checks that the summaries finish within the SQL workspace’s 20-second limit and agree with the employee decisions. The company page reuses the same scoped features, so it does not parse the whole dataset for one company.

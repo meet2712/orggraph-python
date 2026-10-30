@@ -54,6 +54,7 @@ FROM employees e;
 -- leadership role. Senior, Staff and Principal ICs remain individual
 -- contributors. Manager in an account/product/success IC title is ambiguous.
 CREATE VIEW employee_classification AS
+WITH text AS MATERIALIZED (SELECT * FROM employee_text)
 SELECT t.company_id, t.employee_id, t.location, t.team_path, t.title_text,
        CASE
          WHEN title_text LIKE '% chief executive officer %' OR trim(title_text) = 'ceo'
@@ -172,11 +173,12 @@ SELECT t.company_id, t.employee_id, t.location, t.team_path, t.title_text,
          WHEN department_text IN ('legal','compliance') THEN 'Legal'
          WHEN department_text IN ('it','information technology') THEN 'IT'
          ELSE 'Unclassified' END AS inferred_department
-FROM employee_text t;
+FROM text t;
 
 -- A narrow role family can recover a missing team without inventing one.
 -- Executive portfolios are read from explicit titles or a recognised function.
 CREATE VIEW employee_role_profiles AS
+WITH classified AS MATERIALIZED (SELECT * FROM employee_classification)
 SELECT c.*,
        CASE
          WHEN title_text LIKE '% qa %' OR title_text LIKE '% quality %' THEN 'quality'
@@ -244,7 +246,7 @@ SELECT c.*,
          WHEN c.inferred_department IN ('Finance','Legal') THEN 'Finance & Risk'
          WHEN c.inferred_department IN ('People','Operations') THEN c.inferred_department
          ELSE '' END AS executive_portfolio
-FROM employee_classification c;
+FROM classified c;
 
 CREATE VIEW employee_features AS
 SELECT p.*,
@@ -263,6 +265,7 @@ FROM employee_role_profiles p;
 -- A management role may report to the next available higher layer. ICs can
 -- report to an explicit Team Lead or Manager, but never to a Senior IC.
 CREATE VIEW manager_candidates AS
+WITH features AS MATERIALIZED (SELECT * FROM employee_features)
 SELECT r.company_id, r.employee_id, c.employee_id AS candidate_id,
        r.inferred_rank AS report_rank, c.inferred_rank AS candidate_rank,
        r.inferred_level AS report_level, c.inferred_level AS candidate_level,
@@ -280,8 +283,8 @@ SELECT r.company_id, r.employee_id, c.employee_id AS candidate_id,
             ELSE 'other' END AS team_relation,
        CASE WHEN r.location <> '' AND r.location = c.location THEN 1 ELSE 0 END
          AS same_location
-FROM employee_features r
-JOIN employee_features c ON c.company_id = r.company_id
+FROM features r
+JOIN features c ON c.company_id = r.company_id
 WHERE r.employee_id <> c.employee_id
   AND c.inferred_level IN ('CEO','C-Suite','VP / Head','Senior Director',
         'Director','Senior Manager','Manager','Team Lead / Supervisor')
@@ -308,6 +311,7 @@ WHERE r.employee_id <> c.employee_id
 -- Scores express visible hierarchy evidence, not a learned probability.
 -- Missing teams need a matching specialty; competing candidates remain open.
 CREATE VIEW candidate_scores AS
+WITH features AS MATERIALIZED (SELECT * FROM employee_features)
 SELECT m.company_id, m.employee_id, m.candidate_id,
        m.candidate_rank, m.candidate_team,
        CASE
@@ -324,14 +328,14 @@ SELECT m.company_id, m.employee_id, m.candidate_id,
               AND (candidate_level = 'Team Lead / Supervisor'
                    OR report_level IN ('Senior IC','Principal / Staff IC')
                    OR NOT EXISTS (
-                       SELECT 1 FROM employee_features lead
+                       SELECT 1 FROM features lead
                        WHERE lead.company_id = m.company_id
                          AND lead.inferred_department = m.report_department
                          AND lead.inferred_level = 'Team Lead / Supervisor'
                          AND (lead.role_family = m.report_family OR lead.role_family = '')
                    ))
               AND (candidate_level = 'Manager' OR (
-                  SELECT count(*) FROM employee_features manager
+                  SELECT count(*) FROM features manager
                   WHERE manager.company_id = m.company_id
                     AND manager.role_family = m.report_family
                     AND manager.inferred_level = 'Manager'
@@ -342,7 +346,7 @@ SELECT m.company_id, m.employee_id, m.candidate_id,
          WHEN report_level = 'VP / Head' AND candidate_level = 'CEO'
               AND team_relation = 'parent_team' AND report_portfolio <> ''
               AND NOT EXISTS (
-                  SELECT 1 FROM employee_features executive
+                  SELECT 1 FROM features executive
                   WHERE executive.company_id = m.company_id
                     AND executive.inferred_level = 'C-Suite'
                     AND (executive.executive_portfolio = m.report_portfolio
@@ -377,7 +381,7 @@ SELECT m.company_id, m.employee_id, m.candidate_id,
               AND report_department = candidate_department
               AND report_department <> 'Unclassified'
               AND NOT EXISTS (
-                  SELECT 1 FROM employee_features lead
+                  SELECT 1 FROM features lead
                   WHERE lead.company_id = m.company_id
                     AND lead.inferred_department = m.report_department
                     AND lead.inferred_level = 'Team Lead / Supervisor'
@@ -392,7 +396,7 @@ SELECT m.company_id, m.employee_id, m.candidate_id,
               AND report_department <> 'Unclassified'
               AND team_relation IN ('same_team','parent_team')
               AND NOT EXISTS (
-                  SELECT 1 FROM employee_features intermediate
+                  SELECT 1 FROM features intermediate
                   WHERE intermediate.company_id = m.company_id
                     AND intermediate.inferred_department = m.report_department
                     AND intermediate.inferred_level = 'Senior Manager'
@@ -402,7 +406,7 @@ SELECT m.company_id, m.employee_id, m.candidate_id,
               AND report_department <> 'Unclassified'
               AND team_relation IN ('same_team','parent_team')
               AND NOT EXISTS (
-                  SELECT 1 FROM employee_features intermediate
+                  SELECT 1 FROM features intermediate
                   WHERE intermediate.company_id = m.company_id
                     AND intermediate.inferred_department = m.report_department
                     AND intermediate.inferred_level IN ('Director','Senior Manager')
@@ -426,26 +430,25 @@ SELECT m.company_id, m.employee_id, m.candidate_id,
          AS evidence_score
 FROM manager_candidates m;
 
--- Correlate the shortlist to one employee so a company-page lookup does not
--- rank every employee in the database. JSON is only an internal way to fetch
--- the top two in one scan; the view exposes named candidate and score columns.
+-- Rank the candidates once, then retain the best two per employee.
 CREATE VIEW employee_top_candidates AS
+WITH ranked AS (
+    SELECT company_id, employee_id, candidate_id, evidence_score,
+           row_number() OVER (
+               PARTITION BY company_id, employee_id
+               ORDER BY evidence_score DESC, length(candidate_team) DESC,
+                        candidate_rank ASC, candidate_id
+           ) AS position
+    FROM candidate_scores
+)
 SELECT e.company_id, e.employee_id,
-       json_extract(shortlist.value, '$[0][0]') AS best_candidate_id,
-       json_extract(shortlist.value, '$[0][1]') AS best_score,
-       json_extract(shortlist.value, '$[1][1]') AS second_score
+       max(CASE WHEN r.position = 1 THEN r.candidate_id END) AS best_candidate_id,
+       max(CASE WHEN r.position = 1 THEN r.evidence_score END) AS best_score,
+       max(CASE WHEN r.position = 2 THEN r.evidence_score END) AS second_score
 FROM employees e
-CROSS JOIN json_each(json_array(
-    (SELECT json_group_array(json_array(top.candidate_id, top.evidence_score))
-     FROM (
-         SELECT s.candidate_id, s.evidence_score
-         FROM candidate_scores s
-         WHERE s.company_id = e.company_id AND s.employee_id = e.employee_id
-         ORDER BY s.evidence_score DESC, length(s.candidate_team) DESC,
-                  s.candidate_rank ASC, s.candidate_id
-         LIMIT 2
-     ) top)
-)) AS shortlist;
+LEFT JOIN ranked r ON r.company_id = e.company_id AND r.employee_id = e.employee_id
+     AND r.position <= 2
+GROUP BY e.company_id, e.employee_id;
 
 CREATE VIEW reporting_predictions AS
 WITH scored AS (
