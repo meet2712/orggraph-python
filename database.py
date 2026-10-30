@@ -151,15 +151,14 @@ def cached_run(database: Path, snapshot: Path, fingerprint: str, index: dict) ->
             run = connection.execute("SELECT * FROM inference_runs").fetchone()
             companies = connection.execute("SELECT count(*) FROM companies").fetchone()[0]
             employees = connection.execute("SELECT count(*) FROM employees").fetchone()[0]
-            predictions = connection.execute("SELECT count(*) FROM reporting_predictions").fetchone()[0]
+            outputs = connection.execute("SELECT count(*) FROM inference_outputs").fetchone()[0]
             if (run is None or run["load_status"] != "ready"
                     or run["source_hash"] != fingerprint or run["run_id"] != manifest["run_id"]
                     or companies != len(index["companies"])
                     or employees != index["summary"]["employeeCount"]
-                    or predictions != employees
-                    or run["loaded_company_count"] != companies
-                    or run["loaded_employee_count"] != employees
-                    or run["loaded_prediction_count"] != predictions):
+                    or outputs != employees
+                    or run["source_company_count"] != companies
+                    or run["source_employee_count"] != employees):
                 return None
             return run["run_id"]
     except (OSError, ValueError, KeyError, sqlite3.Error):
@@ -222,9 +221,9 @@ def load_snapshot(database: Path, data_dir: Path, raw_dir: Path, model_path: Pat
                      len(company_ids), len(raw)),
                 )
                 connection.executemany(
-                    "INSERT INTO companies VALUES (?, ?, ?, ?, ?, ?)",
-                    [(row["id"], row["name"], row["industry"], row["sizeBand"],
-                      row["employeeCount"], row["headquarters"]) for row in index["companies"]],
+                    "INSERT INTO companies VALUES (?, ?, ?, ?)",
+                    [(row["id"], row["name"], row["industry"], row["headquarters"])
+                     for row in index["companies"]],
                 )
                 connection.executemany(
                     "INSERT INTO employees VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -233,11 +232,12 @@ def load_snapshot(database: Path, data_dir: Path, raw_dir: Path, model_path: Pat
                       row["source_row_number"]) for row in raw.values()],
                 )
                 connection.executemany(
-                    "INSERT INTO benchmark_truth VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    "INSERT INTO benchmark_labels VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     [(row["company_id"], row["employee_id"], row["manager_employee_id"] or None,
                       row["canonical_title"], row["canonical_department"], row["canonical_team"],
                       row["canonical_level"], int(row["is_people_manager"]),
-                      int(not row["manager_employee_id"])) for row in truth.values()],
+                      json.dumps(row.get("noise_profile", "clean").split("|")))
+                     for row in truth.values()],
                 )
                 seen = set()
                 for company_id in company_ids:
@@ -271,59 +271,46 @@ def import_company(connection, run_id, company_id, payload, raw, truth):
         if any(person[field] != value for field, value in expected.items()):
             raise ValueError(f"Raw/benchmark fields disagree with prediction export: {key}")
     connection.executemany(
-        "INSERT INTO employee_features VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO inference_outputs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [(run_id, company_id, person["id"], person["inferredDepartment"],
-          person["inferredLevel"], RANKS[person["inferredLevel"]]) for person in employees],
-    )
-    connection.executemany(
-        "INSERT INTO reporting_predictions VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        [(run_id, company_id, person["id"], person["predictedManagerId"], person["bestCandidateId"],
-          person["confidence"], person["margin"],
-          "accepted" if person["predictedManagerId"] else
-          "company_root" if person["inferredLevel"] == "CEO" else "unresolved") for person in employees],
-    )
-    connection.executemany(
-        "INSERT INTO prediction_reasons VALUES (?, ?, ?, ?, ?)",
-        [(run_id, company_id, person["id"], position, reason)
-         for person in employees for position, reason in enumerate(person["reasons"])],
-    )
-    connection.executemany(
-        "INSERT INTO employee_noise VALUES (?, ?, ?, ?)",
-        [(company_id, person["id"], position, noise)
-         for person in employees for position, noise in enumerate(person["noiseProfile"])],
-    )
-    summary = payload["summary"]
-    connection.execute(
-        "INSERT INTO company_run_metrics VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (run_id, company_id, summary["resolved"], summary["unresolved"], summary["coverage"],
-         summary["precision"], summary["averageConfidence"]),
+          person["inferredLevel"], RANKS[person["inferredLevel"]],
+          person["predictedManagerId"], person["bestCandidateId"], person["confidence"],
+          person["margin"], "accepted" if person["predictedManagerId"] else
+          "company_root" if person["inferredLevel"] == "CEO" else "unresolved",
+          json.dumps(person["reasons"])) for person in employees],
     )
 
 
 def check_loaded_snapshot(connection, run_id, company_count, employee_count):
     counts = [connection.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
-              for table in ("companies", "employees", "reporting_predictions")]
+              for table in ("companies", "employees", "inference_outputs")]
     if counts != [company_count, employee_count, employee_count]:
         raise ValueError("Loaded table counts do not match the source")
     if connection.execute("PRAGMA foreign_key_check").fetchone():
         raise ValueError("Foreign-key validation failed")
-    mismatched_headcount = connection.execute("""
-        SELECT c.company_id FROM companies c
-        LEFT JOIN employees e USING (company_id)
-        GROUP BY c.company_id HAVING count(e.employee_id) <> c.employee_count
-    """).fetchone()
-    mismatched_summary = connection.execute("""
-        SELECT m.company_id FROM company_run_metrics m
-        JOIN reporting_predictions p USING (run_id, company_id)
-        GROUP BY m.run_id, m.company_id
-        HAVING sum(p.decision = 'accepted') <> m.resolved_count
-            OR sum(p.decision = 'unresolved') <> m.unresolved_count
-            OR abs(m.coverage - (
-                1.0 * sum(p.decision = 'accepted') /
-                max(sum(p.decision <> 'company_root'), 1))) > 0.000051
-    """).fetchone()
-    if mismatched_headcount or mismatched_summary:
-        raise ValueError("Company counts do not match the source summaries")
+    # Mark the run ready inside this transaction so its dynamic views are
+    # queryable during validation. Any later failure rolls this update back.
+    connection.execute(
+        "UPDATE inference_runs SET load_status = 'ready' WHERE run_id = ?",
+        (run_id,),
+    )
+    mismatched_views = connection.execute("""
+        SELECT profile.company_id
+        FROM company_profiles AS profile
+        JOIN company_run_metrics AS metrics USING (company_id)
+        JOIN reporting_predictions AS prediction
+          ON prediction.run_id = metrics.run_id
+         AND prediction.company_id = metrics.company_id
+        WHERE metrics.run_id = ?
+        GROUP BY profile.company_id, profile.employee_count,
+                 metrics.resolved_count, metrics.unresolved_count
+        HAVING profile.employee_count < 1
+            OR metrics.resolved_count + metrics.unresolved_count <>
+               profile.employee_count - sum(prediction.decision = 'company_root')
+        LIMIT 1
+    """, (run_id,)).fetchone()
+    if mismatched_views:
+        raise ValueError("Dynamic company views do not reconcile")
     weak_accepted = connection.execute("""
         SELECT p.employee_id FROM reporting_predictions p
         JOIN inference_runs r USING (run_id)
@@ -334,19 +321,48 @@ def check_loaded_snapshot(connection, run_id, company_count, employee_count):
     if weak_accepted:
         raise ValueError("Accepted reporting line did not clear both thresholds")
     accepted = connection.execute(
-        "SELECT count(*) FROM reporting_predictions WHERE decision = 'accepted'"
+        "SELECT count(*) FROM inference_outputs WHERE decision = 'accepted'"
     ).fetchone()[0]
-    connection.execute("""
-        UPDATE inference_runs SET loaded_company_count = ?, loaded_employee_count = ?,
-            loaded_prediction_count = ?, accepted_prediction_count = ?, load_status = 'ready'
-        WHERE run_id = ?
-    """, (*counts, accepted, run_id))
+    if accepted < 1:
+        raise ValueError("The inference run contains no accepted reporting lines")
+
+
+def read_index(connection: sqlite3.Connection, run_id: str) -> dict:
+    """Build the company directory and totals from live database views."""
+    companies = []
+    for row in connection.execute("""
+        SELECT profile.*, metrics.resolved_count, metrics.unresolved_count,
+               metrics.coverage, metrics.precision, metrics.average_confidence
+        FROM company_profiles AS profile
+        JOIN company_run_metrics AS metrics USING (company_id)
+        WHERE metrics.run_id = ?
+        ORDER BY profile.company_name, profile.company_id
+    """, (run_id,)):
+        companies.append({
+            "id": row["company_id"], "name": row["company_name"],
+            "industry": row["industry"], "sizeBand": row["size_band"],
+            "employeeCount": row["employee_count"], "headquarters": row["headquarters"],
+            "resolved": row["resolved_count"], "unresolved": row["unresolved_count"],
+            "coverage": row["coverage"], "precision": row["precision"],
+            "averageConfidence": row["average_confidence"],
+        })
+    totals = connection.execute(
+        "SELECT * FROM run_metrics WHERE run_id = ?", (run_id,)
+    ).fetchone()
+    return {
+        "companies": companies,
+        "summary": {
+            "companyCount": totals["company_count"],
+            "employeeCount": totals["employee_count"],
+            "averageResolvedConfidence": totals["average_resolved_confidence"],
+        },
+    }
 
 
 def read_company(connection: sqlite3.Connection, run_id: str, company_id: str) -> dict | None:
     row = connection.execute("""
         SELECT c.*, m.resolved_count, m.unresolved_count, m.coverage, m.precision, m.average_confidence
-        FROM companies c JOIN company_run_metrics m USING (company_id)
+        FROM company_profiles c JOIN company_run_metrics m USING (company_id)
         WHERE c.company_id = ? AND m.run_id = ?
     """, (company_id, run_id)).fetchone()
     if row is None:
@@ -365,13 +381,13 @@ def read_company(connection: sqlite3.Connection, run_id: str, company_id: str) -
         noise[item["employee_id"]].append(item["noise_type"])
     employees = []
     for person in connection.execute("""
-        SELECT e.*, f.inferred_department, f.inferred_level,
+        SELECT e.*, f.inferred_department, f.inferred_level, f.processing_status,
             p.accepted_manager_id, p.best_candidate_id, p.confidence, p.margin,
-            t.manager_employee_id, t.is_root
+            p.decision, t.manager_employee_id, t.is_root
         FROM employees e
         JOIN employee_features f USING (company_id, employee_id)
         JOIN reporting_predictions p USING (run_id, company_id, employee_id)
-        JOIN benchmark_truth t USING (company_id, employee_id)
+        LEFT JOIN benchmark_truth t USING (company_id, employee_id)
         WHERE e.company_id = ? AND f.run_id = ? ORDER BY e.source_row_number
     """, (company_id, run_id)):
         employees.append({
@@ -388,7 +404,9 @@ def read_company(connection: sqlite3.Connection, run_id: str, company_id: str) -
             "groundTruthManagerId": person["manager_employee_id"],
             "isCorrect": bool(person["accepted_manager_id"] and
                               person["accepted_manager_id"] == person["manager_employee_id"]),
-            "isRoot": bool(person["is_root"]), "noiseProfile": noise[person["employee_id"]],
+            "isRoot": bool(person["is_root"] if person["is_root"] is not None
+                           else person["decision"] == "company_root"),
+            "noiseProfile": noise[person["employee_id"]],
         })
     return {
         "company": {"id": row["company_id"], "name": row["company_name"],

@@ -26,20 +26,6 @@
           "fk": false
         },
         {
-          "name": "size_band",
-          "type": "TEXT",
-          "required": true,
-          "pk": 0,
-          "fk": false
-        },
-        {
-          "name": "employee_count",
-          "type": "INTEGER",
-          "required": true,
-          "pk": 0,
-          "fk": false
-        },
-        {
           "name": "headquarters",
           "type": "TEXT",
           "required": true,
@@ -118,8 +104,8 @@
       ]
     },
     {
-      "name": "benchmark_truth",
-      "grain": "One generated answer per employee",
+      "name": "benchmark_labels",
+      "grain": "One generated source label per employee",
       "columns": [
         {
           "name": "company_id",
@@ -178,8 +164,8 @@
           "fk": false
         },
         {
-          "name": "is_root",
-          "type": "INTEGER",
+          "name": "noise_profile_json",
+          "type": "TEXT",
           "required": true,
           "pk": 0,
           "fk": false
@@ -254,34 +240,6 @@
           "fk": false
         },
         {
-          "name": "loaded_company_count",
-          "type": "INTEGER",
-          "required": true,
-          "pk": 0,
-          "fk": false
-        },
-        {
-          "name": "loaded_employee_count",
-          "type": "INTEGER",
-          "required": true,
-          "pk": 0,
-          "fk": false
-        },
-        {
-          "name": "loaded_prediction_count",
-          "type": "INTEGER",
-          "required": true,
-          "pk": 0,
-          "fk": false
-        },
-        {
-          "name": "accepted_prediction_count",
-          "type": "INTEGER",
-          "required": true,
-          "pk": 0,
-          "fk": false
-        },
-        {
           "name": "load_status",
           "type": "TEXT",
           "required": true,
@@ -298,8 +256,8 @@
       ]
     },
     {
-      "name": "employee_features",
-      "grain": "One employee per run",
+      "name": "inference_outputs",
+      "grain": "One durable model decision per employee/run",
       "columns": [
         {
           "name": "run_id",
@@ -342,33 +300,6 @@
           "required": true,
           "pk": 0,
           "fk": false
-        }
-      ]
-    },
-    {
-      "name": "reporting_predictions",
-      "grain": "One reporting decision per employee/run",
-      "columns": [
-        {
-          "name": "run_id",
-          "type": "TEXT",
-          "required": true,
-          "pk": 1,
-          "fk": true
-        },
-        {
-          "name": "company_id",
-          "type": "TEXT",
-          "required": true,
-          "pk": 2,
-          "fk": true
-        },
-        {
-          "name": "employee_id",
-          "type": "TEXT",
-          "required": true,
-          "pk": 3,
-          "fk": true
         },
         {
           "name": "accepted_manager_id",
@@ -404,93 +335,321 @@
           "required": true,
           "pk": 0,
           "fk": false
-        }
-      ]
-    },
-    {
-      "name": "company_run_metrics",
-      "grain": "One company summary per run",
-      "columns": [
+        },
         {
-          "name": "run_id",
+          "name": "reasons_json",
           "type": "TEXT",
-          "required": true,
-          "pk": 1,
-          "fk": true
-        },
-        {
-          "name": "company_id",
-          "type": "TEXT",
-          "required": true,
-          "pk": 2,
-          "fk": true
-        },
-        {
-          "name": "resolved_count",
-          "type": "INTEGER",
-          "required": true,
-          "pk": 0,
-          "fk": false
-        },
-        {
-          "name": "unresolved_count",
-          "type": "INTEGER",
-          "required": true,
-          "pk": 0,
-          "fk": false
-        },
-        {
-          "name": "coverage",
-          "type": "REAL",
-          "required": true,
-          "pk": 0,
-          "fk": false
-        },
-        {
-          "name": "precision",
-          "type": "REAL",
-          "required": true,
-          "pk": 0,
-          "fk": false
-        },
-        {
-          "name": "average_confidence",
-          "type": "REAL",
           "required": true,
           "pk": 0,
           "fk": false
         }
       ]
-    },
+    }
+  ],
+  "views": [
     {
-      "name": "employee_noise",
-      "grain": "One noise label per employee/position",
+      "name": "benchmark_truth",
+      "grain": "One answer derived from source labels",
+      "definition": "CREATE VIEW benchmark_truth AS\nSELECT\n    company_id, employee_id, manager_employee_id,\n    canonical_title, canonical_department, canonical_team, canonical_level,\n    is_people_manager,\n    CASE WHEN manager_employee_id IS NULL THEN 1 ELSE 0 END AS is_root,\n    noise_profile_json\nFROM benchmark_labels;",
       "columns": [
         {
           "name": "company_id",
           "type": "TEXT",
-          "required": true,
-          "pk": 1,
-          "fk": true
+          "required": false,
+          "pk": 0,
+          "fk": false
         },
         {
           "name": "employee_id",
           "type": "TEXT",
-          "required": true,
-          "pk": 2,
-          "fk": true
-        },
-        {
-          "name": "position",
-          "type": "INTEGER",
-          "required": true,
-          "pk": 3,
+          "required": false,
+          "pk": 0,
           "fk": false
         },
         {
-          "name": "noise_type",
+          "name": "manager_employee_id",
           "type": "TEXT",
-          "required": true,
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "canonical_title",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "canonical_department",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "canonical_team",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "canonical_level",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "is_people_manager",
+          "type": "INTEGER",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "is_root",
+          "type": "",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "noise_profile_json",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        }
+      ]
+    },
+    {
+      "name": "benchmark_comparison",
+      "grain": "One live prediction-versus-label comparison",
+      "definition": "CREATE VIEW benchmark_comparison AS\nSELECT\n    p.run_id, p.company_id, p.employee_id,\n    p.accepted_manager_id, p.confidence, p.decision,\n    b.manager_employee_id AS expected_manager_id,\n    CASE\n        WHEN b.employee_id IS NULL THEN 'unlabeled'\n        WHEN p.decision <> 'accepted' THEN 'not_accepted'\n        WHEN p.accepted_manager_id = b.manager_employee_id THEN 'correct'\n        ELSE 'incorrect'\n    END AS evaluation_status\nFROM reporting_predictions AS p\nLEFT JOIN benchmark_truth AS b USING (company_id, employee_id);",
+      "columns": [
+        {
+          "name": "run_id",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "company_id",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "employee_id",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "accepted_manager_id",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "confidence",
+          "type": "",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "decision",
+          "type": "",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "expected_manager_id",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "evaluation_status",
+          "type": "",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        }
+      ]
+    },
+    {
+      "name": "company_profiles",
+      "grain": "One live company profile",
+      "definition": "CREATE VIEW company_profiles AS\nSELECT\n    c.company_id,\n    c.company_name,\n    c.industry,\n    CASE\n        WHEN count(e.employee_id) < 130 THEN 'Small'\n        WHEN count(e.employee_id) < 180 THEN 'Growth'\n        ELSE 'Mid-market'\n    END AS size_band,\n    count(e.employee_id) AS employee_count,\n    c.headquarters\nFROM companies AS c\nLEFT JOIN employees AS e USING (company_id)\nGROUP BY c.company_id, c.company_name, c.industry, c.headquarters;",
+      "columns": [
+        {
+          "name": "company_id",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "company_name",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "industry",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "size_band",
+          "type": "",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "employee_count",
+          "type": "",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "headquarters",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        }
+      ]
+    },
+    {
+      "name": "employee_features",
+      "grain": "One employee feature set per ready run",
+      "definition": "CREATE VIEW employee_features AS\nSELECT\n    r.run_id,\n    e.company_id,\n    e.employee_id,\n    coalesce(o.inferred_department, 'Unclassified') AS inferred_department,\n    coalesce(o.inferred_level, 'Unknown') AS inferred_level,\n    coalesce(o.inferred_rank, 1) AS inferred_rank,\n    CASE WHEN o.employee_id IS NULL THEN 'pending_inference' ELSE 'processed' END AS processing_status\nFROM inference_runs AS r\nCROSS JOIN employees AS e\nLEFT JOIN inference_outputs AS o\n    ON o.run_id = r.run_id\n    AND o.company_id = e.company_id\n    AND o.employee_id = e.employee_id\nWHERE r.load_status = 'ready';",
+      "columns": [
+        {
+          "name": "run_id",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "company_id",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "employee_id",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "inferred_department",
+          "type": "",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "inferred_level",
+          "type": "",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "inferred_rank",
+          "type": "",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "processing_status",
+          "type": "",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        }
+      ]
+    },
+    {
+      "name": "reporting_predictions",
+      "grain": "One current decision per employee/ready run",
+      "definition": "CREATE VIEW reporting_predictions AS\nSELECT\n    r.run_id,\n    e.company_id,\n    e.employee_id,\n    o.accepted_manager_id,\n    o.best_candidate_id,\n    coalesce(o.confidence, 0.0) AS confidence,\n    coalesce(o.margin, 0.0) AS margin,\n    coalesce(o.decision, 'pending_inference') AS decision\nFROM inference_runs AS r\nCROSS JOIN employees AS e\nLEFT JOIN inference_outputs AS o\n    ON o.run_id = r.run_id\n    AND o.company_id = e.company_id\n    AND o.employee_id = e.employee_id\nWHERE r.load_status = 'ready';",
+      "columns": [
+        {
+          "name": "run_id",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "company_id",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "employee_id",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "accepted_manager_id",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "best_candidate_id",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "confidence",
+          "type": "",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "margin",
+          "type": "",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "decision",
+          "type": "",
+          "required": false,
           "pk": 0,
           "fk": false
         }
@@ -498,40 +657,363 @@
     },
     {
       "name": "prediction_reasons",
-      "grain": "One signal per decision/position",
+      "grain": "One explanation signal per decision",
+      "definition": "CREATE VIEW prediction_reasons AS\nSELECT\n    o.run_id,\n    o.company_id,\n    o.employee_id,\n    reason.key AS position,\n    reason.value AS reason\nFROM inference_outputs AS o\nJOIN json_each(o.reasons_json) AS reason;",
       "columns": [
         {
           "name": "run_id",
           "type": "TEXT",
-          "required": true,
-          "pk": 1,
-          "fk": true
+          "required": false,
+          "pk": 0,
+          "fk": false
         },
         {
           "name": "company_id",
           "type": "TEXT",
-          "required": true,
-          "pk": 2,
-          "fk": true
+          "required": false,
+          "pk": 0,
+          "fk": false
         },
         {
           "name": "employee_id",
           "type": "TEXT",
-          "required": true,
-          "pk": 3,
-          "fk": true
+          "required": false,
+          "pk": 0,
+          "fk": false
         },
         {
           "name": "position",
-          "type": "INTEGER",
-          "required": true,
-          "pk": 4,
+          "type": "BLOB",
+          "required": false,
+          "pk": 0,
           "fk": false
         },
         {
           "name": "reason",
+          "type": "BLOB",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        }
+      ]
+    },
+    {
+      "name": "employee_noise",
+      "grain": "One generated noise label per employee",
+      "definition": "CREATE VIEW employee_noise AS\nSELECT\n    t.company_id,\n    t.employee_id,\n    noise.key AS position,\n    noise.value AS noise_type\nFROM benchmark_truth AS t\nJOIN json_each(t.noise_profile_json) AS noise;",
+      "columns": [
+        {
+          "name": "company_id",
           "type": "TEXT",
-          "required": true,
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "employee_id",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "position",
+          "type": "BLOB",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "noise_type",
+          "type": "BLOB",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        }
+      ]
+    },
+    {
+      "name": "company_run_metrics",
+      "grain": "One calculated company summary per ready run",
+      "definition": "CREATE VIEW company_run_metrics AS\nWITH employee_metrics AS (\n    SELECT\n        p.run_id,\n        p.company_id,\n        sum(p.decision = 'accepted') AS resolved_count,\n        sum(p.decision IN ('unresolved', 'pending_inference')) AS unresolved_count,\n        1.0 * sum(p.decision = 'accepted') /\n            max(sum(p.decision <> 'company_root'), 1) AS coverage_raw,\n        coalesce(avg(CASE WHEN p.decision = 'accepted' THEN p.confidence END), 0.0)\n            AS average_confidence_raw\n    FROM reporting_predictions AS p\n    GROUP BY p.run_id, p.company_id\n), benchmark_metrics AS (\n    SELECT\n        run_id, company_id,\n        1.0 * sum(evaluation_status = 'correct') /\n            max(sum(evaluation_status IN ('correct', 'incorrect')), 1) AS precision_raw\n    FROM benchmark_comparison\n    GROUP BY run_id, company_id\n)\nSELECT\n    e.run_id,\n    e.company_id,\n    e.resolved_count,\n    e.unresolved_count,\n    cast(e.coverage_raw * 10000.0 + 0.5000000001 AS INTEGER) / 10000.0 AS coverage,\n    cast(b.precision_raw * 10000.0 + 0.5000000001 AS INTEGER) / 10000.0 AS precision,\n    cast(e.average_confidence_raw * 10000.0 + 0.5000000001 AS INTEGER) / 10000.0\n        AS average_confidence\nFROM employee_metrics AS e\nJOIN benchmark_metrics AS b USING (run_id, company_id);",
+      "columns": [
+        {
+          "name": "run_id",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "company_id",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "resolved_count",
+          "type": "",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "unresolved_count",
+          "type": "",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "coverage",
+          "type": "",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "precision",
+          "type": "",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "average_confidence",
+          "type": "",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        }
+      ]
+    },
+    {
+      "name": "run_metrics",
+      "grain": "One calculated summary per ready run",
+      "definition": "CREATE VIEW run_metrics AS\nWITH run_totals AS (\n    SELECT\n        run_id,\n        count(DISTINCT company_id) AS company_count,\n        count(*) AS employee_count,\n        sum(decision = 'accepted') AS accepted_count,\n        sum(decision IN ('unresolved', 'pending_inference')) AS unresolved_count,\n        sum(decision = 'pending_inference') AS pending_inference_count,\n        coalesce(avg(CASE WHEN decision = 'accepted' THEN confidence END), 0.0)\n            AS average_resolved_confidence_raw\n    FROM reporting_predictions\n    GROUP BY run_id\n)\nSELECT\n    run_id,\n    company_count,\n    employee_count,\n    accepted_count,\n    unresolved_count,\n    pending_inference_count,\n    cast(average_resolved_confidence_raw * 10000.0 + 0.5000000001 AS INTEGER) / 10000.0\n        AS average_resolved_confidence\nFROM run_totals;",
+      "columns": [
+        {
+          "name": "run_id",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "company_count",
+          "type": "",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "employee_count",
+          "type": "",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "accepted_count",
+          "type": "",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "unresolved_count",
+          "type": "",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "pending_inference_count",
+          "type": "",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "average_resolved_confidence",
+          "type": "",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        }
+      ]
+    },
+    {
+      "name": "employee_reporting_audit",
+      "grain": "One inspectable decision per employee/ready run",
+      "definition": "CREATE VIEW employee_reporting_audit AS\nSELECT\n    p.run_id, e.company_id, e.employee_id, e.full_name, e.job_title,\n    e.raw_department, e.raw_team, e.location,\n    f.inferred_department, f.inferred_level, f.processing_status,\n    p.accepted_manager_id, manager.full_name AS inferred_manager,\n    p.best_candidate_id, candidate.full_name AS leading_candidate,\n    p.confidence, p.margin, p.decision,\n    r.probability_threshold, r.margin_threshold,\n    CASE\n        WHEN p.decision = 'pending_inference' THEN 'pending_inference'\n        WHEN p.decision = 'company_root' THEN 'observed_ceo_title'\n        WHEN p.decision = 'accepted' THEN 'cleared_both_checks'\n        WHEN p.best_candidate_id IS NULL THEN 'no_suitable_candidate'\n        WHEN p.confidence < r.probability_threshold AND p.margin < r.margin_threshold\n            THEN 'low_confidence_and_ambiguous_candidates'\n        WHEN p.confidence < r.probability_threshold THEN 'low_confidence'\n        WHEN p.margin < r.margin_threshold THEN 'ambiguous_candidates'\n        ELSE 'unresolved'\n    END AS decision_reason,\n    r.source_hash, r.model_version, r.pipeline_version\nFROM reporting_predictions AS p\nJOIN inference_runs AS r USING (run_id)\nJOIN employees AS e USING (company_id, employee_id)\nJOIN employee_features AS f USING (run_id, company_id, employee_id)\nLEFT JOIN employees AS manager\n    ON manager.company_id = p.company_id AND manager.employee_id = p.accepted_manager_id\nLEFT JOIN employees AS candidate\n    ON candidate.company_id = p.company_id AND candidate.employee_id = p.best_candidate_id;",
+      "columns": [
+        {
+          "name": "run_id",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "company_id",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "employee_id",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "full_name",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "job_title",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "raw_department",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "raw_team",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "location",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "inferred_department",
+          "type": "",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "inferred_level",
+          "type": "",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "processing_status",
+          "type": "",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "accepted_manager_id",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "inferred_manager",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "best_candidate_id",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "leading_candidate",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "confidence",
+          "type": "",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "margin",
+          "type": "",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "decision",
+          "type": "",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "probability_threshold",
+          "type": "REAL",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "margin_threshold",
+          "type": "REAL",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "decision_reason",
+          "type": "",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "source_hash",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "model_version",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "pipeline_version",
+          "type": "TEXT",
+          "required": false,
           "pk": 0,
           "fk": false
         }
@@ -554,7 +1036,7 @@
     },
     {
       "parent": "employees",
-      "child": "benchmark_truth",
+      "child": "benchmark_labels",
       "parent_columns": [
         "company_id",
         "employee_id"
@@ -569,7 +1051,7 @@
     },
     {
       "parent": "employees",
-      "child": "benchmark_truth",
+      "child": "benchmark_labels",
       "parent_columns": [
         "company_id",
         "employee_id"
@@ -584,42 +1066,12 @@
     },
     {
       "parent": "employees",
-      "child": "employee_features",
+      "child": "inference_outputs",
       "parent_columns": [
         "company_id",
         "employee_id"
       ],
       "child_columns": [
-        "company_id",
-        "employee_id"
-      ],
-      "cardinality": "0..many",
-      "optional": false,
-      "identifying": true
-    },
-    {
-      "parent": "inference_runs",
-      "child": "employee_features",
-      "parent_columns": [
-        "run_id"
-      ],
-      "child_columns": [
-        "run_id"
-      ],
-      "cardinality": "0..many",
-      "optional": false,
-      "identifying": true
-    },
-    {
-      "parent": "employee_features",
-      "child": "reporting_predictions",
-      "parent_columns": [
-        "run_id",
-        "company_id",
-        "employee_id"
-      ],
-      "child_columns": [
-        "run_id",
         "company_id",
         "best_candidate_id"
       ],
@@ -628,15 +1080,13 @@
       "identifying": false
     },
     {
-      "parent": "employee_features",
-      "child": "reporting_predictions",
+      "parent": "employees",
+      "child": "inference_outputs",
       "parent_columns": [
-        "run_id",
         "company_id",
         "employee_id"
       ],
       "child_columns": [
-        "run_id",
         "company_id",
         "accepted_manager_id"
       ],
@@ -645,30 +1095,15 @@
       "identifying": false
     },
     {
-      "parent": "employee_features",
-      "child": "reporting_predictions",
+      "parent": "employees",
+      "child": "inference_outputs",
       "parent_columns": [
-        "run_id",
         "company_id",
         "employee_id"
       ],
       "child_columns": [
-        "run_id",
         "company_id",
         "employee_id"
-      ],
-      "cardinality": "0..1",
-      "optional": false,
-      "identifying": true
-    },
-    {
-      "parent": "companies",
-      "child": "company_run_metrics",
-      "parent_columns": [
-        "company_id"
-      ],
-      "child_columns": [
-        "company_id"
       ],
       "cardinality": "0..many",
       "optional": false,
@@ -676,44 +1111,12 @@
     },
     {
       "parent": "inference_runs",
-      "child": "company_run_metrics",
+      "child": "inference_outputs",
       "parent_columns": [
         "run_id"
       ],
       "child_columns": [
         "run_id"
-      ],
-      "cardinality": "0..many",
-      "optional": false,
-      "identifying": true
-    },
-    {
-      "parent": "employees",
-      "child": "employee_noise",
-      "parent_columns": [
-        "company_id",
-        "employee_id"
-      ],
-      "child_columns": [
-        "company_id",
-        "employee_id"
-      ],
-      "cardinality": "0..many",
-      "optional": false,
-      "identifying": true
-    },
-    {
-      "parent": "reporting_predictions",
-      "child": "prediction_reasons",
-      "parent_columns": [
-        "run_id",
-        "company_id",
-        "employee_id"
-      ],
-      "child_columns": [
-        "run_id",
-        "company_id",
-        "employee_id"
       ],
       "cardinality": "0..many",
       "optional": false,

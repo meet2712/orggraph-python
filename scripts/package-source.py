@@ -1,12 +1,14 @@
 """Create matching dataset and source downloads for the current build."""
 
 from pathlib import Path
+import shutil
 from zipfile import ZIP_DEFLATED, ZipFile
 from build_erd import build_diagram
 
 ROOT = Path(__file__).resolve().parents[1]
 DESTINATION = ROOT / "public/downloads/orggraph-source.zip"
 DATASET_DESTINATION = ROOT / "public/downloads/firmable-org-chart-dataset.zip"
+DATABASE_DESTINATION = ROOT / "public/downloads/orggraph.sqlite.gz"
 DATASET_FILES = [
     ROOT / "data/companies.csv",
     ROOT / "data/employees_messy.csv",
@@ -40,6 +42,8 @@ def include_file(path):
 def main():
     build_diagram()
     DESTINATION.parent.mkdir(parents=True, exist_ok=True)
+    # Keep a checked, compressed SQLite copy directly in the Git repository.
+    shutil.copy2(ROOT / "instance/snapshot.sqlite.gz", DATABASE_DESTINATION)
     with ZipFile(DATASET_DESTINATION, "w", ZIP_DEFLATED, compresslevel=6) as archive:
         for path in DATASET_FILES:
             archive.write(path, path.relative_to(ROOT))

@@ -27,8 +27,8 @@ ER diagram includes every column, its SQL type, primary and foreign keys, and
 relationship cardinality.
 
 The pages use the available window width. The chart can be panned and zoomed;
-Fit keeps it fitted as the window changes. The ER diagram fits the page by
-default, with an actual-size option for reading its columns on a small screen.
+Fit keeps the org chart fitted as the window changes. The ER diagram stays at
+actual size and scrolls horizontally on a small screen.
 
 ## Database choices
 
@@ -36,22 +36,37 @@ I used SQLite because this version has one published dataset and no editing
 workflow. It keeps the app easy to run locally and lets a reviewer download the
 same data they see in the portal.
 
-There are nine tables and one read-only audit view. The main separation is:
+There are five persisted tables and ten read-only SQL views. The main separation is:
 
-- `companies` and `employees` hold the observed input, including messy values.
-- `inference_runs` records the source and model hashes, thresholds and load counts.
-- `employee_features` stores the inferred function and seniority for each run.
-- `reporting_predictions` stores the accepted manager, leading candidate, scores
-  and decision. A candidate is not automatically a reporting line.
-- `prediction_reasons` and `company_run_metrics` hold explanations and summaries.
-- `benchmark_truth` and `employee_noise` hold the generated answers and noise
-  labels used to evaluate the pipeline.
+- `companies` and `employees` hold the observed source records. Company headcount
+  is deliberately absent from `companies`.
+- `inference_runs` records immutable source/model lineage and acceptance thresholds.
+- `inference_outputs` is the one durable model-output table: features, candidate,
+  scores, decision and explanation JSON at employee/run grain.
+- `benchmark_labels` imports the generator's fixed answer key and title-noise
+  labels. A benchmark needs independent known answers to measure correctness.
+- `benchmark_truth` derives root status from those labels, while
+  `benchmark_comparison` joins each model decision to its known answer. Both
+  are views; neither stores a copied correctness result.
+- `company_profiles`, `employee_features`, `reporting_predictions`,
+  `prediction_reasons`, `employee_noise`, `company_run_metrics`, `run_metrics`
+  and `employee_reporting_audit` are views. Their joins, conditions and
+  aggregations are visible in `schema.sql` and on the database schema page.
 
-Composite keys stop employee and manager references crossing companies or
-runs. Score bounds, self-management, missing predictions, cycles and company
-counts are checked before a load is accepted. The importer builds a staging
-database and replaces the working snapshot only after the checks pass. If the
-inputs have not changed, startup verifies and reuses the existing files.
+Composite keys stop employee and manager references crossing companies. Score
+bounds, self-management, missing initial outputs, cycles and company counts are
+checked before a load is accepted. The importer builds a staging database and
+replaces the working snapshot only after the checks pass. If the inputs have not
+changed, startup verifies and reuses the existing files.
+
+`company_profiles` calculates `employee_count` and `size_band` from the live
+`employees` rows. `company_run_metrics` calculates resolved/unresolved counts,
+coverage, precision and average accepted confidence from employee-level
+decisions; `run_metrics` calculates the corresponding dataset totals. Adding a
+raw employee updates the views immediately and exposes the new row as
+`pending_inference`. The inference pipeline must still produce a scored output
+before a reporting edge can be accepted. No count or summary row needs a manual
+update.
 
 `employee_reporting_audit` joins the source fields, inferred features, manager
 choices and run metadata. It does not include the generated answer key.
@@ -59,11 +74,13 @@ choices and run metadata. It does not include the generated answer key.
 process in more detail. [DATA_DICTIONARY.md](DATA_DICTIONARY.md) describes the CSVs.
 
 The public SQL editor runs on a downloaded SQLite copy in a browser worker.
-The first download is about 15 MB; progress is shown while it loads.
+The first download is about 9 MB; progress is shown while it loads.
 It accepts one read-only query, returns up to 200 rows and stops after five
 seconds. There is no public server endpoint that accepts SQL. You can also
 [download the snapshot](https://meet2712.github.io/orggraph-python/database/snapshot.sqlite.gz),
-extract the `.gz` file and open it in a local SQLite client. That copy does not
+or get the committed compressed database from
+[`public/downloads/orggraph.sqlite.gz`](public/downloads/orggraph.sqlite.gz).
+Extract the `.gz` file and open it in a local SQLite client. That copy does not
 sync changes back to the site.
 
 ## How the inference works

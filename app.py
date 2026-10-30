@@ -9,7 +9,7 @@ from pathlib import Path
 
 from flask import Flask, abort, current_app, g, render_template, send_file
 
-from database import connect, ensure_snapshot, read_company, read_json
+from database import connect, ensure_snapshot, read_company, read_index, read_json
 
 
 ROOT = Path(__file__).resolve().parent
@@ -89,7 +89,9 @@ def page_context(page: str, company_id: str = DEFAULT_COMPANY) -> dict:
     payload = read_company(get_database(), current_app.config["ACTIVE_RUN_ID"], company_id)
     if payload is None:
         abort(404)
-    index = current_app.config["DATASET_INDEX"]
+    index = current_app.config.get("STATIC_EXPORT_INDEX")
+    if index is None:
+        index = read_index(get_database(), current_app.config["ACTIVE_RUN_ID"])
     return {
         "page": page,
         "index": index,

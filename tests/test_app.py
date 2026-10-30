@@ -120,8 +120,10 @@ class AppTests(unittest.TestCase):
             self.assertNotIn("payload", [row["name"] for row in columns])
             run = connection.execute("SELECT * FROM inference_runs").fetchone()
             self.assertEqual(run["load_status"], "ready")
-            self.assertEqual(run["loaded_employee_count"], 4)
-            self.assertEqual(run["loaded_prediction_count"], 4)
+            self.assertEqual(run["source_employee_count"], 4)
+            self.assertEqual(
+                connection.execute("SELECT count(*) FROM inference_outputs").fetchone()[0], 4
+            )
         self.assertEqual(self.client.get("/health").json, {"status": "ok"})
 
     def test_all_pages_use_the_selected_company(self):
@@ -213,19 +215,19 @@ class AppTests(unittest.TestCase):
             self.assertEqual(report["decision_reason"], "cleared_both_checks")
             self.assertNotIn("groundTruthManagerId", report.keys())
             self.assertNotIn("manager_employee_id", report.keys())
-            connection.execute("UPDATE reporting_predictions SET confidence=0.5, margin=0.05 WHERE employee_id='unresolved'")
+            connection.execute("UPDATE inference_outputs SET confidence=0.5, margin=0.05 WHERE employee_id='unresolved'")
             reason = connection.execute("SELECT decision_reason FROM employee_reporting_audit WHERE employee_id='unresolved'").fetchone()[0]
             self.assertEqual(reason, "low_confidence_and_ambiguous_candidates")
 
-    def test_load_rejects_a_summary_that_hides_unresolved_people(self):
+    def test_saved_summary_is_ignored_in_favour_of_dynamic_metrics(self):
         path = self.config["DATA_DIR"] / "companies" / "cmp_0001.json"
         payload = json.loads(path.read_text())
         payload["summary"]["unresolved"] = 0
         path.write_text(json.dumps(payload))
-        with self.assertRaisesRegex(ValueError, "Company counts"):
-            create_app(self.config)
+        rebuilt = create_app(self.config)
         with closing(connect(self.config["DATABASE"], readonly=True)) as connection:
-            self.assertEqual(read_company(connection, self.run_id, "cmp_0001"), self.payload)
+            payload = read_company(connection, rebuilt.config["ACTIVE_RUN_ID"], "cmp_0001")
+            self.assertEqual(payload["summary"], self.payload["summary"])
 
     def test_load_rejects_an_accepted_line_below_its_run_threshold(self):
         payload = json.loads(self.company_file.read_text())
@@ -307,28 +309,119 @@ class AppTests(unittest.TestCase):
     def test_score_bounds_and_single_prediction_are_enforced(self):
         with closing(connect(self.config["DATABASE"])) as connection:
             with self.assertRaises(sqlite3.IntegrityError):
-                connection.execute("UPDATE reporting_predictions SET confidence = 1.1 WHERE employee_id = 'report'")
+                connection.execute("UPDATE inference_outputs SET confidence = 1.1 WHERE employee_id = 'report'")
             with self.assertRaises(sqlite3.IntegrityError):
-                connection.execute("UPDATE reporting_predictions SET margin = -0.1 WHERE employee_id = 'report'")
+                connection.execute("UPDATE inference_outputs SET margin = -0.1 WHERE employee_id = 'report'")
             with self.assertRaises(sqlite3.IntegrityError):
-                connection.execute("INSERT INTO reporting_predictions SELECT * FROM reporting_predictions WHERE employee_id = 'report'")
+                connection.execute("INSERT INTO inference_outputs SELECT * FROM inference_outputs WHERE employee_id = 'report'")
 
     def test_self_manager_is_rejected_by_sql(self):
         with closing(connect(self.config["DATABASE"])) as connection:
             with self.assertRaises(sqlite3.IntegrityError):
-                connection.execute("UPDATE reporting_predictions SET accepted_manager_id = employee_id, best_candidate_id = employee_id, decision = 'accepted' WHERE employee_id = 'report'")
+                connection.execute("UPDATE inference_outputs SET accepted_manager_id = employee_id, best_candidate_id = employee_id, decision = 'accepted' WHERE employee_id = 'report'")
 
     def test_composite_keys_reject_cross_company_managers_and_candidates(self):
         with closing(connect(self.config["DATABASE"])) as connection:
-            connection.execute("INSERT INTO companies VALUES ('cmp_0002', 'Other Company', 'IT', 'Small', 1, 'Sydney')")
+            connection.execute("INSERT INTO companies VALUES ('cmp_0002', 'Other Company', 'IT', 'Sydney')")
             connection.execute("INSERT INTO employees VALUES ('cmp_0002', 'other-ceo', 'Other CEO', 'CEO', '', '', '', '', 6)")
-            connection.execute("INSERT INTO employee_features VALUES (?, 'cmp_0002', 'other-ceo', 'Executive', 'CEO', 8)", (self.run_id,))
             with self.assertRaises(sqlite3.IntegrityError):
-                connection.execute("UPDATE reporting_predictions SET accepted_manager_id = 'other-ceo', best_candidate_id = 'other-ceo' WHERE employee_id = 'report'")
+                connection.execute("UPDATE inference_outputs SET accepted_manager_id = 'other-ceo', best_candidate_id = 'other-ceo' WHERE employee_id = 'report'")
             with self.assertRaises(sqlite3.IntegrityError):
-                connection.execute("UPDATE reporting_predictions SET best_candidate_id = 'other-ceo' WHERE employee_id = 'unresolved'")
+                connection.execute("UPDATE inference_outputs SET best_candidate_id = 'other-ceo' WHERE employee_id = 'unresolved'")
             with self.assertRaises(sqlite3.IntegrityError):
-                connection.execute("UPDATE benchmark_truth SET manager_employee_id = 'other-ceo' WHERE employee_id = 'report'")
+                connection.execute("UPDATE benchmark_labels SET manager_employee_id = 'other-ceo' WHERE employee_id = 'report'")
+
+    def test_schema_uses_source_tables_and_dynamic_views(self):
+        expected_tables = {
+            "companies", "employees", "benchmark_labels", "inference_runs", "inference_outputs",
+        }
+        expected_views = {
+            "company_profiles", "employee_features", "reporting_predictions",
+            "prediction_reasons", "employee_noise", "company_run_metrics",
+            "benchmark_truth", "benchmark_comparison",
+            "run_metrics", "employee_reporting_audit",
+        }
+        with closing(connect(self.config["DATABASE"], readonly=True)) as connection:
+            objects = connection.execute("""
+                SELECT type, name, sql FROM sqlite_master
+                WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%'
+            """).fetchall()
+            self.assertEqual({row["name"] for row in objects if row["type"] == "table"}, expected_tables)
+            self.assertEqual({row["name"] for row in objects if row["type"] == "view"}, expected_views)
+            self.assertTrue(all(row["sql"].startswith("CREATE VIEW")
+                                for row in objects if row["type"] == "view"))
+
+    def test_benchmark_comparison_recalculates_from_labels_and_predictions(self):
+        with closing(connect(self.config["DATABASE"])) as connection:
+            before = connection.execute("""
+                SELECT evaluation_status FROM benchmark_comparison
+                WHERE employee_id = 'report'
+            """).fetchone()[0]
+            root = connection.execute("""
+                SELECT is_root FROM benchmark_truth WHERE employee_id = 'ceo'
+            """).fetchone()[0]
+            self.assertEqual((before, root), ("correct", 1))
+            connection.execute("""
+                UPDATE inference_outputs
+                SET accepted_manager_id = 'ceo', best_candidate_id = 'ceo'
+                WHERE employee_id = 'report'
+            """)
+            after = connection.execute("""
+                SELECT evaluation_status FROM benchmark_comparison
+                WHERE employee_id = 'report'
+            """).fetchone()[0]
+            self.assertEqual(after, "incorrect")
+
+    def test_new_employee_updates_counts_and_metrics_without_rebuilding(self):
+        with closing(connect(self.config["DATABASE"])) as connection:
+            before = connection.execute("""
+                SELECT employee_count FROM company_profiles WHERE company_id = 'cmp_0001'
+            """).fetchone()[0]
+            connection.execute("""
+                INSERT INTO employees VALUES (
+                    'cmp_0001', 'new-hire', 'New Hire', 'Data Analyst',
+                    'Data', 'Analytics', 'Sydney, AU', 'new@example.test', 99
+                )
+            """)
+            profile = connection.execute("""
+                SELECT employee_count, size_band FROM company_profiles WHERE company_id = 'cmp_0001'
+            """).fetchone()
+            pending = connection.execute("""
+                SELECT decision FROM reporting_predictions
+                WHERE run_id = ? AND company_id = 'cmp_0001' AND employee_id = 'new-hire'
+            """, (self.run_id,)).fetchone()[0]
+            features = connection.execute("""
+                SELECT processing_status FROM employee_features
+                WHERE run_id = ? AND company_id = 'cmp_0001' AND employee_id = 'new-hire'
+            """, (self.run_id,)).fetchone()[0]
+            metrics = connection.execute("""
+                SELECT resolved_count, unresolved_count, coverage
+                FROM company_run_metrics WHERE run_id = ? AND company_id = 'cmp_0001'
+            """, (self.run_id,)).fetchone()
+            run_metrics = connection.execute("""
+                SELECT employee_count, accepted_count, unresolved_count, pending_inference_count
+                FROM run_metrics WHERE run_id = ?
+            """, (self.run_id,)).fetchone()
+            self.assertEqual(profile["employee_count"], before + 1)
+            self.assertEqual(profile["size_band"], "Small")
+            self.assertEqual(pending, "pending_inference")
+            self.assertEqual(features, "pending_inference")
+            self.assertEqual(tuple(metrics), (1, 3, 0.25))
+            self.assertEqual(tuple(run_metrics), (5, 1, 3, 1))
+
+    def test_company_metrics_recalculate_when_model_output_changes(self):
+        with closing(connect(self.config["DATABASE"])) as connection:
+            connection.execute("""
+                UPDATE inference_outputs
+                SET accepted_manager_id = NULL, decision = 'unresolved'
+                WHERE employee_id = 'report'
+            """)
+            metrics = connection.execute("""
+                SELECT resolved_count, unresolved_count, coverage,
+                       precision, average_confidence
+                FROM company_run_metrics WHERE run_id = ? AND company_id = 'cmp_0001'
+            """, (self.run_id,)).fetchone()
+            self.assertEqual(tuple(metrics), (0, 3, 0.0, 0.0, 0.0))
 
 
 if __name__ == "__main__":

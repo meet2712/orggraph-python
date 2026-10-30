@@ -6,18 +6,6 @@ if (siteHeader) {
   }).observe(siteHeader);
 }
 
-const diagram = document.querySelector(".erd-viewport");
-if (diagram) {
-  const sizeButtons = [...document.querySelectorAll("[data-diagram-size]")];
-  for (const button of sizeButtons) {
-    button.addEventListener("click", () => {
-      diagram.dataset.size = button.dataset.diagramSize;
-      diagram.scrollLeft = 0;
-      for (const other of sizeButtons) other.setAttribute("aria-pressed", String(other === button));
-    });
-  }
-}
-
 const companySearch = document.querySelector("#company-search");
 
 if (companySearch) {

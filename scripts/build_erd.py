@@ -8,20 +8,26 @@ import sqlite3
 
 ROOT = Path(__file__).resolve().parents[1]
 GRID = {
-    'companies': (0, 1), 'employees': (1, 0), 'benchmark_truth': (0, 0),
-    'inference_runs': (1, 2), 'employee_features': (1, 1),
-    'reporting_predictions': (2, 1), 'company_run_metrics': (0, 2),
-    'employee_noise': (2, 0), 'prediction_reasons': (2, 2),
+    'companies': (0, 0), 'employees': (0, 1), 'benchmark_labels': (1, 1),
+    'inference_runs': (2, 0), 'inference_outputs': (2, 1),
 }
 GRAINS = {
     'companies': 'One company', 'employees': 'One observed employee',
-    'benchmark_truth': 'One generated answer per employee',
+    'benchmark_labels': 'One generated source label per employee',
     'inference_runs': 'One checked source/model run',
-    'employee_features': 'One employee per run',
-    'reporting_predictions': 'One reporting decision per employee/run',
-    'company_run_metrics': 'One company summary per run',
-    'employee_noise': 'One noise label per employee/position',
-    'prediction_reasons': 'One signal per decision/position',
+    'inference_outputs': 'One durable model decision per employee/run',
+}
+VIEW_GRAINS = {
+    'benchmark_truth': 'One answer derived from source labels',
+    'benchmark_comparison': 'One live prediction-versus-label comparison',
+    'company_profiles': 'One live company profile',
+    'employee_features': 'One employee feature set per ready run',
+    'reporting_predictions': 'One current decision per employee/ready run',
+    'prediction_reasons': 'One explanation signal per decision',
+    'employee_noise': 'One generated noise label per employee',
+    'company_run_metrics': 'One calculated company summary per ready run',
+    'run_metrics': 'One calculated summary per ready run',
+    'employee_reporting_audit': 'One inspectable decision per employee/ready run',
 }
 
 
@@ -34,7 +40,7 @@ def render_svg(tables, relationships):
     }
     row_heights = [max(100 + len(columns[name]) * 24
                        for name, (_, y) in GRID.items() if y == row)
-                   for row in range(3)]
+                   for row in range(max(y for _, y in GRID.values()) + 1)]
     row_tops = [64]
     for height in row_heights[:-1]:
         row_tops.append(row_tops[-1] + height + 104)
@@ -43,7 +49,7 @@ def render_svg(tables, relationships):
     canvas_height = row_tops[-1] + row_heights[-1] + 60
     svg = [f'<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="{canvas_height}" viewBox="0 0 1200 {canvas_height}" role="img" aria-labelledby="title desc">',
            '<title id="title">OrgGraph database entity relationship diagram</title>',
-           '<desc id="desc">All columns and SQL types in nine tables. PK marks primary keys and FK marks foreign keys. Each foreign-key constraint has its own connection with crow’s-foot cardinality.</desc>',
+           '<desc id="desc">All columns and SQL types in five persisted tables. PK marks primary keys and FK marks foreign keys. Derived views are documented separately.</desc>',
            '<rect width="1200" height="100%" fill="#fafbf8"/>',
            '<style>text{font-family:system-ui,sans-serif;fill:#283c32}.field{font-family:ui-monospace,monospace;font-size:12px}.key{font-family:ui-monospace,monospace;font-size:10px;fill:#4c624e}.edge{font-size:12px;font-weight:600;paint-order:stroke;stroke:#fafbf8;stroke-width:6px;stroke-linejoin:round}.note{font-size:12px;fill:#5c6c5e}</style>',
            '<text x="40" y="30" class="note">PK  Primary key     FK  Foreign key     Each line represents one foreign-key constraint</text>']
@@ -79,13 +85,7 @@ def render_svg(tables, relationships):
         px, py = positions[parent]
         cx, cy = positions[child]
         for index, relation in enumerate(references):
-            if parent == 'companies' and child == 'employees':
-                x1, y1 = px + card_width / 2, py
-                x2, y2 = cx + 80, cy + heights[child]
-                bend = py - 40
-                path = f'M{x1},{y1} V{bend} H{x2} V{y2}'
-                start_direction, end_direction = (0, -1), (0, 1)
-            elif py == cy:
+            if py == cy:
                 x1 = px + card_width if px < cx else px
                 x2 = cx if px < cx else cx + card_width
                 y1 = y2 = py + 92 + index * 48
@@ -93,11 +93,12 @@ def render_svg(tables, relationships):
                 direction = 1 if px < cx else -1
                 start_direction, end_direction = (direction, 0), (-direction, 0)
             else:
-                offset = 240 if parent == 'employees' else card_width / 2
-                x1 = x2 = px + offset
+                x1 = px + card_width / 2
+                x2 = cx + card_width / 2
                 y1 = py + heights[parent] if py < cy else py
                 y2 = cy if py < cy else cy + heights[child]
-                path = f'M{x1},{y1} V{y2}'
+                bend = (y1 + y2) / 2
+                path = f'M{x1},{y1} V{bend} H{x2} V{y2}'
                 direction = 1 if py < cy else -1
                 start_direction, end_direction = (0, direction), (0, -direction)
             dash = '' if relation['identifying'] else ' stroke-dasharray="5 3"'
@@ -158,17 +159,32 @@ def build_diagram():
                 'optional': any(not row[3] for row in columns if row[1] in child_columns),
                 'identifying': set(child_columns).issubset(keys),
             })
+    views = []
+    for name, grain in VIEW_GRAINS.items():
+        columns = connection.execute(f'PRAGMA table_info("{name}")').fetchall()
+        definition = connection.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'view' AND name = ?", (name,)
+        ).fetchone()[0]
+        views.append({
+            'name': name,
+            'grain': grain,
+            'definition': definition + ';',
+            'columns': [
+                {'name': row[1], 'type': row[2], 'required': bool(row[3]),
+                 'pk': row[5], 'fk': False} for row in columns
+            ],
+        })
     connection.close()
     (ROOT / 'public/database-erd.svg').write_text(render_svg(tables, relationships))
     (ROOT / 'public/database-erd-full.svg').write_text(render_svg(tables, relationships))
-    metadata = {'tables': tables, 'relationships': relationships}
+    metadata = {'tables': tables, 'views': views, 'relationships': relationships}
     (ROOT / 'public/database-schema.json').write_text(json.dumps(metadata, indent=2))
     mermaid = ['erDiagram']
     for table in tables:
         mermaid.append(f'    {table["name"]} {{')
         for column in table['columns']:
             keys = ','.join(label for label, condition in [('PK', column['pk']), ('FK', column['fk'])] if condition)
-            mermaid.append(f'        {column["type"]} {column["name"]} {keys}')
+            mermaid.append(f'        {column["type"]} {column["name"]} {keys}'.rstrip())
         mermaid.append('    }')
     for relation in relationships:
         many = 'o|' if relation['cardinality'] == '0..1' else 'o{'

@@ -1,6 +1,7 @@
 """Export the Flask pages as static HTML, optionally under a URL path."""
 
 import argparse
+from contextlib import closing
 from pathlib import Path
 import re
 import shutil
@@ -13,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from app import app  # noqa: E402
+from database import connect, read_index  # noqa: E402
 
 
 def prefix_worker_paths(output: Path, base_path: str) -> None:
@@ -47,7 +49,11 @@ def export_site(base_path: str = "") -> None:
         check=True,
     )
     app.config["TESTING"] = True
-    index = app.config["DATASET_INDEX"]
+    with closing(connect(app.config["DATABASE"], readonly=True)) as connection:
+        index = read_index(connection, app.config["ACTIVE_RUN_ID"])
+    # The export is a fixed snapshot. Reuse one view result while rendering 505
+    # pages; normal Flask requests continue to query the live views.
+    app.config["STATIC_EXPORT_INDEX"] = index
     routes = [
         ("/", "index.html"),
         ("/results.html", "results.html"),

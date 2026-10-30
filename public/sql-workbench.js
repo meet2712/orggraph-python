@@ -30,15 +30,14 @@ if (queryEditor) {
 FROM employee_reporting_audit
 WHERE company_id = 'cmp_0004'
 ORDER BY employee_id;`,
-    coverage: `SELECT c.company_name, COUNT(*) AS people,
-       SUM(p.decision = 'accepted') AS accepted_lines,
-       SUM(p.decision = 'unresolved') AS needs_review,
-       ROUND(100.0 * SUM(p.decision = 'accepted') /
-         NULLIF(SUM(p.decision <> 'company_root'), 0), 1) AS coverage_pct
-FROM companies AS c
-JOIN reporting_predictions AS p USING (company_id)
-GROUP BY c.company_id, c.company_name
-ORDER BY coverage_pct, c.company_name;`,
+    coverage: `SELECT profile.company_name,
+       profile.employee_count AS people,
+       metrics.resolved_count AS accepted_lines,
+       metrics.unresolved_count AS needs_review,
+       ROUND(metrics.coverage * 100, 1) AS coverage_pct
+FROM company_profiles AS profile
+JOIN company_run_metrics AS metrics USING (company_id)
+ORDER BY coverage_pct, profile.company_name;`,
     counts: `SELECT 'companies' AS dataset, COUNT(*) AS rows FROM companies
 UNION ALL
 SELECT 'employees', COUNT(*) FROM employees
@@ -90,8 +89,8 @@ FROM manager_chain ORDER BY depth;`,
        SUM(CASE WHEN TRIM(location) = '' THEN 1 ELSE 0 END) AS missing_locations
 FROM employees;`,
     lineage: `SELECT run_id, model_version, pipeline_version,
-       loaded_company_count, loaded_employee_count,
-       accepted_prediction_count, load_status, loaded_at
+       source_company_count, source_employee_count,
+       probability_threshold, margin_threshold, load_status, loaded_at
 FROM inference_runs ORDER BY loaded_at DESC;`,
   };
 

@@ -1615,11 +1615,7 @@ input[type="checkbox"] {
 .schema-page .page-heading { max-width: 850px; }
 .schema-actions { display: flex; flex-wrap: wrap; gap: 12px 24px; }
 .erd-viewport { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: #fafbf8; }
-.erd-viewport img { display: block; width: 100%; height: auto; }
-.erd-viewport[data-size="actual"] img { width: 1200px; max-width: none; }
-.diagram-size-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
-.diagram-size-controls button { padding: 7px 12px; border: 1px solid var(--line); border-radius: 4px; background: white; font-size: 12px; }
-.diagram-size-controls button[aria-pressed="true"] { background: #eaf1e5; border-color: #a9bda2; }
+.erd-viewport img { display: block; width: 1200px; max-width: none; height: auto; }
 .diagram-hint { color: var(--muted); font-size: 13px; }
 .schema-tables { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .schema-entity { min-width: 0; border: 1px solid var(--line); border-radius: 6px; background: white; }

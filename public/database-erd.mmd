@@ -1,100 +1,63 @@
 erDiagram
     companies {
         TEXT company_id PK
-        TEXT company_name 
-        TEXT industry 
-        TEXT size_band 
-        INTEGER employee_count 
-        TEXT headquarters 
+        TEXT company_name
+        TEXT industry
+        TEXT headquarters
     }
     employees {
         TEXT company_id PK,FK
         TEXT employee_id PK
-        TEXT full_name 
-        TEXT job_title 
-        TEXT raw_department 
-        TEXT raw_team 
-        TEXT location 
-        TEXT work_email 
-        INTEGER source_row_number 
+        TEXT full_name
+        TEXT job_title
+        TEXT raw_department
+        TEXT raw_team
+        TEXT location
+        TEXT work_email
+        INTEGER source_row_number
     }
-    benchmark_truth {
+    benchmark_labels {
         TEXT company_id PK,FK
         TEXT employee_id PK,FK
         TEXT manager_employee_id FK
-        TEXT canonical_title 
-        TEXT canonical_department 
-        TEXT canonical_team 
-        TEXT canonical_level 
-        INTEGER is_people_manager 
-        INTEGER is_root 
+        TEXT canonical_title
+        TEXT canonical_department
+        TEXT canonical_team
+        TEXT canonical_level
+        INTEGER is_people_manager
+        TEXT noise_profile_json
     }
     inference_runs {
         TEXT run_id PK
-        TEXT source_hash 
-        TEXT model_version 
-        TEXT pipeline_version 
-        TEXT model_type 
-        REAL probability_threshold 
-        REAL margin_threshold 
-        INTEGER source_company_count 
-        INTEGER source_employee_count 
-        INTEGER loaded_company_count 
-        INTEGER loaded_employee_count 
-        INTEGER loaded_prediction_count 
-        INTEGER accepted_prediction_count 
-        TEXT load_status 
-        TEXT loaded_at 
+        TEXT source_hash
+        TEXT model_version
+        TEXT pipeline_version
+        TEXT model_type
+        REAL probability_threshold
+        REAL margin_threshold
+        INTEGER source_company_count
+        INTEGER source_employee_count
+        TEXT load_status
+        TEXT loaded_at
     }
-    employee_features {
+    inference_outputs {
         TEXT run_id PK,FK
         TEXT company_id PK,FK
         TEXT employee_id PK,FK
-        TEXT inferred_department 
-        TEXT inferred_level 
-        INTEGER inferred_rank 
-    }
-    reporting_predictions {
-        TEXT run_id PK,FK
-        TEXT company_id PK,FK
-        TEXT employee_id PK,FK
+        TEXT inferred_department
+        TEXT inferred_level
+        INTEGER inferred_rank
         TEXT accepted_manager_id FK
         TEXT best_candidate_id FK
-        REAL confidence 
-        REAL margin 
-        TEXT decision 
-    }
-    company_run_metrics {
-        TEXT run_id PK,FK
-        TEXT company_id PK,FK
-        INTEGER resolved_count 
-        INTEGER unresolved_count 
-        REAL coverage 
-        REAL precision 
-        REAL average_confidence 
-    }
-    employee_noise {
-        TEXT company_id PK,FK
-        TEXT employee_id PK,FK
-        INTEGER position PK
-        TEXT noise_type 
-    }
-    prediction_reasons {
-        TEXT run_id PK,FK
-        TEXT company_id PK,FK
-        TEXT employee_id PK,FK
-        INTEGER position PK
-        TEXT reason 
+        REAL confidence
+        REAL margin
+        TEXT decision
+        TEXT reasons_json
     }
     companies ||--o{ employees : company_id
-    employees |o..o{ benchmark_truth : manager_employee_id
-    employees ||--o| benchmark_truth : employee_id
-    employees ||--o{ employee_features : employee_id
-    inference_runs ||--o{ employee_features : run_id
-    employee_features |o..o{ reporting_predictions : best_candidate_id
-    employee_features |o..o{ reporting_predictions : accepted_manager_id
-    employee_features ||--o| reporting_predictions : employee_id
-    companies ||--o{ company_run_metrics : company_id
-    inference_runs ||--o{ company_run_metrics : run_id
-    employees ||--o{ employee_noise : employee_id
-    reporting_predictions ||--o{ prediction_reasons : employee_id
+    employees |o..o{ benchmark_labels : manager_employee_id
+    employees ||--o| benchmark_labels : employee_id
+    employees |o..o{ inference_outputs : best_candidate_id
+    employees |o..o{ inference_outputs : accepted_manager_id
+    employees ||--o{ inference_outputs : employee_id
+    inference_runs ||--o{ inference_outputs : run_id

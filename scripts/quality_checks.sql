@@ -6,7 +6,7 @@ PRAGMA foreign_keys = ON;
 -- Expected: no foreign-key violations.
 PRAGMA foreign_key_check;
 
--- Source lineage, import status, thresholds, and declared/loaded counts.
+-- Source lineage, model thresholds, and the immutable source population for the run.
 SELECT
     run_id,
     source_hash,
@@ -15,71 +15,58 @@ SELECT
     probability_threshold,
     margin_threshold,
     source_company_count,
-    loaded_company_count,
     source_employee_count,
-    loaded_employee_count,
-    loaded_prediction_count,
-    accepted_prediction_count,
     load_status,
     loaded_at
 FROM inference_runs;
 
--- Table grains are visible as separate counts, not nested document sizes.
-SELECT 'companies' AS table_name, COUNT(*) AS row_count FROM companies
+-- Physical tables and calculated views are visible as separate row counts.
+SELECT 'table: companies' AS object_name, COUNT(*) AS row_count FROM companies
 UNION ALL SELECT 'employees', COUNT(*) FROM employees
-UNION ALL SELECT 'employee_features', COUNT(*) FROM employee_features
 UNION ALL SELECT 'inference_runs', COUNT(*) FROM inference_runs
+UNION ALL SELECT 'inference_outputs', COUNT(*) FROM inference_outputs
+UNION ALL SELECT 'benchmark_labels', COUNT(*) FROM benchmark_labels
+UNION ALL SELECT 'view: benchmark_truth', COUNT(*) FROM benchmark_truth
+UNION ALL SELECT 'benchmark_comparison', COUNT(*) FROM benchmark_comparison
+UNION ALL SELECT 'view: company_profiles', COUNT(*) FROM company_profiles
+UNION ALL SELECT 'employee_features', COUNT(*) FROM employee_features
 UNION ALL SELECT 'reporting_predictions', COUNT(*) FROM reporting_predictions
 UNION ALL SELECT 'company_run_metrics', COUNT(*) FROM company_run_metrics
-UNION ALL SELECT 'benchmark_truth', COUNT(*) FROM benchmark_truth
+UNION ALL SELECT 'run_metrics', COUNT(*) FROM run_metrics
 UNION ALL SELECT 'prediction_reasons', COUNT(*) FROM prediction_reasons
-UNION ALL SELECT 'employee_noise', COUNT(*) FROM employee_noise;
+UNION ALL SELECT 'employee_noise', COUNT(*) FROM employee_noise
+UNION ALL SELECT 'employee_reporting_audit', COUNT(*) FROM employee_reporting_audit;
 
--- Expected: no mismatches between recorded import counts and stored rows.
+-- Expected: the checked source population was fully scored when the run was loaded.
 SELECT r.run_id
 FROM inference_runs AS r
-WHERE r.loaded_company_count <> (SELECT COUNT(*) FROM companies)
-   OR r.loaded_employee_count <> (SELECT COUNT(*) FROM employees)
-   OR r.loaded_prediction_count <> (
-       SELECT COUNT(*) FROM reporting_predictions AS p WHERE p.run_id = r.run_id
-   )
-   OR r.accepted_prediction_count <> (
-       SELECT COUNT(*) FROM reporting_predictions AS p
-       WHERE p.run_id = r.run_id AND p.decision = 'accepted'
+WHERE r.source_company_count <> (SELECT COUNT(*) FROM companies)
+   OR r.source_employee_count <> (
+       SELECT COUNT(*) FROM inference_outputs AS output WHERE output.run_id = r.run_id
    );
 
--- Expected: declared headcounts match employees, with at least 100 per company.
-SELECT c.company_id, c.employee_count AS declared_count, COUNT(e.employee_id) AS stored_count
-FROM companies AS c
-LEFT JOIN employees AS e ON e.company_id = c.company_id
-GROUP BY c.company_id, c.employee_count
-HAVING COUNT(e.employee_id) <> c.employee_count OR COUNT(e.employee_id) < 100;
+-- Expected: headcount is derived from employees, with at least 100 per company.
+SELECT company_id, employee_count
+FROM company_profiles
+WHERE employee_count < 100;
 
--- Expected: one prediction for every employee in every imported run.
-SELECT r.run_id, e.company_id, e.employee_id, COUNT(p.employee_id) AS prediction_count
-FROM inference_runs AS r
-CROSS JOIN employees AS e
-LEFT JOIN reporting_predictions AS p
-    ON p.run_id = r.run_id
-   AND p.company_id = e.company_id
-   AND p.employee_id = e.employee_id
-GROUP BY r.run_id, e.company_id, e.employee_id
-HAVING COUNT(p.employee_id) <> 1;
+-- Expected: each employee is represented once; new rows appear as pending inference.
+SELECT run_id, company_id, employee_id, COUNT(*) AS prediction_count
+FROM reporting_predictions
+GROUP BY run_id, company_id, employee_id
+HAVING COUNT(*) <> 1;
 
--- Expected: saved company counts match operational prediction decisions.
+-- Expected: dynamic company metrics reconcile to live employee decisions.
 SELECT metrics.run_id, metrics.company_id
 FROM company_run_metrics AS metrics
-WHERE metrics.resolved_count <> (
-    SELECT COUNT(*) FROM reporting_predictions AS p
-    WHERE p.run_id = metrics.run_id
-      AND p.company_id = metrics.company_id
-      AND p.decision = 'accepted'
-)
-OR metrics.unresolved_count <> (
-    SELECT COUNT(*) FROM reporting_predictions AS p
-    WHERE p.run_id = metrics.run_id AND p.company_id = metrics.company_id
-      AND p.decision = 'unresolved'
-);
+JOIN company_profiles AS profile USING (company_id)
+JOIN reporting_predictions AS prediction
+  ON prediction.run_id = metrics.run_id
+ AND prediction.company_id = metrics.company_id
+GROUP BY metrics.run_id, metrics.company_id, profile.employee_count,
+         metrics.resolved_count, metrics.unresolved_count
+HAVING metrics.resolved_count + metrics.unresolved_count
+       + sum(prediction.decision = 'company_root') <> profile.employee_count;
 
 -- Expected: no accepted/abstained decision contradictions or invalid scores.
 SELECT run_id, company_id, employee_id, decision, accepted_manager_id, best_candidate_id
@@ -93,7 +80,8 @@ WHERE confidence NOT BETWEEN 0 AND 1
        OR best_candidate_id IS NULL
        OR accepted_manager_id <> best_candidate_id
    ))
-   OR (decision <> 'accepted' AND accepted_manager_id IS NOT NULL);
+   OR (decision <> 'accepted' AND accepted_manager_id IS NOT NULL)
+   OR decision NOT IN ('accepted', 'unresolved', 'company_root', 'pending_inference');
 
 -- Expected: every accepted manager has higher inferred seniority.
 SELECT p.run_id, p.company_id, p.employee_id, p.accepted_manager_id

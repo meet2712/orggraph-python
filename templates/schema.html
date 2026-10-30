@@ -2,29 +2,41 @@
   <header class="page-heading">
     <p class="muted">Database design</p>
     <h1>Database ER diagram</h1>
-    <p>Nine tables separate observed employees, inferred decisions, and generated answers. One read-only audit view brings the evidence together without copying it.</p>
+    <p>Five persisted tables hold source records, generated benchmark labels, run lineage and model output. Ten read-only SQL views calculate profiles, root status, prediction-versus-answer checks, decisions and metrics.</p>
     <p><a href="/data.html">Explore the database &amp; SQL editor →</a></p>
   </header>
   <section class="paper-section">
     <h2>Entity relationship diagram</h2>
     <p class="schema-actions"><a href="/database-erd.svg" target="_blank" rel="noopener">Open full-size ER diagram ↗</a> <a href="/database-erd.svg" download>Download SVG</a> <a href="/database-erd.mmd" download>Download Mermaid source</a></p>
-    <p class="diagram-hint">All columns and SQL types. PK = primary key · FK = foreign key. Crow’s-foot notation: circle = optional, bar = one, fork = many. Use actual size to read the details on a small screen.</p>
-    <div class="diagram-size-controls" aria-label="Diagram size">
-      <button type="button" data-diagram-size="fit" aria-pressed="true" aria-controls="database-diagram">Fit width</button>
-      <button type="button" data-diagram-size="actual" aria-pressed="false" aria-controls="database-diagram">Actual size</button>
-    </div>
-    <div class="erd-viewport" id="database-diagram" data-size="fit" tabindex="0" role="region" aria-label="Scrollable entity relationship diagram">
-      <img src="/database-erd.svg" width="1200" alt="Database ER diagram showing all columns, SQL types, primary keys, foreign keys and relationship cardinalities for nine tables.">
+    <p class="diagram-hint">All columns and SQL types at actual size. Scroll across the diagram on a small screen. PK = primary key · FK = foreign key. Crow’s-foot notation: circle = optional, bar = one, fork = many.</p>
+    <div class="erd-viewport" id="database-diagram" tabindex="0" role="region" aria-label="Scrollable entity relationship diagram">
+      <img src="/database-erd.svg" width="1200" alt="Database ER diagram showing all columns, SQL types, primary keys, foreign keys and relationship cardinalities for five persisted tables.">
     </div>
   </section>
   <section class="paper-section">
     <h2>A decision audit, not a second copy of the data</h2>
-    <p><code>employee_reporting_audit</code> joins an employee's raw fields to their inferred features, accepted manager, leading candidate, scores, thresholds and run hashes. Its <code>decision_reason</code> distinguishes low confidence, close candidates, missing candidates and accepted links. Ordered reasons can also identify an explicit management-path match. The generated answer key is excluded.</p>
+    <p><code>employee_reporting_audit</code> joins an employee's raw fields to their inferred features, accepted manager, leading candidate, scores, thresholds and run hashes. Its <code>decision_reason</code> distinguishes low confidence, close candidates, missing candidates, pending inference and accepted links. The generated answer key is excluded.</p>
     <pre class="schema-query">SELECT full_name, inferred_manager, leading_candidate,
        confidence, margin, decision_reason
 FROM employee_reporting_audit
 WHERE company_id = 'cmp_0004';</pre>
     <p>Open the SQL editor and select “Why a manager was chosen or rejected” to try this on the actual records.</p>
+  </section>
+  <section class="paper-section">
+    <h2>Derived views and their SQL</h2>
+    <p>These objects store no rows. Expand a view to inspect the complete <code>CREATE VIEW</code> query, including every join, aggregation and <code>CASE</code> condition.</p>
+    <div class="schema-tables">
+      {% for view in schema.views %}
+      <details class="schema-entity">
+        <summary><span><code>{{ view.name }}</code><span class="schema-grain">{{ view.grain }}</span></span><span class="muted">read-only view</span></summary>
+        <div class="table-scroll"><table class="simple-table"><thead><tr><th scope="col">Column</th><th scope="col">SQL type</th></tr></thead><tbody>
+          {% for column in view.columns %}<tr><th scope="row"><code>{{ column.name }}</code></th><td>{{ column.type or 'Derived' }}</td></tr>{% endfor %}
+        </tbody></table></div>
+        <h3>Definition</h3>
+        <pre class="schema-query"><code>{{ view.definition }}</code></pre>
+      </details>
+      {% endfor %}
+    </div>
   </section>
   <section class="paper-section">
     <h2>Tables and columns</h2>
@@ -55,7 +67,7 @@ WHERE company_id = 'cmp_0004';</pre>
   </section>
   <section class="paper-section">
     <h2>What the database checks before serving</h2>
-    <p>Every source employee needs a prediction record. Keys, headcounts, accepted lines, unresolved decisions and company coverage must reconcile. Self-management, cross-company links, cycles and invalid scores fail validation. A failed import leaves the previous snapshot intact.</p>
+    <p>The published run must initially contain one model output per source employee. Afterward, a newly inserted employee appears immediately as <code>pending_inference</code>; live headcount and coverage views update before the model is rerun. Keys, accepted lines, decision counts and company coverage must reconcile. Self-management, cross-company links, cycles and invalid scores fail validation. A failed import leaves the previous snapshot intact.</p>
     <p>This demo keeps one checked dataset snapshot. The hashes identify its inputs and model; historical employee versions and comparisons between stored runs would be the next extension.</p>
   </section>
 </main>

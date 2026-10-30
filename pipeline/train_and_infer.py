@@ -1075,8 +1075,10 @@ def export_predictions(
                         margin,
                         report_candidates[best].structural_match,
                     )
-                    confidence_values.append(confidence)
-                    aggregate_confidence.append(confidence)
+                    # Summaries use the same stored employee-level value that
+                    # the SQL metric view averages, avoiding hidden precision.
+                    confidence_values.append(round(confidence, 4))
+                    aggregate_confidence.append(round(confidence, 4))
             employees.append({
                 "id": report.employee_id,
                 "name": report.full_name,
