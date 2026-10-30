@@ -59,6 +59,7 @@ choices and run metadata. It does not include the generated answer key.
 process in more detail. [DATA_DICTIONARY.md](DATA_DICTIONARY.md) describes the CSVs.
 
 The public SQL editor runs on a downloaded SQLite copy in a browser worker.
+The first download is about 15 MB; progress is shown while it loads.
 It accepts one read-only query, returns up to 200 rows and stops after five
 seconds. There is no public server endpoint that accepts SQL. You can also
 [download the snapshot](https://meet2712.github.io/orggraph-python/database/snapshot.sqlite.gz),

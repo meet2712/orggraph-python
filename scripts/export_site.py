@@ -19,7 +19,7 @@ def prefix_worker_paths(output: Path, base_path: str) -> None:
     """Point the browser SQL worker at files inside the project site."""
     replacements = {
         "sql-workbench.js": {
-            'new Worker("/sql-worker.js")': f'new Worker("{base_path}/sql-worker.js")',
+            'new Worker("/sql-worker.js?v=2")': f'new Worker("{base_path}/sql-worker.js?v=2")',
         },
         "sql-worker.js": {
             'importScripts("/vendor/sql-wasm.js")': f'importScripts("{base_path}/vendor/sql-wasm.js")',

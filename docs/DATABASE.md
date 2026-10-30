@@ -17,21 +17,10 @@ Flask reads those records with joins and rebuilds the existing page payload.
 | `company_run_metrics` | One company's saved evaluation summary for a run. |
 | `benchmark_truth` | One employee's generated answer, stored separately from predictions. |
 | `prediction_reasons` | One ordered explanation for a prediction. |
-| `employee_noise` | One ordered title-noise label from the generated dataset. |
+| `employee_noise` | One ordered data-quality label from the generated dataset. |
 
-```mermaid
-erDiagram
-    companies ||--o{ employees : employs
-    employees ||--o{ employee_features : has
-    inference_runs ||--o{ employee_features : versions
-    employee_features ||--|| reporting_predictions : receives
-    inference_runs ||--o{ reporting_predictions : contains
-    companies ||--o{ company_run_metrics : measures
-    inference_runs ||--o{ company_run_metrics : records
-    employees ||--|| benchmark_truth : has_answer
-    reporting_predictions ||--o{ prediction_reasons : explains
-    employees ||--o{ employee_noise : records
-```
+[Full ER diagram, including every column](../public/database-erd.svg) ·
+[Mermaid source](../public/database-erd.mmd)
 
 Employee keys include `company_id`. Prediction references include `run_id` as
 well, so an employee, accepted manager, and leading candidate must belong to
@@ -60,7 +49,7 @@ a chart edge. An inferred company root comes from the observed CEO title.
 
 `benchmark_truth` comes from the separate generated answer file. It is used for
 comparison and evaluation, not to fill gaps in the inferred chart. A generated
-CEO with a missing title can therefore remain unresolved in the app. Counts
+CEO with a missing title can therefore remain unresolved or receive an incorrect manager prediction. Counts
 based on inferred roots and counts excluding benchmark roots need not match.
 
 Company evaluation summaries have their own company/run grain. These preserve
@@ -89,7 +78,7 @@ person from the operational counts. The loader rejects mismatched counts or cove
   the imported snapshot. A manager must be more senior than the report.
 
 The regenerated local source contains 500 companies, 88,367 employee records,
-58,672 accepted reporting lines, and 29,195 unresolved managers. The source
+58,672 accepted reporting lines, and 29,204 unresolved decisions. The source
 requirements are checked separately from model quality: satisfying a foreign
 key does not prove a reporting line is correct.
 

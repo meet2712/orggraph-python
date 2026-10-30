@@ -125,7 +125,28 @@ async function openDatabase() {
   self.postMessage({ type: "status", message: "Downloading the read-only database snapshot…" });
   const response = await fetch("/database/snapshot.sqlite.gz");
   if (!response.ok) throw new Error("The database snapshot could not be loaded.");
-  let bytes = new Uint8Array(await response.arrayBuffer());
+  const reader = response.body.getReader();
+  const total = Number(response.headers.get("Content-Length"));
+  const chunks = [];
+  let received = 0;
+  let lastUpdate = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    received += value.length;
+    if (performance.now() - lastUpdate >= 250) {
+      const downloaded = (received / 1048576).toFixed(1);
+      const size = total > 0 ? ` of ${(total / 1048576).toFixed(1)} MB` : " MB";
+      self.postMessage({ type: "status", message: `Downloading the database: ${downloaded}${size}…` });
+      lastUpdate = performance.now();
+    }
+  }
+  self.postMessage({ type: "status", message: "Opening the read-only database…" });
+  let bytes = new Uint8Array(received);
+  let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
+  chunks.length = 0;
   if (bytes[0] === 0x1f && bytes[1] === 0x8b) {
     if (typeof DecompressionStream === "undefined") {
       throw new Error("This browser cannot open the compressed snapshot. Try a current browser.");

@@ -18,6 +18,11 @@ if (queryEditor) {
   let loadingTimer = null;
   let tables = [];
 
+  function waitForLoadingProgress() {
+    clearTimeout(loadingTimer);
+    loadingTimer = setTimeout(() => stopWorker("The database download stopped responding. Reload it to try again."), 60000);
+  }
+
   const examples = {
     audit: `SELECT full_name, job_title, inferred_manager, leading_candidate,
        ROUND(confidence * 100, 1) AS confidence_pct,
@@ -256,11 +261,15 @@ FROM inference_runs ORDER BY loaded_at DESC;`,
     resetButton.hidden = true;
     setBusy(true);
     status.textContent = "Loading the read-only database…";
-    worker = new Worker("/sql-worker.js");
-    loadingTimer = setTimeout(() => stopWorker("The database did not finish loading. Reload it to try again."), 60000);
+    worker = new Worker("/sql-worker.js?v=2");
+    waitForLoadingProgress();
     worker.addEventListener("message", (event) => {
       const message = event.data;
-      if (message.type === "status") { status.textContent = message.message; return; }
+      if (message.type === "status") {
+        status.textContent = message.message;
+        waitForLoadingProgress();
+        return;
+      }
       if (message.type === "ready") {
         clearTimeout(loadingTimer);
         ready = true;
