@@ -300,7 +300,12 @@ def infer_rank(title: str) -> tuple[int, str, float]:
     management_terms = ["manager", "group product"]
     if any(f" {term} " in f" {compact} " for term in management_terms):
         return 4, "Manager", 0.88
-    if compact.startswith("staff ") or compact.startswith("lead ") or compact.startswith("principal "):
+    if (
+        compact.startswith("staff ")
+        or compact.startswith("lead ")
+        or compact.startswith("principal ")
+        or compact.endswith(" lead")
+    ):
         return 3, "Principal / Staff IC", 0.88
     if compact.startswith("senior ") or compact.startswith("sr "):
         return 2, "Senior IC", 0.9
@@ -462,10 +467,11 @@ def management_parent_pool(
     if report.rank == 9:
         pool = [person for person in pool if person.rank == 10]
     elif report.rank == 8:
-        pool = [
+        matching_executives = [
             person for person in pool
             if person.rank == 9 and report.department in executive_scope_departments(person)
         ]
+        pool = matching_executives or [person for person in pool if person.rank == 10]
     elif report.rank in {6, 7}:
         pool = [
             person for person in pool
@@ -559,7 +565,31 @@ def preserves_team_lead_layer(
             or (report.team != "Unknown" and person.team == report.team)
         )
     ]
-    return not plausible_leads
+    # A missing title can hide the Team Lead itself. Treat a missing-title
+    # person in the same scope as unresolved evidence instead of flattening the
+    # employee directly under the formal Manager.
+    possible_hidden_leads = [
+        person for person in company
+        if person.title_missing
+        and person.department == report.department
+        and (
+            person.team == "Unknown"
+            or (report.team != "Unknown" and person.team == report.team)
+        )
+    ]
+    same_department_leads = [
+        person for person in company
+        if person.rank_label == "Team Lead / Supervisor"
+        and person.department == report.department
+    ]
+    scoped_population = sum(
+        1 for person in company
+        if report.team != "Unknown"
+        and person.team == report.team
+        and person.department == report.department
+    )
+    possible_corrupted_scope = scoped_population >= 7 and same_department_leads
+    return not (plausible_leads or possible_hidden_leads or possible_corrupted_scope)
 
 
 def build_candidates(company: list[ParsedEmployee], limit: int = 48) -> dict[str, list[Candidate]]:

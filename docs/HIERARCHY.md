@@ -7,8 +7,9 @@ not automatically a people-management title.
 
 ```text
 CEO
-└── C-suite executive
-    └── VP or Head of function
+├── C-suite executive (when that portfolio exists)
+│   └── VP or Head of function
+└── VP or Head of function (when no matching executive exists)
         └── Senior Director (optional)
             └── Director (optional)
                 └── Senior Manager (optional)
@@ -16,9 +17,13 @@ CEO
                         └── Team Lead or Supervisor (optional)
 ```
 
-Layers are size-aware and may be skipped. A company with 100 employees should
-not have the same management depth as a company with 250 employees. The
-generator never creates a same-level reporting edge.
+Layers are size-aware and may be skipped. The CEO is universal; CTO, CRO, COO,
+CFO and CPO are not. Small companies have one or two non-CEO executives,
+Growth companies two to four, and Mid-market companies three to five. Industry
+weights make Technology more likely in technical companies, Operations in
+logistics-heavy companies, and Finance & Risk in regulated companies. The
+selection is seeded and reproducible. The generator never creates a same-level
+reporting edge.
 
 ## Individual-contributor track
 
@@ -38,10 +43,12 @@ explicit management cue identifies a people-management role.
 
 ## Functional ownership
 
-- The CEO manages a small executive portfolio rather than every department.
+- The CEO manages the available executive portfolio and any functions that do
+  not have a dedicated C-suite owner.
 - C-suite executives own Technology, Revenue, Operations, Finance & Risk, or
   People portfolios.
-- Department VPs/Heads report to the corresponding executive.
+- Department VPs/Heads report to the corresponding executive when present;
+  otherwise they report to the CEO.
 - Directors own functions or multiple teams; Managers own one delivery team.
 - QA Engineers and QA Team Leads report through a QA Manager before joining the
   broader Engineering branch.
@@ -58,6 +65,12 @@ confidence; ties and missing evidence still abstain. Junior and intermediate
 ICs are routed to an explicit Team Lead/Supervisor when its scope can be
 identified. Senior, Staff and Principal titles remain ICs and are never turned
 into managers by seniority alone.
+
+The original generated employee population is retained. Rows that previously
+forced an unnecessary specialist executive into a company become functional
+Principal IC roles under the relevant VP/Head. In the messy input only their
+observed title changes; IDs, names, emails, observed departments, teams and
+locations remain unchanged.
 
 ## Research basis
 

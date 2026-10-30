@@ -9,7 +9,7 @@ plausible, the person stays unresolved.
 [Browse the database and run SQL](https://meet2712.github.io/orggraph-python/data.html) ·
 [Database ER diagram](https://meet2712.github.io/orggraph-python/schema.html)
 
-The dataset is generated: 500 companies, 87,796 employees and ten industries.
+The dataset is generated: 500 companies, 87,160 employees and ten industries.
 Every company has 100–250 employees. Names, emails and reporting lines are made
 up; the clean hierarchy is kept separately so the predictions can be measured.
 
@@ -75,11 +75,17 @@ team values. Some observed team names contain a hierarchy such as
 fields stay in a separate answer key.
 
 The generator separates the people-management ladder from the individual-
-contributor ladder. Its management path is CEO → C-suite → VP/Head → Director →
-Senior Manager → Manager → optional Team Lead/Supervisor. Junior, intermediate,
+contributor ladder. Its management path is CEO → optional C-suite → VP/Head →
+Director → Senior Manager → Manager → optional Team Lead/Supervisor. Junior, intermediate,
 Senior, Staff and Principal are IC career levels; a senior title alone does not
 make someone a people manager. An explicit Team Lead can supervise junior and
 intermediate ICs. Senior, Staff and Principal ICs report to a formal Manager.
+
+The CEO is the only universal executive role. Non-CEO C-suite membership is
+selected reproducibly from company size and industry: Small companies have one
+or two specialist executives, Growth companies two to four, and Mid-market
+companies three to five. A function's VP/Head reports to its matching executive
+when that role exists and otherwise reports directly to the CEO.
 
 Manager and employee titles are aligned with their function. QA Engineers and
 QA Team Leads stay under a QA Manager before the branch joins broader
@@ -122,15 +128,15 @@ final test. All employees from a company stay in the same split.
 
 | Method, on the 75 test companies | Precision | Coverage | Recall | F1 |
 |---|---:|---:|---:|---:|
-| Rules baseline | 89.67% | 96.32% | 86.37% | 87.99% |
-| Hybrid hierarchy + pair scores | 97.44% | 83.74% | 81.60% | 88.82% |
+| Rules baseline | 88.46% | 90.87% | 80.38% | 84.23% |
+| Hybrid hierarchy + pair scores | 97.74% | 76.61% | 74.87% | 84.79% |
 
 Precision measures how many accepted lines are correct. Coverage measures how
 many employees with a true manager received an accepted prediction. Recall
 measures how many true reporting lines were recovered correctly.
 
-Across all 500 companies, the published run has 72,837 accepted lines, 14,463
-unresolved decisions and 496 people identified as company roots from their
+Across all 500 companies, the published run has 66,793 accepted lines, 19,883
+unresolved decisions and 484 people identified as company roots from their
 observed titles. These operational counts are kept separate from the test
 metrics above.
 

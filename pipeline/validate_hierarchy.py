@@ -57,7 +57,7 @@ def valid_parent_levels(level: str) -> set[str]:
     if level in {"Director", "Senior Director"}:
         return {"VP", "C-Suite"}
     if level == "VP":
-        return {"C-Suite"}
+        return {"C-Suite", "CEO"}
     if level == "C-Suite":
         return {"CEO"}
     return set()
@@ -174,7 +174,9 @@ def main() -> None:
         "Director": 0.90,
         "Senior Manager": 0.50,
         "Manager": 0.90,
-        "Team Lead": 0.80,
+        # The restored raw benchmark intentionally keeps generic/missing lead
+        # and manager titles. Prefer a small amount of abstention to guessing.
+        "Team Lead": 0.75,
     }
     for level, floor in coverage_floors.items():
         level_coverage = accepted_by_level[level] / max(population_by_level[level], 1)

@@ -1,7 +1,7 @@
 {
   "dataset": {
     "companies": 500,
-    "employees": 87796,
+    "employees": 87160,
     "industries": 10,
     "minimumCompanySize": 100,
     "maximumCompanySize": 250
@@ -13,24 +13,24 @@
     "unit": "company"
   },
   "baseline": {
-    "eligible_edges": 12445,
-    "predicted_edges": 11987,
+    "eligible_edges": 13372,
+    "predicted_edges": 12151,
     "correct_edges": 10749,
-    "unresolved_edges": 458,
-    "precision": 0.8967,
-    "recall": 0.8637,
-    "coverage": 0.9632,
-    "f1": 0.8799,
-    "candidate_recall": 0.9187,
-    "brier_score_top_choice": 0.1034,
-    "expected_calibration_error": 0.0862,
+    "unresolved_edges": 1221,
+    "precision": 0.8846,
+    "recall": 0.8038,
+    "coverage": 0.9087,
+    "f1": 0.8423,
+    "candidate_recall": 0.884,
+    "brier_score_top_choice": 0.1382,
+    "expected_calibration_error": 0.1227,
     "calibration_bins": [
       {
         "low": 0.0,
         "high": 0.1,
         "confidence": 0.0,
         "accuracy": 0.0,
-        "count": 47
+        "count": 51
       },
       {
         "low": 0.1,
@@ -42,105 +42,105 @@
       {
         "low": 0.2,
         "high": 0.3,
-        "confidence": 0.2292,
+        "confidence": 0.2285,
         "accuracy": 1.0,
-        "count": 28
+        "count": 25
       },
       {
         "low": 0.3,
         "high": 0.4,
-        "confidence": 0.3753,
-        "accuracy": 0.91,
-        "count": 100
+        "confidence": 0.3745,
+        "accuracy": 0.9024,
+        "count": 82
       },
       {
         "low": 0.4,
         "high": 0.5,
-        "confidence": 0.45,
-        "accuracy": 0.7949,
-        "count": 39
+        "confidence": 0.4535,
+        "accuracy": 0.6774,
+        "count": 31
       },
       {
         "low": 0.5,
         "high": 0.6,
-        "confidence": 0.5502,
-        "accuracy": 0.7207,
-        "count": 111
+        "confidence": 0.5489,
+        "accuracy": 0.7655,
+        "count": 145
       },
       {
         "low": 0.6,
         "high": 0.7,
-        "confidence": 0.643,
-        "accuracy": 0.6369,
-        "count": 157
+        "confidence": 0.642,
+        "accuracy": 0.6358,
+        "count": 162
       },
       {
         "low": 0.7,
         "high": 0.8,
-        "confidence": 0.7552,
-        "accuracy": 0.7782,
-        "count": 275
+        "confidence": 0.7629,
+        "accuracy": 0.7989,
+        "count": 378
       },
       {
         "low": 0.8,
         "high": 0.9,
-        "confidence": 0.8607,
-        "accuracy": 0.8119,
-        "count": 707
+        "confidence": 0.8645,
+        "accuracy": 0.8021,
+        "count": 753
       },
       {
         "low": 0.9,
         "high": 1.0,
         "confidence": 0.988,
-        "accuracy": 0.9039,
-        "count": 10978
+        "accuracy": 0.8622,
+        "count": 11742
       }
     ],
     "by_noise_type": {
       "abbreviation": {
-        "population": 2034,
-        "precision": 0.9073,
-        "coverage": 0.9862
+        "population": 2079,
+        "precision": 0.8941,
+        "coverage": 0.9495
       },
       "case": {
-        "population": 649,
-        "precision": 0.9025,
-        "coverage": 0.98
+        "population": 702,
+        "precision": 0.8824,
+        "coverage": 0.933
       },
       "clean": {
-        "population": 6849,
-        "precision": 0.8918,
-        "coverage": 0.9769
+        "population": 7438,
+        "precision": 0.8802,
+        "coverage": 0.9183
       },
       "missing_title": {
-        "population": 200,
+        "population": 203,
         "precision": 0.0,
         "coverage": 0.0
       },
       "punctuation": {
-        "population": 1310,
-        "precision": 0.9029,
-        "coverage": 0.9824
+        "population": 1412,
+        "precision": 0.8902,
+        "coverage": 0.9285
       },
       "regional_suffix": {
-        "population": 746,
-        "precision": 0.8828,
-        "coverage": 0.9839
+        "population": 828,
+        "precision": 0.8737,
+        "coverage": 0.9275
       },
       "removed_connector": {
-        "population": 168,
-        "precision": 1.0,
-        "coverage": 0.875
+        "population": 159,
+        "precision": 0.9932,
+        "coverage": 0.9308
       },
       "spacing": {
-        "population": 1607,
-        "precision": 0.9069,
-        "coverage": 0.9826
+        "population": 1702,
+        "precision": 0.8899,
+        "coverage": 0.9177
       },
       "typo": {
-        "population": 151,
-        "precision": 0.9257,
-        "coverage": 0.9801
+        "population": 149,
+        "precision": 0.9643,
+        "coverage": 0.9396
       }
     },
     "threshold": {
@@ -149,134 +149,134 @@
     }
   },
   "model": {
-    "eligible_edges": 12445,
-    "predicted_edges": 10422,
-    "correct_edges": 10155,
-    "unresolved_edges": 2023,
-    "precision": 0.9744,
-    "recall": 0.816,
-    "coverage": 0.8374,
-    "f1": 0.8882,
-    "candidate_recall": 0.9187,
-    "brier_score_top_choice": 0.0612,
-    "expected_calibration_error": 0.0454,
+    "eligible_edges": 13372,
+    "predicted_edges": 10244,
+    "correct_edges": 10012,
+    "unresolved_edges": 3128,
+    "precision": 0.9774,
+    "recall": 0.7487,
+    "coverage": 0.7661,
+    "f1": 0.8479,
+    "candidate_recall": 0.884,
+    "brier_score_top_choice": 0.0826,
+    "expected_calibration_error": 0.0394,
     "calibration_bins": [
       {
         "low": 0.0,
         "high": 0.1,
-        "confidence": 0.016,
-        "accuracy": 0.1613,
-        "count": 62
+        "confidence": 0.0173,
+        "accuracy": 0.1014,
+        "count": 69
       },
       {
         "low": 0.1,
         "high": 0.2,
-        "confidence": 0.1616,
-        "accuracy": 0.5366,
-        "count": 82
+        "confidence": 0.1644,
+        "accuracy": 0.5039,
+        "count": 127
       },
       {
         "low": 0.2,
         "high": 0.3,
-        "confidence": 0.2587,
-        "accuracy": 0.5704,
-        "count": 426
+        "confidence": 0.2591,
+        "accuracy": 0.5096,
+        "count": 677
       },
       {
         "low": 0.3,
         "high": 0.4,
-        "confidence": 0.3487,
-        "accuracy": 0.3506,
-        "count": 579
+        "confidence": 0.3515,
+        "accuracy": 0.2165,
+        "count": 656
       },
       {
         "low": 0.4,
         "high": 0.5,
-        "confidence": 0.4473,
-        "accuracy": 0.4172,
-        "count": 664
+        "confidence": 0.4531,
+        "accuracy": 0.4686,
+        "count": 813
       },
       {
         "low": 0.5,
         "high": 0.6,
-        "confidence": 0.5392,
-        "accuracy": 0.4529,
-        "count": 276
+        "confidence": 0.5398,
+        "accuracy": 0.5528,
+        "count": 246
       },
       {
         "low": 0.6,
         "high": 0.7,
-        "confidence": 0.6472,
-        "accuracy": 0.7547,
-        "count": 106
+        "confidence": 0.6546,
+        "accuracy": 0.65,
+        "count": 100
       },
       {
         "low": 0.7,
         "high": 0.8,
-        "confidence": 0.7585,
-        "accuracy": 0.64,
-        "count": 25
+        "confidence": 0.7739,
+        "accuracy": 0.8404,
+        "count": 307
       },
       {
         "low": 0.8,
         "high": 0.9,
-        "confidence": 0.8728,
-        "accuracy": 0.9825,
-        "count": 2004
+        "confidence": 0.8586,
+        "accuracy": 0.9085,
+        "count": 3015
       },
       {
         "low": 0.9,
         "high": 1.0,
-        "confidence": 0.9727,
-        "accuracy": 0.9864,
-        "count": 8221
+        "confidence": 0.9784,
+        "accuracy": 0.9829,
+        "count": 7362
       }
     ],
     "by_noise_type": {
       "abbreviation": {
-        "population": 2034,
-        "precision": 0.976,
-        "coverage": 0.8594
+        "population": 2079,
+        "precision": 0.9811,
+        "coverage": 0.8143
       },
       "case": {
-        "population": 649,
-        "precision": 0.9731,
-        "coverage": 0.8598
+        "population": 702,
+        "precision": 0.9803,
+        "coverage": 0.7963
       },
       "clean": {
-        "population": 6849,
+        "population": 7438,
         "precision": 0.9765,
-        "coverage": 0.8435
+        "coverage": 0.7653
       },
       "missing_title": {
-        "population": 200,
+        "population": 203,
         "precision": 0.0,
         "coverage": 0.0
       },
       "punctuation": {
-        "population": 1310,
-        "precision": 0.9716,
-        "coverage": 0.8588
+        "population": 1412,
+        "precision": 0.9801,
+        "coverage": 0.7833
       },
       "regional_suffix": {
-        "population": 746,
-        "precision": 0.949,
-        "coverage": 0.8673
+        "population": 828,
+        "precision": 0.9713,
+        "coverage": 0.7995
       },
       "removed_connector": {
-        "population": 168,
-        "precision": 1.0,
-        "coverage": 0.9881
+        "population": 159,
+        "precision": 0.9936,
+        "coverage": 0.9874
       },
       "spacing": {
-        "population": 1607,
-        "precision": 0.9733,
-        "coverage": 0.8619
+        "population": 1702,
+        "precision": 0.9779,
+        "coverage": 0.7726
       },
       "typo": {
-        "population": 151,
-        "precision": 0.9776,
-        "coverage": 0.8874
+        "population": 149,
+        "precision": 0.9847,
+        "coverage": 0.8792
       }
     },
     "threshold": {
@@ -285,9 +285,9 @@
     }
   },
   "candidateRecall": {
-    "train": 0.9126,
-    "validation": 0.9069,
-    "test": 0.9187
+    "train": 0.888,
+    "validation": 0.8812,
+    "test": 0.884
   },
   "structuralChecks": {
     "oneManagerPerResolvedEmployee": true,

@@ -139,6 +139,10 @@ class InferenceParsingTests(unittest.TestCase):
         self.assertEqual(infer_role_family("Senior QA Engineer"), "Quality Assurance")
         self.assertEqual(infer_role_family("QA Manager"), "Quality Assurance")
 
+    def test_ambiguous_lead_suffix_is_a_senior_ic_not_a_manager(self) -> None:
+        self.assertEqual(infer_rank("Program Lead")[:2], (3, "Principal / Staff IC"))
+        self.assertEqual(infer_rank("Client Success Lead")[:2], (3, "Principal / Staff IC"))
+
     def test_wrong_department_cannot_override_management_ladder(self) -> None:
         report = replace(
             person("report", 4), department="Engineering",
@@ -190,6 +194,23 @@ class InferenceParsingTests(unittest.TestCase):
         )
         candidates = build_candidates([report, cro, cfo])["sales_vp"]
         self.assertEqual([item.manager_id for item in candidates], ["cro"])
+        self.assertTrue(candidates[0].structural_match)
+
+    def test_vp_reports_to_ceo_when_portfolio_executive_is_absent(self) -> None:
+        report = replace(
+            person("engineering_vp", 8, manager=True),
+            job_title="VP of Engineering",
+            rank_label="VP / Head",
+            department="Engineering",
+        )
+        ceo = replace(
+            person("ceo", 10, manager=True),
+            job_title="Chief Executive Officer",
+            rank_label="CEO",
+            department="Executive",
+        )
+        candidates = build_candidates([report, ceo])["engineering_vp"]
+        self.assertEqual([item.manager_id for item in candidates], ["ceo"])
         self.assertTrue(candidates[0].structural_match)
 
     def test_team_lead_scope_separates_peer_managers(self) -> None:

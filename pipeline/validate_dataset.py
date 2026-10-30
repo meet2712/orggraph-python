@@ -64,6 +64,7 @@ def main() -> None:
     truth_by_id = {row["employee_id"]: row for row in truth}
     company_counts = Counter(row["company_id"] for row in truth)
     declared_counts = {row["company_id"]: int(row["employee_count"]) for row in companies}
+    company_bands = {row["company_id"]: row["size_band"] for row in companies}
     require(set(company_counts) == set(declared_counts), "company coverage differs between files")
     for company_id, count in company_counts.items():
         require(count >= 100, f"{company_id} has only {count} employees")
@@ -120,6 +121,22 @@ def main() -> None:
     require(len(industries) >= 8, "industry diversity is too low")
     require(len(departments) >= 10, "department diversity is too low")
 
+    c_suite_counts = Counter(
+        row["company_id"] for row in truth if row["canonical_level"] == "C-Suite"
+    )
+    expected_ranges = {"Small": (1, 2), "Growth": (2, 4), "Mid-market": (3, 5)}
+    for company_id, band in company_bands.items():
+        minimum, maximum = expected_ranges[band]
+        require(
+            minimum <= c_suite_counts[company_id] <= maximum,
+            f"{company_id} has an implausible C-suite count for {band}",
+        )
+    require(len(set(c_suite_counts.values())) >= 4, "C-suite structures are too uniform")
+    require(
+        sum(count == 5 for count in c_suite_counts.values()) < len(companies) // 2,
+        "too many companies use the full five-role C-suite",
+    )
+
     print("Dataset validation passed")
     print(f"Companies: {len(companies):,}")
     print(f"Employees: {len(truth):,}")
@@ -127,6 +144,7 @@ def main() -> None:
     print(f"Company size range: {min(company_counts.values()):,}-{max(company_counts.values()):,}")
     print(f"Industries: {len(industries)}")
     print(f"Departments (including Executive): {len(departments)}")
+    print(f"Non-CEO C-suite distribution: {dict(sorted(Counter(c_suite_counts.values()).items()))}")
 
 
 if __name__ == "__main__":

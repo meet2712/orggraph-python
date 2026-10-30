@@ -95,6 +95,14 @@ EXECUTIVE_PORTFOLIOS = {
     },
 }
 
+PORTFOLIO_PRINCIPAL_ROLES = {
+    "Technology": ("Principal Software Architect", "Engineering"),
+    "Revenue": ("Principal Sales Strategist", "Sales"),
+    "Operations": ("Principal Operations Analyst", "Operations"),
+    "Finance & Risk": ("Principal Financial Analyst", "Finance"),
+    "People": ("Principal People Partner", "People"),
+}
+
 DEPARTMENT_HEAD_TITLES = {
     "Engineering": ["VP of Engineering", "Head of Engineering"],
     "Sales": ["VP of Sales", "Head of Sales"],
@@ -177,16 +185,16 @@ TEAM_CLUSTERS = {
 MANAGER_TITLES = {
     "Engineering": ["Engineering Manager", "Software Development Manager", "QA Manager"],
     "Sales": ["Sales Manager", "Regional Sales Manager", "Business Development Manager"],
-    "Customer Success": ["Customer Success Team Manager", "Client Success Team Manager", "Support Manager"],
-    "Operations": ["Operations Manager", "Business Operations Manager", "Program Manager"],
-    "Product": ["Group Product Manager", "Product Operations Manager"],
+    "Customer Success": ["Customer Success Team Manager", "Client Success Lead", "Support Manager"],
+    "Operations": ["Operations Manager", "Business Operations Manager", "Program Lead"],
+    "Product": ["Group Product Manager", "Product Team Lead", "Product Operations Manager"],
     "Marketing": ["Marketing Manager", "Growth Marketing Manager", "Demand Generation Manager"],
     "Data & Analytics": ["Data Engineering Manager", "Analytics Manager", "Data Science Manager"],
     "Finance": ["Finance Manager", "FP&A Manager", "Accounting Manager"],
     "People": ["People Operations Manager", "HR Manager", "Talent Acquisition Manager"],
     "Security": ["Security Engineering Manager", "GRC Manager", "Security Operations Manager"],
     "IT": ["IT Manager", "Infrastructure Manager", "Service Desk Manager"],
-    "Legal": ["Legal Operations Manager", "Legal Team Manager", "Compliance Manager"],
+    "Legal": ["Legal Operations Manager", "Senior Counsel", "Compliance Manager"],
 }
 
 SENIOR_MANAGER_TITLES = {
@@ -231,7 +239,7 @@ TEAM_MANAGER_TITLES = {
     "Operations": {
         "Business Operations": ["Business Operations Manager"],
         "Revenue Operations": ["Business Operations Manager"],
-        "Programs": ["Program Manager"],
+        "Programs": ["Program Lead"],
         "Delivery": ["Operations Manager"],
         "Strategy": ["Business Operations Manager"],
     },
@@ -296,64 +304,17 @@ TEAM_LEAD_TITLES = {
         "Applications": "Application Engineering Team Lead", "Mobile": "Mobile Engineering Team Lead",
         "Web": "Web Engineering Team Lead",
     },
-    "Sales": {
-        "Enterprise": "Enterprise Sales Team Lead", "Mid-Market": "Mid-Market Sales Team Lead",
-        "SMB": "SMB Sales Team Lead", "Partnerships": "Partnerships Team Lead",
-        "APAC": "APAC Sales Team Lead", "EMEA": "EMEA Sales Team Lead",
-        "Americas": "Americas Sales Team Lead", "default": "Sales Team Lead",
-    },
-    "Customer Success": {
-        "Enterprise Success": "Enterprise Success Team Lead",
-        "Commercial Success": "Commercial Success Team Lead", "Support": "Support Team Lead",
-        "Onboarding": "Onboarding Team Lead", "Implementations": "Implementation Team Lead",
-        "default": "Customer Success Team Lead",
-    },
-    "Operations": {
-        "Business Operations": "Business Operations Team Lead",
-        "Revenue Operations": "Revenue Operations Team Lead", "Programs": "Programs Team Lead",
-        "Delivery": "Delivery Team Lead", "Strategy": "Strategy Team Lead",
-        "default": "Operations Team Lead",
-    },
-    "Product": {
-        "Core Product": "Core Product Team Lead", "Growth Product": "Growth Product Team Lead",
-        "Platform Product": "Platform Product Team Lead", "Design": "Design Team Lead",
-        "Research": "Research Team Lead", "default": "Product Team Lead",
-    },
-    "Marketing": {
-        "Growth": "Growth Marketing Team Lead", "Demand Generation": "Demand Generation Team Lead",
-        "Content": "Content Team Lead", "Brand": "Brand Team Lead",
-        "Product Marketing": "Product Marketing Team Lead", "default": "Marketing Team Lead",
-    },
-    "Data & Analytics": {
-        "Data Platform": "Data Platform Team Lead", "ML Platform": "ML Platform Team Lead",
-        "Analytics": "Analytics Team Lead", "Business Intelligence": "BI Team Lead",
-        "Data Science": "Data Science Team Lead", "default": "Data & Analytics Team Lead",
-    },
-    "Finance": {
-        "Financial Planning": "Financial Planning Team Lead", "Commercial Finance": "Commercial Finance Team Lead",
-        "Accounting": "Accounting Team Lead", "Payroll": "Payroll Team Lead",
-        "default": "Finance Team Lead",
-    },
-    "People": {
-        "People Operations": "People Operations Team Lead", "Business Partners": "HR Business Partners Team Lead",
-        "Talent": "Talent Team Lead", "Learning": "Learning Team Lead",
-        "default": "People Operations Team Lead",
-    },
-    "Security": {
-        "Security Engineering": "Security Engineering Team Lead", "Identity": "Identity Team Lead",
-        "GRC": "GRC Team Lead", "Security Operations": "Security Operations Team Lead",
-        "default": "Security Team Lead",
-    },
-    "IT": {
-        "Infrastructure": "Infrastructure Team Lead", "Cloud Operations": "Cloud Operations Team Lead",
-        "Service Desk": "Service Desk Supervisor", "Enterprise Applications": "Enterprise Applications Team Lead",
-        "default": "IT Team Lead",
-    },
-    "Legal": {
-        "Commercial Legal": "Commercial Legal Team Lead", "Legal Operations": "Legal Operations Team Lead",
-        "Compliance": "Compliance Team Lead", "Privacy": "Privacy Team Lead",
-        "default": "Legal Operations Team Lead",
-    },
+    "Sales": {"default": "Sales Team Lead"},
+    "Customer Success": {"Support": "Support Team Lead", "default": "Customer Success Team Lead"},
+    "Operations": {"default": "Operations Team Lead"},
+    "Product": {"Design": "Design Team Lead", "Research": "Research Team Lead", "default": "Product Team Lead"},
+    "Marketing": {"default": "Marketing Team Lead"},
+    "Data & Analytics": {"default": "Data & Analytics Team Lead"},
+    "Finance": {"default": "Finance Team Lead"},
+    "People": {"default": "People Operations Team Lead"},
+    "Security": {"default": "Security Team Lead"},
+    "IT": {"Service Desk": "Service Desk Supervisor", "default": "IT Team Lead"},
+    "Legal": {"default": "Legal Operations Team Lead"},
 }
 
 IC_TITLES = {
@@ -514,6 +475,57 @@ def parse_args() -> argparse.Namespace:
 
 def size_band(size: int) -> str:
     return "Small" if size < 130 else "Growth" if size < 180 else "Mid-market"
+
+
+def selected_executive_portfolios(
+    company_id: str, size: int, industry: str, seed: int,
+) -> set[str]:
+    """Choose a realistic, reproducible subset of non-CEO executives.
+
+    Headcount determines how many specialist executives are affordable while
+    industry changes which portfolios are most likely. The dedicated RNG keeps
+    this decision independent from the legacy employee/noise generation stream.
+    """
+    band = size_band(size)
+    count_ranges = {
+        "Small": (1, 2),
+        "Growth": (2, 4),
+        "Mid-market": (3, 5),
+    }
+    minimum, maximum = count_ranges[band]
+    rng = random.Random(f"{seed}:{company_id}:executive-portfolios")
+    count = rng.randint(minimum, maximum)
+
+    weights = {
+        "Technology": 3.0,
+        "Revenue": 2.5,
+        "Operations": 1.7,
+        "Finance & Risk": 1.4,
+        "People": 0.8,
+    }
+    if industry in {"B2B SaaS", "FinTech", "Cybersecurity", "HealthTech", "EdTech"}:
+        weights["Technology"] += 2.2
+    if industry in {"B2B SaaS", "E-commerce", "Professional Services", "EdTech"}:
+        weights["Revenue"] += 1.7
+    if industry in {"E-commerce", "Logistics", "Clean Energy", "Telecommunications"}:
+        weights["Operations"] += 2.4
+    if industry in {"FinTech", "HealthTech", "Clean Energy"}:
+        weights["Finance & Risk"] += 2.0
+    if band == "Mid-market":
+        weights["Finance & Risk"] += 1.4
+        weights["People"] += 1.5
+    elif band == "Growth":
+        weights["People"] += 0.5
+
+    remaining = list(EXECUTIVE_PORTFOLIOS)
+    selected: set[str] = set()
+    while len(selected) < count:
+        chosen = rng.choices(
+            remaining, weights=[weights[portfolio] for portfolio in remaining], k=1
+        )[0]
+        selected.add(chosen)
+        remaining.remove(chosen)
+    return selected
 
 
 def active_departments(size: int, industry: str) -> list[str]:
@@ -766,6 +778,7 @@ def main() -> None:
         portfolio_ids: dict[str, str] = {}
         portfolio_locations: dict[str, str] = {}
         department_portfolio: dict[str, str] = {}
+        department_leader_ids: dict[str, str] = {}
         for portfolio, spec in active_portfolios.items():
             executive_id = next_employee_id()
             executive_location = (
@@ -800,6 +813,7 @@ def main() -> None:
                 department, department_path, "VP", executive_id, leader_location,
             )
             company_employees.append(leader)
+            department_leader_ids[department] = leader_id
 
             remaining = department_count - 1
             manager_count = max(1, min(14, round(remaining / 9)))
@@ -931,6 +945,46 @@ def main() -> None:
                     ))
 
         actual_size = len(company_employees)
+        # Preserve the original flat employee population and its global RNG
+        # sequence, but do not force every company into the same five-person
+        # C-suite. Portfolios without a dedicated executive roll their VP up
+        # to the CEO and keep the preserved employee as a functional Principal.
+        selected_portfolios = selected_executive_portfolios(
+            company_id, actual_size, industry, args.seed
+        )
+        original_titles = {
+            row["employee_id"]: row["canonical_title"] for row in company_employees
+        }
+        original_departments = {
+            row["employee_id"]: row["canonical_department"] for row in company_employees
+        }
+        original_teams = {
+            row["employee_id"]: row["canonical_team"] for row in company_employees
+        }
+        inactive_executives = {
+            executive_id: portfolio
+            for portfolio, executive_id in portfolio_ids.items()
+            if portfolio not in selected_portfolios
+        }
+        for row in company_employees:
+            if row["employee_id"] in inactive_executives:
+                portfolio = inactive_executives[row["employee_id"]]
+                principal_title, principal_department = PORTFOLIO_PRINCIPAL_ROLES[portfolio]
+                row["canonical_title"] = principal_title
+                row["canonical_department"] = principal_department
+                row["canonical_level"] = "Principal"
+                row["manager_employee_id"] = department_leader_ids[principal_department]
+                leader = next(
+                    employee for employee in company_employees
+                    if employee["employee_id"] == row["manager_employee_id"]
+                )
+                row["canonical_team"] = leader["canonical_team"]
+            elif (
+                row["canonical_level"] == "VP"
+                and row["manager_employee_id"] in inactive_executives
+            ):
+                row["manager_employee_id"] = ceo_id
+
         companies.append({
             "company_id": company_id, "company_name": name, "industry": industry,
             "size_band": size_band(actual_size), "employee_count": actual_size,
@@ -940,17 +994,30 @@ def main() -> None:
             row["manager_employee_id"] for row in company_employees if row["manager_employee_id"]
         )
         company_slug = slug(name)
-        available_teams = sorted({row["canonical_team"] for row in company_employees})
+        available_teams = sorted(set(original_teams.values()))
         for row in company_employees:
+            # Always consume the legacy title-noise RNG call so every untouched
+            # raw row remains byte-for-byte reproducible from the old dataset.
             noisy_title, noise_profile = messify_title(
-                row["canonical_title"], row["canonical_department"], row["location"], rng
+                original_titles[row["employee_id"]],
+                original_departments[row["employee_id"]],
+                row["location"], rng
             )
+            if row["employee_id"] in inactive_executives:
+                principal_rng = random.Random(
+                    f"{args.seed}:{company_id}:{row['employee_id']}:principal-title"
+                )
+                noisy_title, noise_profile = messify_title(
+                    row["canonical_title"], row["canonical_department"],
+                    row["location"], principal_rng
+                )
             row["is_people_manager"] = "1" if report_counts[row["employee_id"]] else "0"
             row["noise_profile"] = "|".join(noise_profile)
             truth.append({key: value for key, value in row.items() if key != "location"})
+            original_department = original_departments[row["employee_id"]]
             department_value = (
-                "Executive" if row["canonical_department"] == "Executive"
-                else messy_department(row["canonical_department"], departments, rng)
+                "Executive" if original_department == "Executive"
+                else messy_department(original_department, departments, rng)
             )
             location_value = "" if rng.random() < 0.075 else row["location"]
             email_local = re.sub(r"[^a-z0-9]+", ".", row["full_name"].lower()).strip(".")
@@ -958,7 +1025,7 @@ def main() -> None:
                 "employee_id": row["employee_id"], "company_id": company_id,
                 "full_name": row["full_name"], "job_title": noisy_title,
                 "department": department_value,
-                "team": messy_team(row["canonical_team"], available_teams, rng),
+                "team": messy_team(original_teams[row["employee_id"]], available_teams, rng),
                 "location": location_value,
                 "work_email": f"{email_local}.{row['employee_id'].split('_')[-1]}@{company_slug}.example",
             })
@@ -980,6 +1047,11 @@ def main() -> None:
               ["company_id", "employee_id", "manager_employee_id"])
 
     industry_counts = Counter(row["industry"] for row in companies)
+    c_suite_counts = Counter(
+        Counter(
+            row["company_id"] for row in truth if row["canonical_level"] == "C-Suite"
+        ).values()
+    )
     noise_counts: Counter[str] = Counter()
     for row in truth:
         noise_counts.update(str(row["noise_profile"]).split("|"))
@@ -991,6 +1063,10 @@ def main() -> None:
         "minimum_company_size": min(int(row["employee_count"]) for row in companies),
         "maximum_company_size": max(int(row["employee_count"]) for row in companies),
         "industries": dict(sorted(industry_counts.items())),
+        "non_ceo_c_suite_distribution": {
+            str(count): companies_at_count
+            for count, companies_at_count in sorted(c_suite_counts.items())
+        },
         "noise_profiles": dict(sorted(noise_counts.items())),
         "missing_job_title_rows": sum(1 for row in messy if not row["job_title"]),
         "missing_or_sentinel_department_rows": sum(
