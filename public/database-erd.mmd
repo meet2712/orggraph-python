@@ -86,15 +86,15 @@ erDiagram
         INTEGER position PK
         TEXT reason 
     }
-    companies ||--o{ employees : R1
-    employees ||--o{ benchmark_truth : R2
-    employees ||--o| benchmark_truth : R3
-    employees ||--o{ employee_features : R4
-    inference_runs ||--o{ employee_features : R5
-    employee_features ||--o{ reporting_predictions : R6
-    employee_features ||--o{ reporting_predictions : R7
-    employee_features ||--o| reporting_predictions : R8
-    companies ||--o{ company_run_metrics : R9
-    inference_runs ||--o{ company_run_metrics : R10
-    employees ||--o{ employee_noise : R11
-    reporting_predictions ||--o{ prediction_reasons : R12
+    companies ||--o{ employees : company_id
+    employees |o..o{ benchmark_truth : manager_employee_id
+    employees ||--o| benchmark_truth : employee_id
+    employees ||--o{ employee_features : employee_id
+    inference_runs ||--o{ employee_features : run_id
+    employee_features |o..o{ reporting_predictions : best_candidate_id
+    employee_features |o..o{ reporting_predictions : accepted_manager_id
+    employee_features ||--o| reporting_predictions : employee_id
+    companies ||--o{ company_run_metrics : company_id
+    inference_runs ||--o{ company_run_metrics : run_id
+    employees ||--o{ employee_noise : employee_id
+    reporting_predictions ||--o{ prediction_reasons : employee_id

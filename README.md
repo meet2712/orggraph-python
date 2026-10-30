@@ -42,7 +42,8 @@ SQLite read-only mode. This keeps a public demo separate from data loading.
   confidence, the runner-up gap and rejection reasons without joining the answer key.
 - A public read-only SQL workspace, with table keys, relationships and company
   coverage. Queries run in a browser copy rather than on a server SQL endpoint.
-- A schema-backed ER overview with separate full-column SVG and Mermaid downloads,
+- A schema-backed ER diagram with every column, SQL types, crow’s-foot cardinality,
+  and downloadable SVG and Mermaid source,
   expandable column definitions, and exact composite-key references.
 - A downloadable SQLite snapshot for local SQL inspection. Extract the `.gz` file
   and open the `.sqlite` file in a SQLite client. This is a copy of the published
