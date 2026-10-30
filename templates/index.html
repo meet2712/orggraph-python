@@ -275,7 +275,7 @@
       <h2>2. Calculate the hierarchy in SQL</h2>
       <div class="score-flow" role="list" aria-label="Reporting-line inference stages">
         <article class="score-stage" role="listitem"><span class="score-step">01 · Input</span><h3>Read source rows</h3><p><code>companies</code> and <code>employees</code> are the only persisted tables. Titles, department, team and location remain as observed.</p></article>
-        <article class="score-stage" role="listitem"><span class="score-step">02 · Parse</span><h3>Infer role level</h3><p><code>employee_features</code> normalizes title abbreviations and derives seniority and function from source fields.</p></article>
+        <article class="score-stage" role="listitem"><span class="score-step">02 · Parse</span><h3>Infer role level</h3><p><code>employee_features</code> reads title abbreviations, function and seniority. A specific role can help when a team is missing.</p></article>
         <article class="score-stage" role="listitem"><span class="score-step">03 · Compare</span><h3>Rank candidates</h3><p>Only plausible leaders in the same company are considered. Seniority, team scope and function determine the evidence score.</p></article>
         <article class="score-stage" role="listitem"><span class="score-step">04 · Decide</span><h3>Accept or abstain</h3><p><code>reporting_predictions</code> compares the top candidates. It creates an edge only when the score and the lead over second place both clear their thresholds.</p></article>
       </div>

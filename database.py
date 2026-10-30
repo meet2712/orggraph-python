@@ -277,7 +277,7 @@ def read_company(connection: sqlite3.Connection, company_id: str) -> dict | None
                         WHEN p.best_candidate_id IS NULL
                         THEN 'No suitable management title'
                         WHEN p.decision = 'accepted'
-                        THEN 'Team path and seniority identify a manager'
+                        THEN 'Role and team evidence support this manager'
                         WHEN p.confidence < settings.score_threshold
                         THEN 'Insufficient team or role evidence'
                         ELSE 'Several candidates have similar evidence'

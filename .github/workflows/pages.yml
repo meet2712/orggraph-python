@@ -32,7 +32,7 @@ jobs:
       - run: python -m unittest discover -s pipeline -p 'test_*.py'
       - run: python pipeline/validate_dataset.py --data-dir data
       - run: python scripts/build_database.py
-      - run: python scripts/evaluate_sql_inference.py --min-precision 0.965 --output public/data/sql_evaluation.json
+      - run: python scripts/evaluate_sql_inference.py --min-precision 0.98 --output public/data/sql_evaluation.json
       - run: python scripts/export_site.py --base-path /orggraph-python
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4

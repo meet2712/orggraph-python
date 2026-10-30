@@ -3,10 +3,10 @@
   "employees": 13447,
   "roots": 75,
   "eligible_reporting_lines": 13372,
-  "accepted_reporting_lines": 8849,
-  "correct_reporting_lines": 8709,
-  "incorrect_reporting_lines": 140,
-  "precision": 0.9842,
-  "coverage": 0.6618,
-  "recall": 0.6513
+  "accepted_reporting_lines": 10223,
+  "correct_reporting_lines": 10087,
+  "incorrect_reporting_lines": 136,
+  "precision": 0.9867,
+  "coverage": 0.7645,
+  "recall": 0.7543
 }

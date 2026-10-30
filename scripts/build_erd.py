@@ -15,6 +15,7 @@ GRAINS = {
     'company_profiles': 'Company size and headcount',
     'employee_text': 'Title and team text, cleaned for matching',
     'employee_classification': 'Department and seniority from the title',
+    'employee_role_profiles': 'Specialty and executive portfolio from observed fields',
     'employee_features': 'Employee attributes used for matching',
     'manager_candidates': 'Possible managers in the same company',
     'candidate_scores': 'Evidence for each possible manager',

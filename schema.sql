@@ -54,7 +54,7 @@ FROM employees e;
 -- leadership role. Senior, Staff and Principal ICs remain individual
 -- contributors. Manager in an account/product/success IC title is ambiguous.
 CREATE VIEW employee_classification AS
-SELECT t.company_id, t.employee_id, t.location, t.team_path,
+SELECT t.company_id, t.employee_id, t.location, t.team_path, t.title_text,
        CASE
          WHEN title_text LIKE '% chief executive officer %' OR trim(title_text) = 'ceo'
            THEN 'CEO'
@@ -121,33 +121,39 @@ SELECT t.company_id, t.employee_id, t.location, t.team_path,
            THEN 'Engineering'
          WHEN title_text LIKE '% marketing %' OR title_text LIKE '% mktg %'
            OR title_text LIKE '% growth %' OR title_text LIKE '% demand gen %'
+           OR title_text LIKE '% demand generation %'
            THEN 'Marketing'
-         WHEN title_text LIKE '% data %' OR title_text LIKE '% analytics %'
-           OR title_text LIKE '% analyst %' OR title_text LIKE '% machine learning %'
-           THEN 'Data & Analytics'
          WHEN title_text LIKE '% security %' OR title_text LIKE '% infosec %'
            THEN 'Security'
          WHEN title_text LIKE '% product engineering %' OR title_text LIKE '% product eng %'
            THEN 'Engineering'
          WHEN title_text LIKE '% product %' OR title_text LIKE '% ux %'
            OR title_text LIKE '% design %' THEN 'Product'
-         WHEN title_text LIKE '% customer success %' OR title_text LIKE '% support %'
+         WHEN title_text LIKE '% customer success %' OR title_text LIKE '% cust success %'
+           OR title_text LIKE '% support %'
            OR title_text LIKE '% onboarding %' THEN 'Customer Success'
-         WHEN title_text LIKE '% sales %' OR title_text LIKE '% revenue %'
-           OR title_text LIKE '% account %' OR title_text LIKE '% partnership %'
-           THEN 'Sales'
-         WHEN title_text LIKE '% finance %' OR title_text LIKE '% financial %'
-           OR title_text LIKE '% accounting %' OR title_text LIKE '% cfo %'
-           THEN 'Finance'
          WHEN title_text LIKE '% people %' OR title_text LIKE '% human resources %'
            OR title_text LIKE '% hr %' OR title_text LIKE '% talent %'
            THEN 'People'
-         WHEN title_text LIKE '% legal %' OR title_text LIKE '% counsel %'
-           OR title_text LIKE '% compliance %' THEN 'Legal'
          WHEN title_text LIKE '% operations %' OR title_text LIKE '% ops %'
            OR title_text LIKE '% program %' THEN 'Operations'
+         WHEN title_text LIKE '% sales %' OR title_text LIKE '% revenue %'
+           OR title_text LIKE '% account %' OR title_text LIKE '% partnership %'
+           OR title_text LIKE '% partnerships %' OR title_text LIKE '% business development %'
+           THEN 'Sales'
+         WHEN title_text LIKE '% finance %' OR title_text LIKE '% financial %'
+           OR title_text LIKE '% accounting %' OR title_text LIKE '% cfo %'
+           OR title_text LIKE '% fp&a %'
+           THEN 'Finance'
+         WHEN title_text LIKE '% legal %' OR title_text LIKE '% counsel %'
+           OR title_text LIKE '% compliance %' THEN 'Legal'
+         WHEN title_text LIKE '% data %' OR title_text LIKE '% analytics %'
+           OR title_text LIKE '% analyst %' OR title_text LIKE '% machine learning %'
+           OR title_text LIKE '% bi %' THEN 'Data & Analytics'
          WHEN title_text LIKE '% information technology %' OR title_text LIKE '% it %'
-           OR title_text LIKE '% infrastructure %' THEN 'IT'
+           OR title_text LIKE '% infrastructure %' OR title_text LIKE '% network %'
+           OR title_text LIKE '% systems administrator %' OR title_text LIKE '% helpdesk %'
+           OR title_text LIKE '% help desk %' THEN 'IT'
          WHEN title_text LIKE '% engineer %' OR title_text LIKE '% engineering %'
            OR title_text LIKE '% developer %'
            OR title_text LIKE '% software %' OR title_text LIKE '% technology %'
@@ -168,9 +174,80 @@ SELECT t.company_id, t.employee_id, t.location, t.team_path,
          ELSE 'Unclassified' END AS inferred_department
 FROM employee_text t;
 
+-- A narrow role family can recover a missing team without inventing one.
+-- Executive portfolios are read from explicit titles or a recognised function.
+CREATE VIEW employee_role_profiles AS
+SELECT c.*,
+       CASE
+         WHEN title_text LIKE '% qa %' OR title_text LIKE '% quality %' THEN 'quality'
+         WHEN title_text LIKE '% security %' OR title_text LIKE '% infosec %' THEN 'security'
+         WHEN title_text LIKE '% data engineer %' OR title_text LIKE '% data engineering %'
+           OR title_text LIKE '% data eng %' THEN 'data_engineering'
+         WHEN (title_text LIKE '% analytics %' OR title_text LIKE '% bi %'
+           OR title_text LIKE '% data analyst %')
+           AND c.inferred_level <> 'Team Lead / Supervisor' THEN 'analytics'
+         WHEN title_text LIKE '% infrastructure %' OR title_text LIKE '% network %'
+           OR title_text LIKE '% systems administrator %' THEN 'it_infrastructure'
+         WHEN title_text LIKE '% fp&a %' OR title_text LIKE '% financial analyst %'
+           OR title_text LIKE '% finance team lead %' THEN 'financial_planning'
+         WHEN title_text LIKE '% business development %' THEN 'business_development'
+         WHEN title_text LIKE '% demand generation %' OR title_text LIKE '% demand gen %'
+           THEN 'demand_generation'
+         WHEN title_text LIKE '% growth %' THEN 'growth_marketing'
+         WHEN title_text LIKE '% business operations %' OR title_text LIKE '% business ops %'
+           OR title_text LIKE '% operations analyst %' THEN 'business_operations'
+         WHEN title_text LIKE '% people operations %' OR title_text LIKE '% people ops %'
+           OR title_text LIKE '% people partner %' OR title_text LIKE '% hr coordinator %'
+           THEN 'people_operations'
+         WHEN title_text LIKE '% commercial legal %' OR title_text LIKE '% legal counsel %'
+           OR title_text LIKE '% contracts specialist %' THEN 'commercial_legal'
+         WHEN title_text LIKE '% program %' THEN 'programs'
+         WHEN c.inferred_department = 'Sales' THEN
+           CASE
+             WHEN title_text LIKE '% mid market %' OR c.team_path LIKE '%/mid-market'
+               THEN 'sales_mid_market'
+             WHEN title_text LIKE '% enterprise %' OR c.team_path LIKE '%/enterprise'
+               THEN 'sales_enterprise'
+             WHEN title_text LIKE '% smb %' OR c.team_path LIKE '%/smb' THEN 'sales_smb'
+             ELSE '' END
+         -- Generic lead titles need a compatible observed team to identify
+         -- their specialty; a misplaced team in another function is ignored.
+         WHEN c.inferred_level = 'Team Lead / Supervisor' THEN
+           CASE
+             WHEN c.inferred_department = 'Data & Analytics' AND c.team_path LIKE '%/data platform'
+               THEN 'data_engineering'
+             WHEN c.inferred_department = 'Data & Analytics' AND c.team_path LIKE '%/analytics'
+               THEN 'analytics'
+             WHEN c.inferred_department = 'Marketing' AND c.team_path LIKE '%/growth'
+               THEN 'growth_marketing'
+             WHEN c.inferred_department = 'Marketing' AND c.team_path LIKE '%/demand generation'
+               THEN 'demand_generation'
+             WHEN c.inferred_department = 'Operations' AND c.team_path LIKE '%/business operations'
+               THEN 'business_operations'
+             WHEN c.inferred_department = 'IT' AND c.team_path LIKE '%/infrastructure'
+               THEN 'it_infrastructure'
+             WHEN c.inferred_department = 'Sales' AND c.team_path LIKE '%/partnerships'
+               THEN 'business_development'
+             ELSE '' END
+         ELSE '' END AS role_family,
+       CASE
+         WHEN title_text LIKE '% chief technology %' OR trim(title_text) IN ('cto','cio','cdo','ciso')
+           OR title_text LIKE '% chief product %' THEN 'Technology'
+         WHEN title_text LIKE '% chief revenue %' OR trim(title_text) IN ('cro','cmo') THEN 'Revenue'
+         WHEN title_text LIKE '% chief operating %' OR trim(title_text) = 'coo' THEN 'Operations'
+         WHEN title_text LIKE '% chief financial %' OR trim(title_text) = 'cfo' THEN 'Finance & Risk'
+         WHEN title_text LIKE '% chief people %' OR title_text LIKE ' cpo people %' THEN 'People'
+         WHEN c.inferred_level = 'C-Suite' THEN ''
+         WHEN c.inferred_department IN ('Engineering','Product','Data & Analytics','Security','IT')
+           THEN 'Technology'
+         WHEN c.inferred_department IN ('Sales','Marketing','Customer Success') THEN 'Revenue'
+         WHEN c.inferred_department IN ('Finance','Legal') THEN 'Finance & Risk'
+         WHEN c.inferred_department IN ('People','Operations') THEN c.inferred_department
+         ELSE '' END AS executive_portfolio
+FROM employee_classification c;
+
 CREATE VIEW employee_features AS
-SELECT company_id, employee_id, inferred_department,
-       inferred_level,
+SELECT p.*,
        CASE inferred_level
          WHEN 'CEO' THEN 10 WHEN 'C-Suite' THEN 9
          WHEN 'VP / Head' THEN 8 WHEN 'Senior Director' THEN 7
@@ -180,18 +257,20 @@ SELECT company_id, employee_id, inferred_department,
          WHEN 'Principal / Staff IC' THEN 3
          WHEN 'Senior IC' THEN 2 WHEN 'Junior IC' THEN 0
          ELSE 1 END AS inferred_rank
-FROM employee_classification;
+FROM employee_role_profiles p;
 
 -- Candidate set stays inside one company and permits only explicit managers.
 -- A management role may report to the next available higher layer. ICs can
 -- report to an explicit Team Lead or Manager, but never to a Senior IC.
 CREATE VIEW manager_candidates AS
 SELECT r.company_id, r.employee_id, c.employee_id AS candidate_id,
-       rf.inferred_rank AS report_rank, cf.inferred_rank AS candidate_rank,
-       rf.inferred_level AS report_level, cf.inferred_level AS candidate_level,
-       rf.inferred_department AS report_department,
-       cf.inferred_department AS candidate_department,
-       c.team_path AS candidate_team,
+       r.inferred_rank AS report_rank, c.inferred_rank AS candidate_rank,
+       r.inferred_level AS report_level, c.inferred_level AS candidate_level,
+       r.inferred_department AS report_department,
+       c.inferred_department AS candidate_department,
+       r.team_path AS report_team, c.team_path AS candidate_team,
+       r.role_family AS report_family, c.role_family AS candidate_family,
+       r.executive_portfolio AS report_portfolio, c.executive_portfolio AS candidate_portfolio,
        CASE WHEN r.team_path = c.team_path AND r.team_path NOT IN ('','n/a','unknown','-')
                  THEN 'same_team'
             WHEN r.team_path NOT IN ('','n/a','unknown','-')
@@ -201,60 +280,80 @@ SELECT r.company_id, r.employee_id, c.employee_id AS candidate_id,
             ELSE 'other' END AS team_relation,
        CASE WHEN r.location <> '' AND r.location = c.location THEN 1 ELSE 0 END
          AS same_location
-FROM employee_classification r
-JOIN employee_features rf USING(company_id, employee_id)
-JOIN employee_classification c ON c.company_id = r.company_id
-JOIN employee_features cf ON cf.company_id = c.company_id AND cf.employee_id = c.employee_id
-JOIN employee_text rt ON rt.company_id = r.company_id AND rt.employee_id = r.employee_id
-JOIN employee_text ct ON ct.company_id = c.company_id AND ct.employee_id = c.employee_id
+FROM employee_features r
+JOIN employee_features c ON c.company_id = r.company_id
 WHERE r.employee_id <> c.employee_id
-  AND cf.inferred_level IN ('CEO','C-Suite','VP / Head','Senior Director',
+  AND c.inferred_level IN ('CEO','C-Suite','VP / Head','Senior Director',
         'Director','Senior Manager','Manager','Team Lead / Supervisor')
   AND (
-      (rf.inferred_rank < 3 AND cf.inferred_rank >= 3)
-      OR (rf.inferred_level IN ('Senior IC','Principal / Staff IC')
-          AND cf.inferred_rank >= 4)
-      OR (rf.inferred_level = 'Team Lead / Supervisor' AND cf.inferred_rank >= 4)
-      OR (rf.inferred_rank >= 4 AND cf.inferred_rank > rf.inferred_rank)
+      (r.inferred_level IN ('Junior IC','Individual Contributor') AND c.inferred_rank >= 3)
+      OR (r.inferred_level IN ('Senior IC','Principal / Staff IC')
+          AND c.inferred_rank >= 4)
+      OR (r.inferred_level = 'Team Lead / Supervisor' AND c.inferred_rank >= 4)
+      OR (r.inferred_rank >= 4 AND c.inferred_rank > r.inferred_rank)
   )
   AND (
       (r.team_path = c.team_path AND r.team_path NOT IN ('','n/a','unknown','-'))
       OR (c.team_path NOT IN ('','n/a','unknown','-') AND substr(r.team_path, 1, length(c.team_path) + 1) = c.team_path || '/')
-      OR cf.inferred_level = 'CEO'
-      -- A missing report team can still have one explicit specialist lead.
-      OR (r.team_path IN ('','n/a','unknown','-')
-          AND rf.inferred_level IN ('Junior IC','Individual Contributor','Senior IC','Principal / Staff IC')
-          AND cf.inferred_level IN ('Manager','Team Lead / Supervisor')
-          AND rf.inferred_department = cf.inferred_department
-          AND rf.inferred_department <> 'Unclassified'
-          AND ((rt.title_text LIKE '% qa %' AND ct.title_text LIKE '% qa %')
-            OR (rt.title_text LIKE '% security %' AND ct.title_text LIKE '% security %')))
+      OR c.inferred_level = 'CEO'
+      OR (r.inferred_level = 'VP / Head' AND c.inferred_level = 'C-Suite'
+          AND r.executive_portfolio <> ''
+          AND r.executive_portfolio = c.executive_portfolio)
+      OR ((r.team_path IN ('','n/a','unknown','-') OR c.team_path IN ('','n/a','unknown','-'))
+          AND r.inferred_level IN ('Junior IC','Individual Contributor','Senior IC','Principal / Staff IC')
+          AND c.inferred_level IN ('Manager','Team Lead / Supervisor')
+          AND r.role_family <> '' AND r.role_family = c.role_family)
   );
 
--- Scores represent strength of visible hierarchy evidence, not a learned
--- probability. Missing or conflicting team paths fall below the accept floor.
+-- Scores express visible hierarchy evidence, not a learned probability.
+-- Missing teams need a matching specialty; competing candidates remain open.
 CREATE VIEW candidate_scores AS
 SELECT m.company_id, m.employee_id, m.candidate_id,
        m.candidate_rank, m.candidate_team,
        CASE
-         -- Accept this fallback only when the specialist manager is unique.
-         WHEN report_level IN ('Junior IC','Individual Contributor','Senior IC','Principal / Staff IC')
+         -- Match a specialist when a team is missing or the manager owns a
+         -- parent team. The runner-up check rejects equally plausible matches.
+         WHEN report_family <> '' AND report_family = candidate_family
+              AND report_level IN ('Junior IC','Individual Contributor','Senior IC','Principal / Staff IC')
               AND candidate_level IN ('Manager','Team Lead / Supervisor')
-              AND team_relation = 'other'
-              AND rt.team_path IN ('','n/a','unknown','-')
-              AND report_department = candidate_department
-              AND report_department <> 'Unclassified'
-              AND ((rt.title_text LIKE '% qa %' AND ct.title_text LIKE '% qa %')
-                OR (rt.title_text LIKE '% security %' AND ct.title_text LIKE '% security %'))
+              AND (report_team IN ('','n/a','unknown','-') OR candidate_team IN ('','n/a','unknown','-')
+                   OR team_relation = 'parent_team')
+              -- A broad Staff/Principal title may belong to the whole function.
+              AND NOT (report_level = 'Principal / Staff IC'
+                       AND report_family IN ('financial_planning','people_operations','business_operations'))
+              AND (candidate_level = 'Team Lead / Supervisor'
+                   OR report_level IN ('Senior IC','Principal / Staff IC')
+                   OR NOT EXISTS (
+                       SELECT 1 FROM employee_features lead
+                       WHERE lead.company_id = m.company_id
+                         AND lead.inferred_department = m.report_department
+                         AND lead.inferred_level = 'Team Lead / Supervisor'
+                         AND (lead.role_family = m.report_family OR lead.role_family = '')
+                   ))
+              AND (candidate_level = 'Manager' OR (
+                  SELECT count(*) FROM employee_features manager
+                  WHERE manager.company_id = m.company_id
+                    AND manager.role_family = m.report_family
+                    AND manager.inferred_level = 'Manager'
+              ) <= 1) THEN 0.995
+         WHEN report_level = 'VP / Head' AND candidate_level = 'C-Suite'
+              AND report_portfolio <> '' AND report_portfolio = candidate_portfolio
+              THEN 0.99
+         WHEN report_level = 'VP / Head' AND candidate_level = 'CEO'
+              AND team_relation = 'parent_team' AND report_portfolio <> ''
               AND NOT EXISTS (
-                  SELECT 1 FROM employee_classification other
-                  JOIN employee_text ot USING(company_id, employee_id)
-                  WHERE other.company_id = m.company_id
-                    AND other.employee_id <> m.candidate_id
-                    AND other.inferred_level IN ('Manager','Team Lead / Supervisor')
-                    AND other.inferred_department = m.report_department
-                    AND ((rt.title_text LIKE '% qa %' AND ot.title_text LIKE '% qa %')
-                      OR (rt.title_text LIKE '% security %' AND ot.title_text LIKE '% security %'))
+                  SELECT 1 FROM employee_features executive
+                  WHERE executive.company_id = m.company_id
+                    AND executive.inferred_level = 'C-Suite'
+                    AND (executive.executive_portfolio = m.report_portfolio
+                         OR executive.executive_portfolio = '')
+              )
+              AND NOT EXISTS (
+                  SELECT 1 FROM employees unknown
+                  JOIN employee_text ut USING(company_id, employee_id)
+                  WHERE unknown.company_id = m.company_id AND trim(unknown.job_title) = ''
+                    AND ut.team_path NOT IN ('','n/a','unknown','-','company')
+                    AND substr(m.report_team, 1, length(ut.team_path) + 1) = ut.team_path || '/'
               ) THEN 0.99
          WHEN report_level = 'C-Suite' AND candidate_level = 'CEO' THEN 0.995
          WHEN report_level = 'VP / Head' AND candidate_level = 'CEO'
@@ -325,9 +424,7 @@ SELECT m.company_id, m.employee_id, m.candidate_id,
          ELSE 0.20 END
          + CASE WHEN same_location = 1 THEN 0.002 ELSE 0 END
          AS evidence_score
-FROM manager_candidates m
-JOIN employee_text rt ON rt.company_id = m.company_id AND rt.employee_id = m.employee_id
-JOIN employee_text ct ON ct.company_id = m.company_id AND ct.employee_id = m.candidate_id;
+FROM manager_candidates m;
 
 -- Correlate the shortlist to one employee so a company-page lookup does not
 -- rank every employee in the database. JSON is only an internal way to fetch
@@ -375,7 +472,7 @@ CREATE VIEW prediction_reasons AS
 SELECT p.company_id, p.employee_id,
        CASE WHEN p.decision = 'company_root' THEN 'CEO is the company root'
             WHEN p.best_candidate_id IS NULL THEN 'No suitable management title'
-            WHEN p.decision = 'accepted' THEN 'Team path and seniority identify a manager'
+            WHEN p.decision = 'accepted' THEN 'Role and team evidence support this manager'
             WHEN p.confidence < s.score_threshold THEN 'Insufficient team or role evidence'
             ELSE 'Several candidates have similar evidence' END AS reason
 FROM reporting_predictions p CROSS JOIN inference_settings s;

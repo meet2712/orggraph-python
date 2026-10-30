@@ -1,443 +1,509 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="2157" height="3819" viewBox="0 0 2157 3819" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="2131" height="4475" viewBox="0 0 2131 4475" role="img" aria-labelledby="title desc">
 <title id="title">OrgGraph tables and views</title>
 <desc id="desc">Every stored table and SQL view, with all columns. Solid green connects a foreign key. Dashed blue arrows show a view reading a table or another view. Select an object to highlight its direct inputs and outputs.</desc>
 <style>text{font-family:Arial,sans-serif;fill:#263b34}.name{font-size:17px;font-weight:700}.column{font-family:monospace;font-size:12px}.type{font-family:monospace;font-size:10px;fill:#66756c}.note{font-size:12px;fill:#627168}.kind{font-size:10px;font-weight:700}.entity{cursor:pointer;outline:none}.entity:focus rect{stroke:#164d82;stroke-width:3}.entity.is-muted,.edge.is-muted{opacity:.09}.entity.is-selected rect{stroke:#164d82;stroke-width:3}.edge.is-related{stroke:#164d82;stroke-width:2.4}</style>
-<rect width="2157" height="3819" fill="#fafbf8"/>
+<rect width="2131" height="4475" fill="#fafbf8"/>
 <defs><marker id="read-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 L7 3.5 L0 7" fill="#69849b"/></marker></defs>
 <text x="32" y="30" class="name">Tables and views</text>
 <text x="32" y="54" class="note">Green = stored table · Blue = calculated view · PK = primary key · FK = foreign key</text>
 <text x="32" y="75" class="note">Solid line = foreign key · Dashed arrow = reads from · Select a card to follow its connections</text>
-<path class="edge" data-parent="companies" data-child="employees" data-kind="foreign-key" d="M771.0,288 V343 H1078.5 V388" stroke="#64816b" stroke-width="1.4" fill="none"><title>employees references companies</title></path>
-<g class="edge" data-parent="companies" data-child="employees"><path d="M765.0,295 H777.0 M765.0,302 H777.0 M1078.5,374 L1071.5,386 M1078.5,374 V386 M1078.5,374 L1085.5,386" fill="none" stroke="#64816b" stroke-width="1.4"/><circle cx="1078.5" cy="364" r="4" fill="#fafbf8" stroke="#64816b"/></g>
-<path class="edge" data-parent="companies" data-child="company_profiles" data-kind="view-input" d="M901.0,288 V310 H126 V744 H771.0 V768" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>company_profiles reads companies</title></path>
-<path class="edge" data-parent="employees" data-child="company_profiles" data-kind="view-input" d="M948.5,668 V718 H901.0 V768" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>company_profiles reads employees</title></path>
-<path class="edge" data-parent="employees" data-child="employee_text" data-kind="view-input" d="M1013.5,668 V723 H1321.0 V768" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>employee_text reads employees</title></path>
-<path class="edge" data-parent="employee_text" data-child="employee_classification" data-kind="view-input" d="M1223.5,1002 V1057 H1078.5 V1102" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>employee_classification reads employee_text</title></path>
-<path class="edge" data-parent="employee_classification" data-child="employee_features" data-kind="view-input" d="M981.0,1336 V1391 H1078.5 V1436" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>employee_features reads employee_classification</title></path>
-<path class="edge" data-parent="employee_classification" data-child="manager_candidates" data-kind="view-input" d="M1078.5,1336 V1358 H2031 V1723 H1078.5 V1747" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>manager_candidates reads employee_classification</title></path>
-<path class="edge" data-parent="employee_features" data-child="manager_candidates" data-kind="view-input" d="M961.5,1647 V1692 H1176.0 V1747" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>manager_candidates reads employee_features</title></path>
-<path class="edge" data-parent="employee_text" data-child="manager_candidates" data-kind="view-input" d="M1321.0,1002 V1024 H113 V1723 H981.0 V1747" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>manager_candidates reads employee_text</title></path>
-<path class="edge" data-parent="employee_classification" data-child="candidate_scores" data-kind="view-input" d="M1176.0,1336 V1358 H2044 V2195 H1039.5 V2219" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>candidate_scores reads employee_classification</title></path>
-<path class="edge" data-parent="employee_text" data-child="candidate_scores" data-kind="view-input" d="M1418.5,1002 V1024 H100 V2195 H961.5 V2219" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>candidate_scores reads employee_text</title></path>
-<path class="edge" data-parent="employee_features" data-child="candidate_scores" data-kind="view-input" d="M1039.5,1647 V1669 H2057 V2195 H1117.5 V2219" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>candidate_scores reads employee_features</title></path>
-<path class="edge" data-parent="manager_candidates" data-child="candidate_scores" data-kind="view-input" d="M1078.5,2119 V2159 H1195.5 V2219" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>candidate_scores reads manager_candidates</title></path>
-<path class="edge" data-parent="employees" data-child="employee_top_candidates" data-kind="view-input" d="M1078.5,668 V690 H87 V2529 H1013.5 V2553" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>employee_top_candidates reads employees</title></path>
-<path class="edge" data-parent="candidate_scores" data-child="employee_top_candidates" data-kind="view-input" d="M1078.5,2453 V2503 H1143.5 V2553" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>employee_top_candidates reads candidate_scores</title></path>
-<path class="edge" data-parent="employees" data-child="reporting_predictions" data-kind="view-input" d="M1143.5,668 V690 H2070 V2840 H1039.5 V2864" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>reporting_predictions reads employees</title></path>
-<path class="edge" data-parent="employee_features" data-child="reporting_predictions" data-kind="view-input" d="M1117.5,1647 V1669 H74 V2840 H1117.5 V2864" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>reporting_predictions reads employee_features</title></path>
-<path class="edge" data-parent="employee_top_candidates" data-child="reporting_predictions" data-kind="view-input" d="M1078.5,2764 V2804 H1195.5 V2864" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>reporting_predictions reads employee_top_candidates</title></path>
-<path class="edge" data-parent="inference_settings" data-child="reporting_predictions" data-kind="view-input" d="M1223.5,242 V264 H2083 V2840 H961.5 V2864" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>reporting_predictions reads inference_settings</title></path>
-<path class="edge" data-parent="reporting_predictions" data-child="prediction_reasons" data-kind="view-input" d="M961.5,3121 V3171 H416.0 V3221" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>prediction_reasons reads reporting_predictions</title></path>
-<path class="edge" data-parent="inference_settings" data-child="prediction_reasons" data-kind="view-input" d="M1321.0,242 V264 H61 V3197 H286.0 V3221" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>prediction_reasons reads inference_settings</title></path>
-<path class="edge" data-parent="reporting_predictions" data-child="company_metrics" data-kind="view-input" d="M1039.5,3121 V3176 H836.0 V3221" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>company_metrics reads reporting_predictions</title></path>
-<path class="edge" data-parent="reporting_predictions" data-child="dataset_metrics" data-kind="view-input" d="M1117.5,3121 V3176 H1321.0 V3221" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>dataset_metrics reads reporting_predictions</title></path>
-<path class="edge" data-parent="reporting_predictions" data-child="employee_reporting_audit" data-kind="view-input" d="M1195.5,3121 V3161 H1923.0 V3221" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>employee_reporting_audit reads reporting_predictions</title></path>
-<path class="edge" data-parent="employees" data-child="employee_reporting_audit" data-kind="view-input" d="M1208.5,668 V690 H2096 V3197 H1767.0 V3221" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>employee_reporting_audit reads employees</title></path>
-<path class="edge" data-parent="employee_features" data-child="employee_reporting_audit" data-kind="view-input" d="M1195.5,1647 V1669 H48 V3197 H1845.0 V3221" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>employee_reporting_audit reads employee_features</title></path>
-<path class="edge" data-parent="inference_settings" data-child="employee_reporting_audit" data-kind="view-input" d="M1418.5,242 V264 H2109 V3197 H1689.0 V3221" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>employee_reporting_audit reads inference_settings</title></path>
+<path class="edge" data-parent="companies" data-child="employees" data-kind="foreign-key" d="M758.0,288 V343 H1065.5 V388" stroke="#64816b" stroke-width="1.4" fill="none"><title>employees references companies</title></path>
+<g class="edge" data-parent="companies" data-child="employees"><path d="M752.0,295 H764.0 M752.0,302 H764.0 M1065.5,374 L1058.5,386 M1065.5,374 V386 M1065.5,374 L1072.5,386" fill="none" stroke="#64816b" stroke-width="1.4"/><circle cx="1065.5" cy="364" r="4" fill="#fafbf8" stroke="#64816b"/></g>
+<path class="edge" data-parent="companies" data-child="company_profiles" data-kind="view-input" d="M888.0,288 V310 H113 V744 H758.0 V768" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>company_profiles reads companies</title></path>
+<path class="edge" data-parent="employees" data-child="company_profiles" data-kind="view-input" d="M926.2142857142857,668 V718 H888.0 V768" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>company_profiles reads employees</title></path>
+<path class="edge" data-parent="employees" data-child="employee_text" data-kind="view-input" d="M981.9285714285714,668 V723 H1308.0 V768" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>employee_text reads employees</title></path>
+<path class="edge" data-parent="employee_text" data-child="employee_classification" data-kind="view-input" d="M1243.0,1002 V1057 H1065.5 V1102" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>employee_classification reads employee_text</title></path>
+<path class="edge" data-parent="employee_classification" data-child="employee_role_profiles" data-kind="view-input" d="M1065.5,1359 V1414 H1065.5 V1459" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>employee_role_profiles reads employee_classification</title></path>
+<path class="edge" data-parent="employee_role_profiles" data-child="employee_features" data-kind="view-input" d="M1065.5,1762 V1817 H1065.5 V1862" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>employee_features reads employee_role_profiles</title></path>
+<path class="edge" data-parent="employee_features" data-child="manager_candidates" data-kind="view-input" d="M948.5,2188 V2243 H1065.5 V2288" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>manager_candidates reads employee_features</title></path>
+<path class="edge" data-parent="employee_features" data-child="candidate_scores" data-kind="view-input" d="M1026.5,2188 V2210 H2018 V2851 H1104.5 V2875" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>candidate_scores reads employee_features</title></path>
+<path class="edge" data-parent="employees" data-child="candidate_scores" data-kind="view-input" d="M1037.642857142857,668 V690 H100 V2851 H948.5 V2875" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>candidate_scores reads employees</title></path>
+<path class="edge" data-parent="employee_text" data-child="candidate_scores" data-kind="view-input" d="M1373.0,1002 V1024 H2031 V2851 H1026.5 V2875" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>candidate_scores reads employee_text</title></path>
+<path class="edge" data-parent="manager_candidates" data-child="candidate_scores" data-kind="view-input" d="M1065.5,2775 V2815 H1182.5 V2875" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>candidate_scores reads manager_candidates</title></path>
+<path class="edge" data-parent="employees" data-child="employee_top_candidates" data-kind="view-input" d="M1093.357142857143,668 V690 H87 V3185 H1000.5 V3209" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>employee_top_candidates reads employees</title></path>
+<path class="edge" data-parent="candidate_scores" data-child="employee_top_candidates" data-kind="view-input" d="M1065.5,3109 V3159 H1130.5 V3209" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>employee_top_candidates reads candidate_scores</title></path>
+<path class="edge" data-parent="employees" data-child="reporting_predictions" data-kind="view-input" d="M1149.0714285714284,668 V690 H2044 V3496 H1026.5 V3520" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>reporting_predictions reads employees</title></path>
+<path class="edge" data-parent="employee_features" data-child="reporting_predictions" data-kind="view-input" d="M1104.5,2188 V2210 H74 V3496 H1104.5 V3520" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>reporting_predictions reads employee_features</title></path>
+<path class="edge" data-parent="employee_top_candidates" data-child="reporting_predictions" data-kind="view-input" d="M1065.5,3420 V3460 H1182.5 V3520" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>reporting_predictions reads employee_top_candidates</title></path>
+<path class="edge" data-parent="inference_settings" data-child="reporting_predictions" data-kind="view-input" d="M1210.5,242 V264 H2057 V3496 H948.5 V3520" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>reporting_predictions reads inference_settings</title></path>
+<path class="edge" data-parent="reporting_predictions" data-child="prediction_reasons" data-kind="view-input" d="M948.5,3777 V3827 H403.0 V3877" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>prediction_reasons reads reporting_predictions</title></path>
+<path class="edge" data-parent="inference_settings" data-child="prediction_reasons" data-kind="view-input" d="M1308.0,242 V264 H61 V3853 H273.0 V3877" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>prediction_reasons reads inference_settings</title></path>
+<path class="edge" data-parent="reporting_predictions" data-child="company_metrics" data-kind="view-input" d="M1026.5,3777 V3832 H823.0 V3877" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>company_metrics reads reporting_predictions</title></path>
+<path class="edge" data-parent="reporting_predictions" data-child="dataset_metrics" data-kind="view-input" d="M1104.5,3777 V3832 H1308.0 V3877" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>dataset_metrics reads reporting_predictions</title></path>
+<path class="edge" data-parent="reporting_predictions" data-child="employee_reporting_audit" data-kind="view-input" d="M1182.5,3777 V3817 H1910.0 V3877" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>employee_reporting_audit reads reporting_predictions</title></path>
+<path class="edge" data-parent="employees" data-child="employee_reporting_audit" data-kind="view-input" d="M1204.7857142857142,668 V690 H2070 V3853 H1754.0 V3877" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>employee_reporting_audit reads employees</title></path>
+<path class="edge" data-parent="employee_features" data-child="employee_reporting_audit" data-kind="view-input" d="M1182.5,2188 V2210 H48 V3853 H1832.0 V3877" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>employee_reporting_audit reads employee_features</title></path>
+<path class="edge" data-parent="inference_settings" data-child="employee_reporting_audit" data-kind="view-input" d="M1405.5,242 V264 H2083 V3853 H1676.0 V3877" stroke="#8b9eaf" stroke-dasharray="5 4" marker-end="url(#read-arrow)" stroke-width="1.4" fill="none"><title>employee_reporting_audit reads inference_settings</title></path>
 <g class="entity" id="companies" data-name="companies" data-kind="table" tabindex="0" role="button" aria-label="companies, table">
-<rect x="641.0" y="100" width="390" height="188" rx="6" fill="white" stroke="#8aa58b"/>
-<path d="M642.0 165 H1030.0 V106 Q1030.0 101 1025.0 101 H647.0 Q642.0 101 642.0 106 Z" fill="#eaf2e8"/>
-<text x="655.0" y="117" class="kind">TABLE</text>
-<text x="655.0" y="139" class="name">companies</text>
-<text x="655.0" y="157" class="note">Company details</text>
-<text x="655.0" y="188" class="type">PK</text>
-<text x="703.0" y="188" class="column">company_id</text>
-<text x="1019.0" y="188" text-anchor="end" class="type">TEXT</text>
-<text x="655.0" y="211" class="type"></text>
-<text x="703.0" y="211" class="column">company_name</text>
-<text x="1019.0" y="211" text-anchor="end" class="type">TEXT</text>
-<text x="655.0" y="234" class="type"></text>
-<text x="703.0" y="234" class="column">industry</text>
-<text x="1019.0" y="234" text-anchor="end" class="type">TEXT</text>
-<text x="655.0" y="257" class="type"></text>
-<text x="703.0" y="257" class="column">headquarters</text>
-<text x="1019.0" y="257" text-anchor="end" class="type">TEXT</text>
+<rect x="628.0" y="100" width="390" height="188" rx="6" fill="white" stroke="#8aa58b"/>
+<path d="M629.0 165 H1017.0 V106 Q1017.0 101 1012.0 101 H634.0 Q629.0 101 629.0 106 Z" fill="#eaf2e8"/>
+<text x="642.0" y="117" class="kind">TABLE</text>
+<text x="642.0" y="139" class="name">companies</text>
+<text x="642.0" y="157" class="note">Company details</text>
+<text x="642.0" y="188" class="type">PK</text>
+<text x="690.0" y="188" class="column">company_id</text>
+<text x="1006.0" y="188" text-anchor="end" class="type">TEXT</text>
+<text x="642.0" y="211" class="type"></text>
+<text x="690.0" y="211" class="column">company_name</text>
+<text x="1006.0" y="211" text-anchor="end" class="type">TEXT</text>
+<text x="642.0" y="234" class="type"></text>
+<text x="690.0" y="234" class="column">industry</text>
+<text x="1006.0" y="234" text-anchor="end" class="type">TEXT</text>
+<text x="642.0" y="257" class="type"></text>
+<text x="690.0" y="257" class="column">headquarters</text>
+<text x="1006.0" y="257" text-anchor="end" class="type">TEXT</text>
 </g>
 <g class="entity" id="employees" data-name="employees" data-kind="table" tabindex="0" role="button" aria-label="employees, table">
-<rect x="883.5" y="388" width="390" height="280" rx="6" fill="white" stroke="#8aa58b"/>
-<path d="M884.5 453 H1272.5 V394 Q1272.5 389 1267.5 389 H889.5 Q884.5 389 884.5 394 Z" fill="#eaf2e8"/>
-<text x="897.5" y="405" class="kind">TABLE</text>
-<text x="897.5" y="427" class="name">employees</text>
-<text x="897.5" y="445" class="note">Original employee records</text>
-<text x="897.5" y="476" class="type">PK,FK</text>
-<text x="945.5" y="476" class="column">company_id</text>
-<text x="1261.5" y="476" text-anchor="end" class="type">TEXT</text>
-<text x="897.5" y="499" class="type">PK</text>
-<text x="945.5" y="499" class="column">employee_id</text>
-<text x="1261.5" y="499" text-anchor="end" class="type">TEXT</text>
-<text x="897.5" y="522" class="type"></text>
-<text x="945.5" y="522" class="column">full_name</text>
-<text x="1261.5" y="522" text-anchor="end" class="type">TEXT</text>
-<text x="897.5" y="545" class="type"></text>
-<text x="945.5" y="545" class="column">job_title</text>
-<text x="1261.5" y="545" text-anchor="end" class="type">TEXT</text>
-<text x="897.5" y="568" class="type"></text>
-<text x="945.5" y="568" class="column">raw_department</text>
-<text x="1261.5" y="568" text-anchor="end" class="type">TEXT</text>
-<text x="897.5" y="591" class="type"></text>
-<text x="945.5" y="591" class="column">raw_team</text>
-<text x="1261.5" y="591" text-anchor="end" class="type">TEXT</text>
-<text x="897.5" y="614" class="type"></text>
-<text x="945.5" y="614" class="column">location</text>
-<text x="1261.5" y="614" text-anchor="end" class="type">TEXT</text>
-<text x="897.5" y="637" class="type"></text>
-<text x="945.5" y="637" class="column">work_email</text>
-<text x="1261.5" y="637" text-anchor="end" class="type">TEXT</text>
+<rect x="870.5" y="388" width="390" height="280" rx="6" fill="white" stroke="#8aa58b"/>
+<path d="M871.5 453 H1259.5 V394 Q1259.5 389 1254.5 389 H876.5 Q871.5 389 871.5 394 Z" fill="#eaf2e8"/>
+<text x="884.5" y="405" class="kind">TABLE</text>
+<text x="884.5" y="427" class="name">employees</text>
+<text x="884.5" y="445" class="note">Original employee records</text>
+<text x="884.5" y="476" class="type">PK,FK</text>
+<text x="932.5" y="476" class="column">company_id</text>
+<text x="1248.5" y="476" text-anchor="end" class="type">TEXT</text>
+<text x="884.5" y="499" class="type">PK</text>
+<text x="932.5" y="499" class="column">employee_id</text>
+<text x="1248.5" y="499" text-anchor="end" class="type">TEXT</text>
+<text x="884.5" y="522" class="type"></text>
+<text x="932.5" y="522" class="column">full_name</text>
+<text x="1248.5" y="522" text-anchor="end" class="type">TEXT</text>
+<text x="884.5" y="545" class="type"></text>
+<text x="932.5" y="545" class="column">job_title</text>
+<text x="1248.5" y="545" text-anchor="end" class="type">TEXT</text>
+<text x="884.5" y="568" class="type"></text>
+<text x="932.5" y="568" class="column">raw_department</text>
+<text x="1248.5" y="568" text-anchor="end" class="type">TEXT</text>
+<text x="884.5" y="591" class="type"></text>
+<text x="932.5" y="591" class="column">raw_team</text>
+<text x="1248.5" y="591" text-anchor="end" class="type">TEXT</text>
+<text x="884.5" y="614" class="type"></text>
+<text x="932.5" y="614" class="column">location</text>
+<text x="1248.5" y="614" text-anchor="end" class="type">TEXT</text>
+<text x="884.5" y="637" class="type"></text>
+<text x="932.5" y="637" class="column">work_email</text>
+<text x="1248.5" y="637" text-anchor="end" class="type">TEXT</text>
 </g>
 <g class="entity" id="inference_settings" data-name="inference_settings" data-kind="view" tabindex="0" role="button" aria-label="inference_settings, view">
-<rect x="1126.0" y="100" width="390" height="142" rx="6" fill="white" stroke="#91a7b9"/>
-<path d="M1127.0 165 H1515.0 V106 Q1515.0 101 1510.0 101 H1132.0 Q1127.0 101 1127.0 106 Z" fill="#edf3f8"/>
-<text x="1140.0" y="117" class="kind">VIEW</text>
-<text x="1140.0" y="139" class="name">inference_settings</text>
-<text x="1140.0" y="157" class="note">Decision thresholds</text>
-<text x="1140.0" y="188" class="type"></text>
-<text x="1188.0" y="188" class="column">score_threshold</text>
-<text x="1504.0" y="188" text-anchor="end" class="type">derived</text>
-<text x="1140.0" y="211" class="type"></text>
-<text x="1188.0" y="211" class="column">margin_threshold</text>
-<text x="1504.0" y="211" text-anchor="end" class="type">derived</text>
+<rect x="1113.0" y="100" width="390" height="142" rx="6" fill="white" stroke="#91a7b9"/>
+<path d="M1114.0 165 H1502.0 V106 Q1502.0 101 1497.0 101 H1119.0 Q1114.0 101 1114.0 106 Z" fill="#edf3f8"/>
+<text x="1127.0" y="117" class="kind">VIEW</text>
+<text x="1127.0" y="139" class="name">inference_settings</text>
+<text x="1127.0" y="157" class="note">Decision thresholds</text>
+<text x="1127.0" y="188" class="type"></text>
+<text x="1175.0" y="188" class="column">score_threshold</text>
+<text x="1491.0" y="188" text-anchor="end" class="type">derived</text>
+<text x="1127.0" y="211" class="type"></text>
+<text x="1175.0" y="211" class="column">margin_threshold</text>
+<text x="1491.0" y="211" text-anchor="end" class="type">derived</text>
 </g>
 <g class="entity" id="company_profiles" data-name="company_profiles" data-kind="view" tabindex="0" role="button" aria-label="company_profiles, view">
-<rect x="641.0" y="768" width="390" height="234" rx="6" fill="white" stroke="#91a7b9"/>
-<path d="M642.0 833 H1030.0 V774 Q1030.0 769 1025.0 769 H647.0 Q642.0 769 642.0 774 Z" fill="#edf3f8"/>
-<text x="655.0" y="785" class="kind">VIEW</text>
-<text x="655.0" y="807" class="name">company_profiles</text>
-<text x="655.0" y="825" class="note">Company size and headcount</text>
-<text x="655.0" y="856" class="type"></text>
-<text x="703.0" y="856" class="column">company_id</text>
-<text x="1019.0" y="856" text-anchor="end" class="type">TEXT</text>
-<text x="655.0" y="879" class="type"></text>
-<text x="703.0" y="879" class="column">company_name</text>
-<text x="1019.0" y="879" text-anchor="end" class="type">TEXT</text>
-<text x="655.0" y="902" class="type"></text>
-<text x="703.0" y="902" class="column">industry</text>
-<text x="1019.0" y="902" text-anchor="end" class="type">TEXT</text>
-<text x="655.0" y="925" class="type"></text>
-<text x="703.0" y="925" class="column">size_band</text>
-<text x="1019.0" y="925" text-anchor="end" class="type">derived</text>
-<text x="655.0" y="948" class="type"></text>
-<text x="703.0" y="948" class="column">employee_count</text>
-<text x="1019.0" y="948" text-anchor="end" class="type">derived</text>
-<text x="655.0" y="971" class="type"></text>
-<text x="703.0" y="971" class="column">headquarters</text>
-<text x="1019.0" y="971" text-anchor="end" class="type">TEXT</text>
+<rect x="628.0" y="768" width="390" height="234" rx="6" fill="white" stroke="#91a7b9"/>
+<path d="M629.0 833 H1017.0 V774 Q1017.0 769 1012.0 769 H634.0 Q629.0 769 629.0 774 Z" fill="#edf3f8"/>
+<text x="642.0" y="785" class="kind">VIEW</text>
+<text x="642.0" y="807" class="name">company_profiles</text>
+<text x="642.0" y="825" class="note">Company size and headcount</text>
+<text x="642.0" y="856" class="type"></text>
+<text x="690.0" y="856" class="column">company_id</text>
+<text x="1006.0" y="856" text-anchor="end" class="type">TEXT</text>
+<text x="642.0" y="879" class="type"></text>
+<text x="690.0" y="879" class="column">company_name</text>
+<text x="1006.0" y="879" text-anchor="end" class="type">TEXT</text>
+<text x="642.0" y="902" class="type"></text>
+<text x="690.0" y="902" class="column">industry</text>
+<text x="1006.0" y="902" text-anchor="end" class="type">TEXT</text>
+<text x="642.0" y="925" class="type"></text>
+<text x="690.0" y="925" class="column">size_band</text>
+<text x="1006.0" y="925" text-anchor="end" class="type">derived</text>
+<text x="642.0" y="948" class="type"></text>
+<text x="690.0" y="948" class="column">employee_count</text>
+<text x="1006.0" y="948" text-anchor="end" class="type">derived</text>
+<text x="642.0" y="971" class="type"></text>
+<text x="690.0" y="971" class="column">headquarters</text>
+<text x="1006.0" y="971" text-anchor="end" class="type">TEXT</text>
 </g>
 <g class="entity" id="employee_text" data-name="employee_text" data-kind="view" tabindex="0" role="button" aria-label="employee_text, view">
-<rect x="1126.0" y="768" width="390" height="234" rx="6" fill="white" stroke="#91a7b9"/>
-<path d="M1127.0 833 H1515.0 V774 Q1515.0 769 1510.0 769 H1132.0 Q1127.0 769 1127.0 774 Z" fill="#edf3f8"/>
-<text x="1140.0" y="785" class="kind">VIEW</text>
-<text x="1140.0" y="807" class="name">employee_text</text>
-<text x="1140.0" y="825" class="note">Title and team text, cleaned for matching</text>
-<text x="1140.0" y="856" class="type"></text>
-<text x="1188.0" y="856" class="column">company_id</text>
-<text x="1504.0" y="856" text-anchor="end" class="type">TEXT</text>
-<text x="1140.0" y="879" class="type"></text>
-<text x="1188.0" y="879" class="column">employee_id</text>
-<text x="1504.0" y="879" text-anchor="end" class="type">TEXT</text>
-<text x="1140.0" y="902" class="type"></text>
-<text x="1188.0" y="902" class="column">location</text>
-<text x="1504.0" y="902" text-anchor="end" class="type">TEXT</text>
-<text x="1140.0" y="925" class="type"></text>
-<text x="1188.0" y="925" class="column">title_text</text>
-<text x="1504.0" y="925" text-anchor="end" class="type">derived</text>
-<text x="1140.0" y="948" class="type"></text>
-<text x="1188.0" y="948" class="column">team_path</text>
-<text x="1504.0" y="948" text-anchor="end" class="type">derived</text>
-<text x="1140.0" y="971" class="type"></text>
-<text x="1188.0" y="971" class="column">department_text</text>
-<text x="1504.0" y="971" text-anchor="end" class="type">derived</text>
+<rect x="1113.0" y="768" width="390" height="234" rx="6" fill="white" stroke="#91a7b9"/>
+<path d="M1114.0 833 H1502.0 V774 Q1502.0 769 1497.0 769 H1119.0 Q1114.0 769 1114.0 774 Z" fill="#edf3f8"/>
+<text x="1127.0" y="785" class="kind">VIEW</text>
+<text x="1127.0" y="807" class="name">employee_text</text>
+<text x="1127.0" y="825" class="note">Title and team text, cleaned for matching</text>
+<text x="1127.0" y="856" class="type"></text>
+<text x="1175.0" y="856" class="column">company_id</text>
+<text x="1491.0" y="856" text-anchor="end" class="type">TEXT</text>
+<text x="1127.0" y="879" class="type"></text>
+<text x="1175.0" y="879" class="column">employee_id</text>
+<text x="1491.0" y="879" text-anchor="end" class="type">TEXT</text>
+<text x="1127.0" y="902" class="type"></text>
+<text x="1175.0" y="902" class="column">location</text>
+<text x="1491.0" y="902" text-anchor="end" class="type">TEXT</text>
+<text x="1127.0" y="925" class="type"></text>
+<text x="1175.0" y="925" class="column">title_text</text>
+<text x="1491.0" y="925" text-anchor="end" class="type">derived</text>
+<text x="1127.0" y="948" class="type"></text>
+<text x="1175.0" y="948" class="column">team_path</text>
+<text x="1491.0" y="948" text-anchor="end" class="type">derived</text>
+<text x="1127.0" y="971" class="type"></text>
+<text x="1175.0" y="971" class="column">department_text</text>
+<text x="1491.0" y="971" text-anchor="end" class="type">derived</text>
 </g>
 <g class="entity" id="employee_classification" data-name="employee_classification" data-kind="view" tabindex="0" role="button" aria-label="employee_classification, view">
-<rect x="883.5" y="1102" width="390" height="234" rx="6" fill="white" stroke="#91a7b9"/>
-<path d="M884.5 1167 H1272.5 V1108 Q1272.5 1103 1267.5 1103 H889.5 Q884.5 1103 884.5 1108 Z" fill="#edf3f8"/>
-<text x="897.5" y="1119" class="kind">VIEW</text>
-<text x="897.5" y="1141" class="name">employee_classification</text>
-<text x="897.5" y="1159" class="note">Department and seniority from the title</text>
-<text x="897.5" y="1190" class="type"></text>
-<text x="945.5" y="1190" class="column">company_id</text>
-<text x="1261.5" y="1190" text-anchor="end" class="type">TEXT</text>
-<text x="897.5" y="1213" class="type"></text>
-<text x="945.5" y="1213" class="column">employee_id</text>
-<text x="1261.5" y="1213" text-anchor="end" class="type">TEXT</text>
-<text x="897.5" y="1236" class="type"></text>
-<text x="945.5" y="1236" class="column">location</text>
-<text x="1261.5" y="1236" text-anchor="end" class="type">TEXT</text>
-<text x="897.5" y="1259" class="type"></text>
-<text x="945.5" y="1259" class="column">team_path</text>
-<text x="1261.5" y="1259" text-anchor="end" class="type">derived</text>
-<text x="897.5" y="1282" class="type"></text>
-<text x="945.5" y="1282" class="column">inferred_level</text>
-<text x="1261.5" y="1282" text-anchor="end" class="type">derived</text>
-<text x="897.5" y="1305" class="type"></text>
-<text x="945.5" y="1305" class="column">inferred_department</text>
-<text x="1261.5" y="1305" text-anchor="end" class="type">derived</text>
+<rect x="870.5" y="1102" width="390" height="257" rx="6" fill="white" stroke="#91a7b9"/>
+<path d="M871.5 1167 H1259.5 V1108 Q1259.5 1103 1254.5 1103 H876.5 Q871.5 1103 871.5 1108 Z" fill="#edf3f8"/>
+<text x="884.5" y="1119" class="kind">VIEW</text>
+<text x="884.5" y="1141" class="name">employee_classification</text>
+<text x="884.5" y="1159" class="note">Department and seniority from the title</text>
+<text x="884.5" y="1190" class="type"></text>
+<text x="932.5" y="1190" class="column">company_id</text>
+<text x="1248.5" y="1190" text-anchor="end" class="type">TEXT</text>
+<text x="884.5" y="1213" class="type"></text>
+<text x="932.5" y="1213" class="column">employee_id</text>
+<text x="1248.5" y="1213" text-anchor="end" class="type">TEXT</text>
+<text x="884.5" y="1236" class="type"></text>
+<text x="932.5" y="1236" class="column">location</text>
+<text x="1248.5" y="1236" text-anchor="end" class="type">TEXT</text>
+<text x="884.5" y="1259" class="type"></text>
+<text x="932.5" y="1259" class="column">team_path</text>
+<text x="1248.5" y="1259" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="1282" class="type"></text>
+<text x="932.5" y="1282" class="column">title_text</text>
+<text x="1248.5" y="1282" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="1305" class="type"></text>
+<text x="932.5" y="1305" class="column">inferred_level</text>
+<text x="1248.5" y="1305" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="1328" class="type"></text>
+<text x="932.5" y="1328" class="column">inferred_department</text>
+<text x="1248.5" y="1328" text-anchor="end" class="type">derived</text>
+</g>
+<g class="entity" id="employee_role_profiles" data-name="employee_role_profiles" data-kind="view" tabindex="0" role="button" aria-label="employee_role_profiles, view">
+<rect x="870.5" y="1459" width="390" height="303" rx="6" fill="white" stroke="#91a7b9"/>
+<path d="M871.5 1524 H1259.5 V1465 Q1259.5 1460 1254.5 1460 H876.5 Q871.5 1460 871.5 1465 Z" fill="#edf3f8"/>
+<text x="884.5" y="1476" class="kind">VIEW</text>
+<text x="884.5" y="1498" class="name">employee_role_profiles</text>
+<text x="884.5" y="1516" class="note">Specialty and executive portfolio from observed fields</text>
+<text x="884.5" y="1547" class="type"></text>
+<text x="932.5" y="1547" class="column">company_id</text>
+<text x="1248.5" y="1547" text-anchor="end" class="type">TEXT</text>
+<text x="884.5" y="1570" class="type"></text>
+<text x="932.5" y="1570" class="column">employee_id</text>
+<text x="1248.5" y="1570" text-anchor="end" class="type">TEXT</text>
+<text x="884.5" y="1593" class="type"></text>
+<text x="932.5" y="1593" class="column">location</text>
+<text x="1248.5" y="1593" text-anchor="end" class="type">TEXT</text>
+<text x="884.5" y="1616" class="type"></text>
+<text x="932.5" y="1616" class="column">team_path</text>
+<text x="1248.5" y="1616" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="1639" class="type"></text>
+<text x="932.5" y="1639" class="column">title_text</text>
+<text x="1248.5" y="1639" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="1662" class="type"></text>
+<text x="932.5" y="1662" class="column">inferred_level</text>
+<text x="1248.5" y="1662" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="1685" class="type"></text>
+<text x="932.5" y="1685" class="column">inferred_department</text>
+<text x="1248.5" y="1685" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="1708" class="type"></text>
+<text x="932.5" y="1708" class="column">role_family</text>
+<text x="1248.5" y="1708" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="1731" class="type"></text>
+<text x="932.5" y="1731" class="column">executive_portfolio</text>
+<text x="1248.5" y="1731" text-anchor="end" class="type">derived</text>
 </g>
 <g class="entity" id="employee_features" data-name="employee_features" data-kind="view" tabindex="0" role="button" aria-label="employee_features, view">
-<rect x="883.5" y="1436" width="390" height="211" rx="6" fill="white" stroke="#91a7b9"/>
-<path d="M884.5 1501 H1272.5 V1442 Q1272.5 1437 1267.5 1437 H889.5 Q884.5 1437 884.5 1442 Z" fill="#edf3f8"/>
-<text x="897.5" y="1453" class="kind">VIEW</text>
-<text x="897.5" y="1475" class="name">employee_features</text>
-<text x="897.5" y="1493" class="note">Employee attributes used for matching</text>
-<text x="897.5" y="1524" class="type"></text>
-<text x="945.5" y="1524" class="column">company_id</text>
-<text x="1261.5" y="1524" text-anchor="end" class="type">TEXT</text>
-<text x="897.5" y="1547" class="type"></text>
-<text x="945.5" y="1547" class="column">employee_id</text>
-<text x="1261.5" y="1547" text-anchor="end" class="type">TEXT</text>
-<text x="897.5" y="1570" class="type"></text>
-<text x="945.5" y="1570" class="column">inferred_department</text>
-<text x="1261.5" y="1570" text-anchor="end" class="type">derived</text>
-<text x="897.5" y="1593" class="type"></text>
-<text x="945.5" y="1593" class="column">inferred_level</text>
-<text x="1261.5" y="1593" text-anchor="end" class="type">derived</text>
-<text x="897.5" y="1616" class="type"></text>
-<text x="945.5" y="1616" class="column">inferred_rank</text>
-<text x="1261.5" y="1616" text-anchor="end" class="type">derived</text>
+<rect x="870.5" y="1862" width="390" height="326" rx="6" fill="white" stroke="#91a7b9"/>
+<path d="M871.5 1927 H1259.5 V1868 Q1259.5 1863 1254.5 1863 H876.5 Q871.5 1863 871.5 1868 Z" fill="#edf3f8"/>
+<text x="884.5" y="1879" class="kind">VIEW</text>
+<text x="884.5" y="1901" class="name">employee_features</text>
+<text x="884.5" y="1919" class="note">Employee attributes used for matching</text>
+<text x="884.5" y="1950" class="type"></text>
+<text x="932.5" y="1950" class="column">company_id</text>
+<text x="1248.5" y="1950" text-anchor="end" class="type">TEXT</text>
+<text x="884.5" y="1973" class="type"></text>
+<text x="932.5" y="1973" class="column">employee_id</text>
+<text x="1248.5" y="1973" text-anchor="end" class="type">TEXT</text>
+<text x="884.5" y="1996" class="type"></text>
+<text x="932.5" y="1996" class="column">location</text>
+<text x="1248.5" y="1996" text-anchor="end" class="type">TEXT</text>
+<text x="884.5" y="2019" class="type"></text>
+<text x="932.5" y="2019" class="column">team_path</text>
+<text x="1248.5" y="2019" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="2042" class="type"></text>
+<text x="932.5" y="2042" class="column">title_text</text>
+<text x="1248.5" y="2042" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="2065" class="type"></text>
+<text x="932.5" y="2065" class="column">inferred_level</text>
+<text x="1248.5" y="2065" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="2088" class="type"></text>
+<text x="932.5" y="2088" class="column">inferred_department</text>
+<text x="1248.5" y="2088" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="2111" class="type"></text>
+<text x="932.5" y="2111" class="column">role_family</text>
+<text x="1248.5" y="2111" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="2134" class="type"></text>
+<text x="932.5" y="2134" class="column">executive_portfolio</text>
+<text x="1248.5" y="2134" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="2157" class="type"></text>
+<text x="932.5" y="2157" class="column">inferred_rank</text>
+<text x="1248.5" y="2157" text-anchor="end" class="type">derived</text>
 </g>
 <g class="entity" id="manager_candidates" data-name="manager_candidates" data-kind="view" tabindex="0" role="button" aria-label="manager_candidates, view">
-<rect x="883.5" y="1747" width="390" height="372" rx="6" fill="white" stroke="#91a7b9"/>
-<path d="M884.5 1812 H1272.5 V1753 Q1272.5 1748 1267.5 1748 H889.5 Q884.5 1748 884.5 1753 Z" fill="#edf3f8"/>
-<text x="897.5" y="1764" class="kind">VIEW</text>
-<text x="897.5" y="1786" class="name">manager_candidates</text>
-<text x="897.5" y="1804" class="note">Possible managers in the same company</text>
-<text x="897.5" y="1835" class="type"></text>
-<text x="945.5" y="1835" class="column">company_id</text>
-<text x="1261.5" y="1835" text-anchor="end" class="type">TEXT</text>
-<text x="897.5" y="1858" class="type"></text>
-<text x="945.5" y="1858" class="column">employee_id</text>
-<text x="1261.5" y="1858" text-anchor="end" class="type">TEXT</text>
-<text x="897.5" y="1881" class="type"></text>
-<text x="945.5" y="1881" class="column">candidate_id</text>
-<text x="1261.5" y="1881" text-anchor="end" class="type">TEXT</text>
-<text x="897.5" y="1904" class="type"></text>
-<text x="945.5" y="1904" class="column">report_rank</text>
-<text x="1261.5" y="1904" text-anchor="end" class="type">derived</text>
-<text x="897.5" y="1927" class="type"></text>
-<text x="945.5" y="1927" class="column">candidate_rank</text>
-<text x="1261.5" y="1927" text-anchor="end" class="type">derived</text>
-<text x="897.5" y="1950" class="type"></text>
-<text x="945.5" y="1950" class="column">report_level</text>
-<text x="1261.5" y="1950" text-anchor="end" class="type">derived</text>
-<text x="897.5" y="1973" class="type"></text>
-<text x="945.5" y="1973" class="column">candidate_level</text>
-<text x="1261.5" y="1973" text-anchor="end" class="type">derived</text>
-<text x="897.5" y="1996" class="type"></text>
-<text x="945.5" y="1996" class="column">report_department</text>
-<text x="1261.5" y="1996" text-anchor="end" class="type">derived</text>
-<text x="897.5" y="2019" class="type"></text>
-<text x="945.5" y="2019" class="column">candidate_department</text>
-<text x="1261.5" y="2019" text-anchor="end" class="type">derived</text>
-<text x="897.5" y="2042" class="type"></text>
-<text x="945.5" y="2042" class="column">candidate_team</text>
-<text x="1261.5" y="2042" text-anchor="end" class="type">derived</text>
-<text x="897.5" y="2065" class="type"></text>
-<text x="945.5" y="2065" class="column">team_relation</text>
-<text x="1261.5" y="2065" text-anchor="end" class="type">derived</text>
-<text x="897.5" y="2088" class="type"></text>
-<text x="945.5" y="2088" class="column">same_location</text>
-<text x="1261.5" y="2088" text-anchor="end" class="type">derived</text>
+<rect x="870.5" y="2288" width="390" height="487" rx="6" fill="white" stroke="#91a7b9"/>
+<path d="M871.5 2353 H1259.5 V2294 Q1259.5 2289 1254.5 2289 H876.5 Q871.5 2289 871.5 2294 Z" fill="#edf3f8"/>
+<text x="884.5" y="2305" class="kind">VIEW</text>
+<text x="884.5" y="2327" class="name">manager_candidates</text>
+<text x="884.5" y="2345" class="note">Possible managers in the same company</text>
+<text x="884.5" y="2376" class="type"></text>
+<text x="932.5" y="2376" class="column">company_id</text>
+<text x="1248.5" y="2376" text-anchor="end" class="type">TEXT</text>
+<text x="884.5" y="2399" class="type"></text>
+<text x="932.5" y="2399" class="column">employee_id</text>
+<text x="1248.5" y="2399" text-anchor="end" class="type">TEXT</text>
+<text x="884.5" y="2422" class="type"></text>
+<text x="932.5" y="2422" class="column">candidate_id</text>
+<text x="1248.5" y="2422" text-anchor="end" class="type">TEXT</text>
+<text x="884.5" y="2445" class="type"></text>
+<text x="932.5" y="2445" class="column">report_rank</text>
+<text x="1248.5" y="2445" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="2468" class="type"></text>
+<text x="932.5" y="2468" class="column">candidate_rank</text>
+<text x="1248.5" y="2468" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="2491" class="type"></text>
+<text x="932.5" y="2491" class="column">report_level</text>
+<text x="1248.5" y="2491" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="2514" class="type"></text>
+<text x="932.5" y="2514" class="column">candidate_level</text>
+<text x="1248.5" y="2514" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="2537" class="type"></text>
+<text x="932.5" y="2537" class="column">report_department</text>
+<text x="1248.5" y="2537" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="2560" class="type"></text>
+<text x="932.5" y="2560" class="column">candidate_department</text>
+<text x="1248.5" y="2560" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="2583" class="type"></text>
+<text x="932.5" y="2583" class="column">report_team</text>
+<text x="1248.5" y="2583" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="2606" class="type"></text>
+<text x="932.5" y="2606" class="column">candidate_team</text>
+<text x="1248.5" y="2606" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="2629" class="type"></text>
+<text x="932.5" y="2629" class="column">report_family</text>
+<text x="1248.5" y="2629" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="2652" class="type"></text>
+<text x="932.5" y="2652" class="column">candidate_family</text>
+<text x="1248.5" y="2652" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="2675" class="type"></text>
+<text x="932.5" y="2675" class="column">report_portfolio</text>
+<text x="1248.5" y="2675" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="2698" class="type"></text>
+<text x="932.5" y="2698" class="column">candidate_portfolio</text>
+<text x="1248.5" y="2698" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="2721" class="type"></text>
+<text x="932.5" y="2721" class="column">team_relation</text>
+<text x="1248.5" y="2721" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="2744" class="type"></text>
+<text x="932.5" y="2744" class="column">same_location</text>
+<text x="1248.5" y="2744" text-anchor="end" class="type">derived</text>
 </g>
 <g class="entity" id="candidate_scores" data-name="candidate_scores" data-kind="view" tabindex="0" role="button" aria-label="candidate_scores, view">
-<rect x="883.5" y="2219" width="390" height="234" rx="6" fill="white" stroke="#91a7b9"/>
-<path d="M884.5 2284 H1272.5 V2225 Q1272.5 2220 1267.5 2220 H889.5 Q884.5 2220 884.5 2225 Z" fill="#edf3f8"/>
-<text x="897.5" y="2236" class="kind">VIEW</text>
-<text x="897.5" y="2258" class="name">candidate_scores</text>
-<text x="897.5" y="2276" class="note">Evidence for each possible manager</text>
-<text x="897.5" y="2307" class="type"></text>
-<text x="945.5" y="2307" class="column">company_id</text>
-<text x="1261.5" y="2307" text-anchor="end" class="type">TEXT</text>
-<text x="897.5" y="2330" class="type"></text>
-<text x="945.5" y="2330" class="column">employee_id</text>
-<text x="1261.5" y="2330" text-anchor="end" class="type">TEXT</text>
-<text x="897.5" y="2353" class="type"></text>
-<text x="945.5" y="2353" class="column">candidate_id</text>
-<text x="1261.5" y="2353" text-anchor="end" class="type">TEXT</text>
-<text x="897.5" y="2376" class="type"></text>
-<text x="945.5" y="2376" class="column">candidate_rank</text>
-<text x="1261.5" y="2376" text-anchor="end" class="type">derived</text>
-<text x="897.5" y="2399" class="type"></text>
-<text x="945.5" y="2399" class="column">candidate_team</text>
-<text x="1261.5" y="2399" text-anchor="end" class="type">derived</text>
-<text x="897.5" y="2422" class="type"></text>
-<text x="945.5" y="2422" class="column">evidence_score</text>
-<text x="1261.5" y="2422" text-anchor="end" class="type">derived</text>
+<rect x="870.5" y="2875" width="390" height="234" rx="6" fill="white" stroke="#91a7b9"/>
+<path d="M871.5 2940 H1259.5 V2881 Q1259.5 2876 1254.5 2876 H876.5 Q871.5 2876 871.5 2881 Z" fill="#edf3f8"/>
+<text x="884.5" y="2892" class="kind">VIEW</text>
+<text x="884.5" y="2914" class="name">candidate_scores</text>
+<text x="884.5" y="2932" class="note">Evidence for each possible manager</text>
+<text x="884.5" y="2963" class="type"></text>
+<text x="932.5" y="2963" class="column">company_id</text>
+<text x="1248.5" y="2963" text-anchor="end" class="type">TEXT</text>
+<text x="884.5" y="2986" class="type"></text>
+<text x="932.5" y="2986" class="column">employee_id</text>
+<text x="1248.5" y="2986" text-anchor="end" class="type">TEXT</text>
+<text x="884.5" y="3009" class="type"></text>
+<text x="932.5" y="3009" class="column">candidate_id</text>
+<text x="1248.5" y="3009" text-anchor="end" class="type">TEXT</text>
+<text x="884.5" y="3032" class="type"></text>
+<text x="932.5" y="3032" class="column">candidate_rank</text>
+<text x="1248.5" y="3032" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="3055" class="type"></text>
+<text x="932.5" y="3055" class="column">candidate_team</text>
+<text x="1248.5" y="3055" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="3078" class="type"></text>
+<text x="932.5" y="3078" class="column">evidence_score</text>
+<text x="1248.5" y="3078" text-anchor="end" class="type">derived</text>
 </g>
 <g class="entity" id="employee_top_candidates" data-name="employee_top_candidates" data-kind="view" tabindex="0" role="button" aria-label="employee_top_candidates, view">
-<rect x="883.5" y="2553" width="390" height="211" rx="6" fill="white" stroke="#91a7b9"/>
-<path d="M884.5 2618 H1272.5 V2559 Q1272.5 2554 1267.5 2554 H889.5 Q884.5 2554 884.5 2559 Z" fill="#edf3f8"/>
-<text x="897.5" y="2570" class="kind">VIEW</text>
-<text x="897.5" y="2592" class="name">employee_top_candidates</text>
-<text x="897.5" y="2610" class="note">The best two candidates</text>
-<text x="897.5" y="2641" class="type"></text>
-<text x="945.5" y="2641" class="column">company_id</text>
-<text x="1261.5" y="2641" text-anchor="end" class="type">TEXT</text>
-<text x="897.5" y="2664" class="type"></text>
-<text x="945.5" y="2664" class="column">employee_id</text>
-<text x="1261.5" y="2664" text-anchor="end" class="type">TEXT</text>
-<text x="897.5" y="2687" class="type"></text>
-<text x="945.5" y="2687" class="column">best_candidate_id</text>
-<text x="1261.5" y="2687" text-anchor="end" class="type">derived</text>
-<text x="897.5" y="2710" class="type"></text>
-<text x="945.5" y="2710" class="column">best_score</text>
-<text x="1261.5" y="2710" text-anchor="end" class="type">derived</text>
-<text x="897.5" y="2733" class="type"></text>
-<text x="945.5" y="2733" class="column">second_score</text>
-<text x="1261.5" y="2733" text-anchor="end" class="type">derived</text>
+<rect x="870.5" y="3209" width="390" height="211" rx="6" fill="white" stroke="#91a7b9"/>
+<path d="M871.5 3274 H1259.5 V3215 Q1259.5 3210 1254.5 3210 H876.5 Q871.5 3210 871.5 3215 Z" fill="#edf3f8"/>
+<text x="884.5" y="3226" class="kind">VIEW</text>
+<text x="884.5" y="3248" class="name">employee_top_candidates</text>
+<text x="884.5" y="3266" class="note">The best two candidates</text>
+<text x="884.5" y="3297" class="type"></text>
+<text x="932.5" y="3297" class="column">company_id</text>
+<text x="1248.5" y="3297" text-anchor="end" class="type">TEXT</text>
+<text x="884.5" y="3320" class="type"></text>
+<text x="932.5" y="3320" class="column">employee_id</text>
+<text x="1248.5" y="3320" text-anchor="end" class="type">TEXT</text>
+<text x="884.5" y="3343" class="type"></text>
+<text x="932.5" y="3343" class="column">best_candidate_id</text>
+<text x="1248.5" y="3343" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="3366" class="type"></text>
+<text x="932.5" y="3366" class="column">best_score</text>
+<text x="1248.5" y="3366" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="3389" class="type"></text>
+<text x="932.5" y="3389" class="column">second_score</text>
+<text x="1248.5" y="3389" text-anchor="end" class="type">derived</text>
 </g>
 <g class="entity" id="reporting_predictions" data-name="reporting_predictions" data-kind="view" tabindex="0" role="button" aria-label="reporting_predictions, view">
-<rect x="883.5" y="2864" width="390" height="257" rx="6" fill="white" stroke="#91a7b9"/>
-<path d="M884.5 2929 H1272.5 V2870 Q1272.5 2865 1267.5 2865 H889.5 Q884.5 2865 884.5 2870 Z" fill="#edf3f8"/>
-<text x="897.5" y="2881" class="kind">VIEW</text>
-<text x="897.5" y="2903" class="name">reporting_predictions</text>
-<text x="897.5" y="2921" class="note">Accepted or unresolved manager</text>
-<text x="897.5" y="2952" class="type"></text>
-<text x="945.5" y="2952" class="column">company_id</text>
-<text x="1261.5" y="2952" text-anchor="end" class="type">TEXT</text>
-<text x="897.5" y="2975" class="type"></text>
-<text x="945.5" y="2975" class="column">employee_id</text>
-<text x="1261.5" y="2975" text-anchor="end" class="type">TEXT</text>
-<text x="897.5" y="2998" class="type"></text>
-<text x="945.5" y="2998" class="column">accepted_manager_id</text>
-<text x="1261.5" y="2998" text-anchor="end" class="type">derived</text>
-<text x="897.5" y="3021" class="type"></text>
-<text x="945.5" y="3021" class="column">best_candidate_id</text>
-<text x="1261.5" y="3021" text-anchor="end" class="type">derived</text>
-<text x="897.5" y="3044" class="type"></text>
-<text x="945.5" y="3044" class="column">confidence</text>
-<text x="1261.5" y="3044" text-anchor="end" class="type">derived</text>
-<text x="897.5" y="3067" class="type"></text>
-<text x="945.5" y="3067" class="column">margin</text>
-<text x="1261.5" y="3067" text-anchor="end" class="type">derived</text>
-<text x="897.5" y="3090" class="type"></text>
-<text x="945.5" y="3090" class="column">decision</text>
-<text x="1261.5" y="3090" text-anchor="end" class="type">derived</text>
+<rect x="870.5" y="3520" width="390" height="257" rx="6" fill="white" stroke="#91a7b9"/>
+<path d="M871.5 3585 H1259.5 V3526 Q1259.5 3521 1254.5 3521 H876.5 Q871.5 3521 871.5 3526 Z" fill="#edf3f8"/>
+<text x="884.5" y="3537" class="kind">VIEW</text>
+<text x="884.5" y="3559" class="name">reporting_predictions</text>
+<text x="884.5" y="3577" class="note">Accepted or unresolved manager</text>
+<text x="884.5" y="3608" class="type"></text>
+<text x="932.5" y="3608" class="column">company_id</text>
+<text x="1248.5" y="3608" text-anchor="end" class="type">TEXT</text>
+<text x="884.5" y="3631" class="type"></text>
+<text x="932.5" y="3631" class="column">employee_id</text>
+<text x="1248.5" y="3631" text-anchor="end" class="type">TEXT</text>
+<text x="884.5" y="3654" class="type"></text>
+<text x="932.5" y="3654" class="column">accepted_manager_id</text>
+<text x="1248.5" y="3654" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="3677" class="type"></text>
+<text x="932.5" y="3677" class="column">best_candidate_id</text>
+<text x="1248.5" y="3677" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="3700" class="type"></text>
+<text x="932.5" y="3700" class="column">confidence</text>
+<text x="1248.5" y="3700" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="3723" class="type"></text>
+<text x="932.5" y="3723" class="column">margin</text>
+<text x="1248.5" y="3723" text-anchor="end" class="type">derived</text>
+<text x="884.5" y="3746" class="type"></text>
+<text x="932.5" y="3746" class="column">decision</text>
+<text x="1248.5" y="3746" text-anchor="end" class="type">derived</text>
 </g>
 <g class="entity" id="prediction_reasons" data-name="prediction_reasons" data-kind="view" tabindex="0" role="button" aria-label="prediction_reasons, view">
-<rect x="156.0" y="3221" width="390" height="165" rx="6" fill="white" stroke="#91a7b9"/>
-<path d="M157.0 3286 H545.0 V3227 Q545.0 3222 540.0 3222 H162.0 Q157.0 3222 157.0 3227 Z" fill="#edf3f8"/>
-<text x="170.0" y="3238" class="kind">VIEW</text>
-<text x="170.0" y="3260" class="name">prediction_reasons</text>
-<text x="170.0" y="3278" class="note">Why a decision was made</text>
-<text x="170.0" y="3309" class="type"></text>
-<text x="218.0" y="3309" class="column">company_id</text>
-<text x="534.0" y="3309" text-anchor="end" class="type">TEXT</text>
-<text x="170.0" y="3332" class="type"></text>
-<text x="218.0" y="3332" class="column">employee_id</text>
-<text x="534.0" y="3332" text-anchor="end" class="type">TEXT</text>
-<text x="170.0" y="3355" class="type"></text>
-<text x="218.0" y="3355" class="column">reason</text>
-<text x="534.0" y="3355" text-anchor="end" class="type">derived</text>
+<rect x="143.0" y="3877" width="390" height="165" rx="6" fill="white" stroke="#91a7b9"/>
+<path d="M144.0 3942 H532.0 V3883 Q532.0 3878 527.0 3878 H149.0 Q144.0 3878 144.0 3883 Z" fill="#edf3f8"/>
+<text x="157.0" y="3894" class="kind">VIEW</text>
+<text x="157.0" y="3916" class="name">prediction_reasons</text>
+<text x="157.0" y="3934" class="note">Why a decision was made</text>
+<text x="157.0" y="3965" class="type"></text>
+<text x="205.0" y="3965" class="column">company_id</text>
+<text x="521.0" y="3965" text-anchor="end" class="type">TEXT</text>
+<text x="157.0" y="3988" class="type"></text>
+<text x="205.0" y="3988" class="column">employee_id</text>
+<text x="521.0" y="3988" text-anchor="end" class="type">TEXT</text>
+<text x="157.0" y="4011" class="type"></text>
+<text x="205.0" y="4011" class="column">reason</text>
+<text x="521.0" y="4011" text-anchor="end" class="type">derived</text>
 </g>
 <g class="entity" id="company_metrics" data-name="company_metrics" data-kind="view" tabindex="0" role="button" aria-label="company_metrics, view">
-<rect x="641.0" y="3221" width="390" height="211" rx="6" fill="white" stroke="#91a7b9"/>
-<path d="M642.0 3286 H1030.0 V3227 Q1030.0 3222 1025.0 3222 H647.0 Q642.0 3222 642.0 3227 Z" fill="#edf3f8"/>
-<text x="655.0" y="3238" class="kind">VIEW</text>
-<text x="655.0" y="3260" class="name">company_metrics</text>
-<text x="655.0" y="3278" class="note">Reporting coverage by company</text>
-<text x="655.0" y="3309" class="type"></text>
-<text x="703.0" y="3309" class="column">company_id</text>
-<text x="1019.0" y="3309" text-anchor="end" class="type">TEXT</text>
-<text x="655.0" y="3332" class="type"></text>
-<text x="703.0" y="3332" class="column">resolved_count</text>
-<text x="1019.0" y="3332" text-anchor="end" class="type">derived</text>
-<text x="655.0" y="3355" class="type"></text>
-<text x="703.0" y="3355" class="column">unresolved_count</text>
-<text x="1019.0" y="3355" text-anchor="end" class="type">derived</text>
-<text x="655.0" y="3378" class="type"></text>
-<text x="703.0" y="3378" class="column">coverage</text>
-<text x="1019.0" y="3378" text-anchor="end" class="type">derived</text>
-<text x="655.0" y="3401" class="type"></text>
-<text x="703.0" y="3401" class="column">average_confidence</text>
-<text x="1019.0" y="3401" text-anchor="end" class="type">derived</text>
+<rect x="628.0" y="3877" width="390" height="211" rx="6" fill="white" stroke="#91a7b9"/>
+<path d="M629.0 3942 H1017.0 V3883 Q1017.0 3878 1012.0 3878 H634.0 Q629.0 3878 629.0 3883 Z" fill="#edf3f8"/>
+<text x="642.0" y="3894" class="kind">VIEW</text>
+<text x="642.0" y="3916" class="name">company_metrics</text>
+<text x="642.0" y="3934" class="note">Reporting coverage by company</text>
+<text x="642.0" y="3965" class="type"></text>
+<text x="690.0" y="3965" class="column">company_id</text>
+<text x="1006.0" y="3965" text-anchor="end" class="type">TEXT</text>
+<text x="642.0" y="3988" class="type"></text>
+<text x="690.0" y="3988" class="column">resolved_count</text>
+<text x="1006.0" y="3988" text-anchor="end" class="type">derived</text>
+<text x="642.0" y="4011" class="type"></text>
+<text x="690.0" y="4011" class="column">unresolved_count</text>
+<text x="1006.0" y="4011" text-anchor="end" class="type">derived</text>
+<text x="642.0" y="4034" class="type"></text>
+<text x="690.0" y="4034" class="column">coverage</text>
+<text x="1006.0" y="4034" text-anchor="end" class="type">derived</text>
+<text x="642.0" y="4057" class="type"></text>
+<text x="690.0" y="4057" class="column">average_confidence</text>
+<text x="1006.0" y="4057" text-anchor="end" class="type">derived</text>
 </g>
 <g class="entity" id="dataset_metrics" data-name="dataset_metrics" data-kind="view" tabindex="0" role="button" aria-label="dataset_metrics, view">
-<rect x="1126.0" y="3221" width="390" height="211" rx="6" fill="white" stroke="#91a7b9"/>
-<path d="M1127.0 3286 H1515.0 V3227 Q1515.0 3222 1510.0 3222 H1132.0 Q1127.0 3222 1127.0 3227 Z" fill="#edf3f8"/>
-<text x="1140.0" y="3238" class="kind">VIEW</text>
-<text x="1140.0" y="3260" class="name">dataset_metrics</text>
-<text x="1140.0" y="3278" class="note">Totals across the database</text>
-<text x="1140.0" y="3309" class="type"></text>
-<text x="1188.0" y="3309" class="column">company_count</text>
-<text x="1504.0" y="3309" text-anchor="end" class="type">derived</text>
-<text x="1140.0" y="3332" class="type"></text>
-<text x="1188.0" y="3332" class="column">employee_count</text>
-<text x="1504.0" y="3332" text-anchor="end" class="type">derived</text>
-<text x="1140.0" y="3355" class="type"></text>
-<text x="1188.0" y="3355" class="column">accepted_count</text>
-<text x="1504.0" y="3355" text-anchor="end" class="type">derived</text>
-<text x="1140.0" y="3378" class="type"></text>
-<text x="1188.0" y="3378" class="column">unresolved_count</text>
-<text x="1504.0" y="3378" text-anchor="end" class="type">derived</text>
-<text x="1140.0" y="3401" class="type"></text>
-<text x="1188.0" y="3401" class="column">average_resolved_confidence</text>
-<text x="1504.0" y="3401" text-anchor="end" class="type">derived</text>
+<rect x="1113.0" y="3877" width="390" height="211" rx="6" fill="white" stroke="#91a7b9"/>
+<path d="M1114.0 3942 H1502.0 V3883 Q1502.0 3878 1497.0 3878 H1119.0 Q1114.0 3878 1114.0 3883 Z" fill="#edf3f8"/>
+<text x="1127.0" y="3894" class="kind">VIEW</text>
+<text x="1127.0" y="3916" class="name">dataset_metrics</text>
+<text x="1127.0" y="3934" class="note">Totals across the database</text>
+<text x="1127.0" y="3965" class="type"></text>
+<text x="1175.0" y="3965" class="column">company_count</text>
+<text x="1491.0" y="3965" text-anchor="end" class="type">derived</text>
+<text x="1127.0" y="3988" class="type"></text>
+<text x="1175.0" y="3988" class="column">employee_count</text>
+<text x="1491.0" y="3988" text-anchor="end" class="type">derived</text>
+<text x="1127.0" y="4011" class="type"></text>
+<text x="1175.0" y="4011" class="column">accepted_count</text>
+<text x="1491.0" y="4011" text-anchor="end" class="type">derived</text>
+<text x="1127.0" y="4034" class="type"></text>
+<text x="1175.0" y="4034" class="column">unresolved_count</text>
+<text x="1491.0" y="4034" text-anchor="end" class="type">derived</text>
+<text x="1127.0" y="4057" class="type"></text>
+<text x="1175.0" y="4057" class="column">average_resolved_confidence</text>
+<text x="1491.0" y="4057" text-anchor="end" class="type">derived</text>
 </g>
 <g class="entity" id="employee_reporting_audit" data-name="employee_reporting_audit" data-kind="view" tabindex="0" role="button" aria-label="employee_reporting_audit, view">
-<rect x="1611.0" y="3221" width="390" height="533" rx="6" fill="white" stroke="#91a7b9"/>
-<path d="M1612.0 3286 H2000.0 V3227 Q2000.0 3222 1995.0 3222 H1617.0 Q1612.0 3222 1612.0 3227 Z" fill="#edf3f8"/>
-<text x="1625.0" y="3238" class="kind">VIEW</text>
-<text x="1625.0" y="3260" class="name">employee_reporting_audit</text>
-<text x="1625.0" y="3278" class="note">Employee, manager and decision details</text>
-<text x="1625.0" y="3309" class="type"></text>
-<text x="1673.0" y="3309" class="column">company_id</text>
-<text x="1989.0" y="3309" text-anchor="end" class="type">TEXT</text>
-<text x="1625.0" y="3332" class="type"></text>
-<text x="1673.0" y="3332" class="column">employee_id</text>
-<text x="1989.0" y="3332" text-anchor="end" class="type">TEXT</text>
-<text x="1625.0" y="3355" class="type"></text>
-<text x="1673.0" y="3355" class="column">full_name</text>
-<text x="1989.0" y="3355" text-anchor="end" class="type">TEXT</text>
-<text x="1625.0" y="3378" class="type"></text>
-<text x="1673.0" y="3378" class="column">job_title</text>
-<text x="1989.0" y="3378" text-anchor="end" class="type">TEXT</text>
-<text x="1625.0" y="3401" class="type"></text>
-<text x="1673.0" y="3401" class="column">raw_department</text>
-<text x="1989.0" y="3401" text-anchor="end" class="type">TEXT</text>
-<text x="1625.0" y="3424" class="type"></text>
-<text x="1673.0" y="3424" class="column">raw_team</text>
-<text x="1989.0" y="3424" text-anchor="end" class="type">TEXT</text>
-<text x="1625.0" y="3447" class="type"></text>
-<text x="1673.0" y="3447" class="column">location</text>
-<text x="1989.0" y="3447" text-anchor="end" class="type">TEXT</text>
-<text x="1625.0" y="3470" class="type"></text>
-<text x="1673.0" y="3470" class="column">inferred_department</text>
-<text x="1989.0" y="3470" text-anchor="end" class="type">derived</text>
-<text x="1625.0" y="3493" class="type"></text>
-<text x="1673.0" y="3493" class="column">inferred_level</text>
-<text x="1989.0" y="3493" text-anchor="end" class="type">derived</text>
-<text x="1625.0" y="3516" class="type"></text>
-<text x="1673.0" y="3516" class="column">accepted_manager_id</text>
-<text x="1989.0" y="3516" text-anchor="end" class="type">derived</text>
-<text x="1625.0" y="3539" class="type"></text>
-<text x="1673.0" y="3539" class="column">inferred_manager</text>
-<text x="1989.0" y="3539" text-anchor="end" class="type">TEXT</text>
-<text x="1625.0" y="3562" class="type"></text>
-<text x="1673.0" y="3562" class="column">best_candidate_id</text>
-<text x="1989.0" y="3562" text-anchor="end" class="type">derived</text>
-<text x="1625.0" y="3585" class="type"></text>
-<text x="1673.0" y="3585" class="column">leading_candidate</text>
-<text x="1989.0" y="3585" text-anchor="end" class="type">TEXT</text>
-<text x="1625.0" y="3608" class="type"></text>
-<text x="1673.0" y="3608" class="column">confidence</text>
-<text x="1989.0" y="3608" text-anchor="end" class="type">derived</text>
-<text x="1625.0" y="3631" class="type"></text>
-<text x="1673.0" y="3631" class="column">margin</text>
-<text x="1989.0" y="3631" text-anchor="end" class="type">derived</text>
-<text x="1625.0" y="3654" class="type"></text>
-<text x="1673.0" y="3654" class="column">decision</text>
-<text x="1989.0" y="3654" text-anchor="end" class="type">derived</text>
-<text x="1625.0" y="3677" class="type"></text>
-<text x="1673.0" y="3677" class="column">score_threshold</text>
-<text x="1989.0" y="3677" text-anchor="end" class="type">derived</text>
-<text x="1625.0" y="3700" class="type"></text>
-<text x="1673.0" y="3700" class="column">margin_threshold</text>
-<text x="1989.0" y="3700" text-anchor="end" class="type">derived</text>
-<text x="1625.0" y="3723" class="type"></text>
-<text x="1673.0" y="3723" class="column">decision_reason</text>
-<text x="1989.0" y="3723" text-anchor="end" class="type">derived</text>
+<rect x="1598.0" y="3877" width="390" height="533" rx="6" fill="white" stroke="#91a7b9"/>
+<path d="M1599.0 3942 H1987.0 V3883 Q1987.0 3878 1982.0 3878 H1604.0 Q1599.0 3878 1599.0 3883 Z" fill="#edf3f8"/>
+<text x="1612.0" y="3894" class="kind">VIEW</text>
+<text x="1612.0" y="3916" class="name">employee_reporting_audit</text>
+<text x="1612.0" y="3934" class="note">Employee, manager and decision details</text>
+<text x="1612.0" y="3965" class="type"></text>
+<text x="1660.0" y="3965" class="column">company_id</text>
+<text x="1976.0" y="3965" text-anchor="end" class="type">TEXT</text>
+<text x="1612.0" y="3988" class="type"></text>
+<text x="1660.0" y="3988" class="column">employee_id</text>
+<text x="1976.0" y="3988" text-anchor="end" class="type">TEXT</text>
+<text x="1612.0" y="4011" class="type"></text>
+<text x="1660.0" y="4011" class="column">full_name</text>
+<text x="1976.0" y="4011" text-anchor="end" class="type">TEXT</text>
+<text x="1612.0" y="4034" class="type"></text>
+<text x="1660.0" y="4034" class="column">job_title</text>
+<text x="1976.0" y="4034" text-anchor="end" class="type">TEXT</text>
+<text x="1612.0" y="4057" class="type"></text>
+<text x="1660.0" y="4057" class="column">raw_department</text>
+<text x="1976.0" y="4057" text-anchor="end" class="type">TEXT</text>
+<text x="1612.0" y="4080" class="type"></text>
+<text x="1660.0" y="4080" class="column">raw_team</text>
+<text x="1976.0" y="4080" text-anchor="end" class="type">TEXT</text>
+<text x="1612.0" y="4103" class="type"></text>
+<text x="1660.0" y="4103" class="column">location</text>
+<text x="1976.0" y="4103" text-anchor="end" class="type">TEXT</text>
+<text x="1612.0" y="4126" class="type"></text>
+<text x="1660.0" y="4126" class="column">inferred_department</text>
+<text x="1976.0" y="4126" text-anchor="end" class="type">derived</text>
+<text x="1612.0" y="4149" class="type"></text>
+<text x="1660.0" y="4149" class="column">inferred_level</text>
+<text x="1976.0" y="4149" text-anchor="end" class="type">derived</text>
+<text x="1612.0" y="4172" class="type"></text>
+<text x="1660.0" y="4172" class="column">accepted_manager_id</text>
+<text x="1976.0" y="4172" text-anchor="end" class="type">derived</text>
+<text x="1612.0" y="4195" class="type"></text>
+<text x="1660.0" y="4195" class="column">inferred_manager</text>
+<text x="1976.0" y="4195" text-anchor="end" class="type">TEXT</text>
+<text x="1612.0" y="4218" class="type"></text>
+<text x="1660.0" y="4218" class="column">best_candidate_id</text>
+<text x="1976.0" y="4218" text-anchor="end" class="type">derived</text>
+<text x="1612.0" y="4241" class="type"></text>
+<text x="1660.0" y="4241" class="column">leading_candidate</text>
+<text x="1976.0" y="4241" text-anchor="end" class="type">TEXT</text>
+<text x="1612.0" y="4264" class="type"></text>
+<text x="1660.0" y="4264" class="column">confidence</text>
+<text x="1976.0" y="4264" text-anchor="end" class="type">derived</text>
+<text x="1612.0" y="4287" class="type"></text>
+<text x="1660.0" y="4287" class="column">margin</text>
+<text x="1976.0" y="4287" text-anchor="end" class="type">derived</text>
+<text x="1612.0" y="4310" class="type"></text>
+<text x="1660.0" y="4310" class="column">decision</text>
+<text x="1976.0" y="4310" text-anchor="end" class="type">derived</text>
+<text x="1612.0" y="4333" class="type"></text>
+<text x="1660.0" y="4333" class="column">score_threshold</text>
+<text x="1976.0" y="4333" text-anchor="end" class="type">derived</text>
+<text x="1612.0" y="4356" class="type"></text>
+<text x="1660.0" y="4356" class="column">margin_threshold</text>
+<text x="1976.0" y="4356" text-anchor="end" class="type">derived</text>
+<text x="1612.0" y="4379" class="type"></text>
+<text x="1660.0" y="4379" class="column">decision_reason</text>
+<text x="1976.0" y="4379" text-anchor="end" class="type">derived</text>
 </g>
-<text x="32" y="3797" class="note">Views store no rows. Arrows show direct SQL dependencies, not foreign-key constraints.</text>
+<text x="32" y="4453" class="note">Views store no rows. Arrows show direct SQL dependencies, not foreign-key constraints.</text>
 <script><![CDATA[
 function selectObject(name) {
   const entities = [...document.querySelectorAll('.entity')];

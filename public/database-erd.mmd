@@ -4,9 +4,10 @@ flowchart TB
     inference_settings["inference_settings<br/>VIEW<br/>score_threshold : derived<br/>margin_threshold : derived"]
     company_profiles["company_profiles<br/>VIEW<br/>company_id : TEXT<br/>company_name : TEXT<br/>industry : TEXT<br/>size_band : derived<br/>employee_count : derived<br/>headquarters : TEXT"]
     employee_text["employee_text<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>location : TEXT<br/>title_text : derived<br/>team_path : derived<br/>department_text : derived"]
-    employee_classification["employee_classification<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>location : TEXT<br/>team_path : derived<br/>inferred_level : derived<br/>inferred_department : derived"]
-    employee_features["employee_features<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>inferred_department : derived<br/>inferred_level : derived<br/>inferred_rank : derived"]
-    manager_candidates["manager_candidates<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>candidate_id : TEXT<br/>report_rank : derived<br/>candidate_rank : derived<br/>report_level : derived<br/>candidate_level : derived<br/>report_department : derived<br/>candidate_department : derived<br/>candidate_team : derived<br/>team_relation : derived<br/>same_location : derived"]
+    employee_classification["employee_classification<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>location : TEXT<br/>team_path : derived<br/>title_text : derived<br/>inferred_level : derived<br/>inferred_department : derived"]
+    employee_role_profiles["employee_role_profiles<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>location : TEXT<br/>team_path : derived<br/>title_text : derived<br/>inferred_level : derived<br/>inferred_department : derived<br/>role_family : derived<br/>executive_portfolio : derived"]
+    employee_features["employee_features<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>location : TEXT<br/>team_path : derived<br/>title_text : derived<br/>inferred_level : derived<br/>inferred_department : derived<br/>role_family : derived<br/>executive_portfolio : derived<br/>inferred_rank : derived"]
+    manager_candidates["manager_candidates<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>candidate_id : TEXT<br/>report_rank : derived<br/>candidate_rank : derived<br/>report_level : derived<br/>candidate_level : derived<br/>report_department : derived<br/>candidate_department : derived<br/>report_team : derived<br/>candidate_team : derived<br/>report_family : derived<br/>candidate_family : derived<br/>report_portfolio : derived<br/>candidate_portfolio : derived<br/>team_relation : derived<br/>same_location : derived"]
     candidate_scores["candidate_scores<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>candidate_id : TEXT<br/>candidate_rank : derived<br/>candidate_team : derived<br/>evidence_score : derived"]
     employee_top_candidates["employee_top_candidates<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>best_candidate_id : derived<br/>best_score : derived<br/>second_score : derived"]
     reporting_predictions["reporting_predictions<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>accepted_manager_id : derived<br/>best_candidate_id : derived<br/>confidence : derived<br/>margin : derived<br/>decision : derived"]
@@ -19,13 +20,12 @@ flowchart TB
     employees -.-> company_profiles
     employees -.-> employee_text
     employee_text -.-> employee_classification
-    employee_classification -.-> employee_features
-    employee_classification -.-> manager_candidates
+    employee_classification -.-> employee_role_profiles
+    employee_role_profiles -.-> employee_features
     employee_features -.-> manager_candidates
-    employee_text -.-> manager_candidates
-    employee_classification -.-> candidate_scores
-    employee_text -.-> candidate_scores
     employee_features -.-> candidate_scores
+    employees -.-> candidate_scores
+    employee_text -.-> candidate_scores
     manager_candidates -.-> candidate_scores
     employees -.-> employee_top_candidates
     candidate_scores -.-> employee_top_candidates

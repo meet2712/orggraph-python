@@ -11,13 +11,13 @@ The operational SQLite file has two persisted tables:
 - `companies`: company ID, name, industry and headquarters.
 - `employees`: one observed row per person, including name, job title, department, team, location and email.
 
-Employee IDs are row keys. No table stores an employee-to-manager answer or prediction mapping. `schema.sql` defines 13 SQL views for current headcount, size band, inferred employee features, manager candidates and decisions, reasons, coverage and the audit. `inference_settings` holds the score and margin thresholds as a view. These views recalculate when a source row changes. Adding one employee in PyCharm updates that company's headcount and the new employee's inference without editing another table or rerunning Python ETL. The Python loader rebuilds the local database only when the source files or schema change; ordinary local employee edits are preserved.
+Employee IDs are row keys. No table stores an employee-to-manager answer or prediction mapping. `schema.sql` defines 14 SQL views for current headcount, size band, inferred employee features, manager candidates and decisions, reasons, coverage and the audit. `inference_settings` holds the score and margin thresholds as a view. These views recalculate when a source row changes. Adding one employee in PyCharm updates that company's headcount and the new employee's inference without editing another table or rerunning Python ETL. The Python loader rebuilds the local database only when the source files or schema change; ordinary local employee edits are preserved.
 
 The generated answer key is [`data/employees_ground_truth.csv`](data/employees_ground_truth.csv). It is kept outside the app database and never used as an inference feature. It supports independent offline evaluation. A new manually inserted employee has no known answer until one is supplied separately; the inference view still produces a decision.
 
 [Database notes](docs/DATABASE.md) explain each table and view. [Hierarchy policy](docs/HIERARCHY.md) explains the title ladder and individual-contributor safeguards.
 
-The database diagram shows the two source tables and all 13 views together,
+The database diagram shows the two source tables and all 14 views together,
 including every column. A solid line marks the company foreign key; dashed
 arrows show which table or view supplies each view. Select a card to follow its
 connections. The raw CSVs stay unchanged; matching happens in SQL.
@@ -31,7 +31,7 @@ connections. The raw CSVs stay unchanged; matching happens in SQL.
 
 The score is an interpretable rule-based evidence score, not a calibrated probability. Senior, Staff and Principal individual contributors are not automatically treated as managers. Junior employees are not automatically assigned to a Senior IC. An explicit Team Lead/Supervisor can lead the appropriate group. The expected management ladder is CEO → optional specialist C-suite → VP/Head → Director → Senior Manager → Manager → optional Team Lead/Supervisor. QA roles should stay within QA ownership when the source supports that.
 
-The SQL for each step is inspectable in [`schema.sql`](schema.sql) or on the schema page. Flask uses [`sql/company_predictions.sql`](sql/company_predictions.sql), a company-scoped SQL query with the same rules, so one page need not score all 500 companies. The `employee_reporting_audit` view shows raw input, inferred features, leading candidate, selected manager, score, margin and decision reason in one query.
+The SQL for each step is inspectable in [`schema.sql`](schema.sql) or on the schema page. Flask uses [`sql/company_predictions.sql`](sql/company_predictions.sql), a company-scoped query built directly from those view definitions, so one page need not score all 500 companies. Run `python scripts/build_company_query.py` after editing the inference views; a test checks that the two stay in sync. The `employee_reporting_audit` view shows raw input, inferred features, leading candidate, selected manager, score, margin and decision reason in one query.
 
 ## Run locally
 
@@ -68,7 +68,11 @@ python pipeline/validate_dataset.py --data-dir data
 
 The generator writes messy observations and the separate benchmark CSV. The operational inference reads only the observations. Accuracy must be measured independently against the benchmark CSV; coverage and evidence scores alone do not establish correctness on synthetic or real companies. `pipeline/train_and_infer.py` and the older `public/data/companies/*.json` predictions remain as a historical offline experiment. The current site and SQLite reporting views do not read those prediction files; their manager decisions are calculated in SQL.
 
-On 75 held-out generated companies (13,447 employees), the live SQL rules accepted 6,322 reporting lines. Of those, 6,163 matched the separate answer CSV and 159 did not: 97.48% precision at 47.28% coverage. Coverage is deliberately lower because ambiguous lines are left unresolved. These figures are for synthetic data only.
+On 75 held-out generated companies (13,447 employees), the SQL rules accepted 10,223 reporting lines. Of those, 10,087 matched the separate answer CSV and 136 did not: **98.67% precision at 76.45% coverage**. These figures describe synthetic data, not accuracy on real employee records.
+
+The latest SQL changes reduced review from 29,417 to 20,004 people across all 500 companies (33.75% to 22.95%). Every company improved; 324 are at or below 25% review and 176 are still above it. Nimbus Grid went from 89 to 55 of 234 people needing review. The source files and acceptance thresholds stayed unchanged.
+
+The changes are small: keep a specific function such as Finance in “Financial Analyst”, recognise common abbreviations, use a clear specialist title when a team is missing, and match VPs to an explicit executive portfolio. A possible team lead still blocks a shortcut to a manager. Broad Staff/Principal titles and equally plausible candidates stay unresolved. Rules were developed on companies 1–350, checked on 351–425, then tested on 426–500.
 
 ## Hosting and files
 

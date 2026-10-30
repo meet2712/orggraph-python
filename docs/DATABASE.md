@@ -20,7 +20,8 @@ There is no `run_id` in the live views. The former value `live` was only a fixed
 | `inference_settings` | The score and margin thresholds used to accept a line |
 | `employee_text` | Normalized title and team text |
 | `employee_classification` | Function and seniority inferred from the title |
-| `employee_features` | Inferred function, seniority and rank per employee |
+| `employee_role_profiles` | Specific role family and executive portfolio from observed titles and compatible team paths |
+| `employee_features` | Normalized title/team, function, seniority, role family, portfolio and rank per employee |
 | `manager_candidates` | Plausible manager pairs within each company |
 | `candidate_scores` | Evidence score for each possible reporting line |
 | `employee_top_candidates` | Best candidate and lead over the next candidate |
@@ -31,7 +32,7 @@ There is no `run_id` in the live views. The former value `live` was only a fixed
 | `dataset_metrics` | Current totals across companies and employees |
 | `employee_reporting_audit` | Raw input and derived decision side by side |
 
-The SQL in [`schema.sql`](../schema.sql) defines all 13 views. The [schema page](../templates/schema.html) shows their columns and dependencies. The Flask page uses [`sql/company_predictions.sql`](../sql/company_predictions.sql), a company-scoped form of the same inference logic so it does not evaluate all 500 companies for one page. Candidate ranking is entirely in SQL. Adding an employee recalculates that employee's match and can change another employee's top candidate. A match is accepted only when the score reaches `inference_settings.score_threshold` **and** its lead over the next candidate reaches `inference_settings.margin_threshold`. The score is an interpretable heuristic, not a calibrated probability.
+The SQL in [`schema.sql`](../schema.sql) defines all 14 views. The [schema page](../templates/schema.html) shows their columns and dependencies. The Flask page uses [`sql/company_predictions.sql`](../sql/company_predictions.sql), a company-scoped form generated from the same view definitions by `scripts/build_company_query.py`. It materializes each stage once for that company rather than repeating title parsing for every candidate. Candidate ranking is entirely in SQL. Adding an employee recalculates that employee's match and can change another employee's top candidate. A match is accepted only when the score reaches `inference_settings.score_threshold` **and** its lead over the next candidate reaches `inference_settings.margin_threshold`. The score is an interpretable heuristic, not a calibrated probability.
 
 The combined diagram includes both tables and every view, with all columns.
 Solid lines are foreign keys. Dashed arrows are direct SQL inputs; they are not
@@ -42,6 +43,8 @@ Team paths are compared as literal text. A `%` or `_` in a team name is not a
 wildcard, and blank or missing-team labels do not create a same-team match.
 These rules apply to both the public views and the company-scoped query.
 They do not edit the original job title, team or department.
+
+A missing team can sometimes be recovered from a specific specialty: for example, a Data Engineer and the company’s Data Engineering Manager. Junior/Intermediate employees still need the closer Team Lead when that layer is visible. If two managers fit, the score gap fails and the manager stays unresolved. A broad Principal People Partner title does not identify one delivery team. Executive titles such as CTO can identify a portfolio even when their team field is missing. All of this happens in views; no cleaned field is written back to `employees`.
 
 A quick check in PyCharm:
 
