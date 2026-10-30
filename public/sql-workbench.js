@@ -237,7 +237,10 @@ FROM inference_runs ORDER BY loaded_at DESC;`,
       button.setAttribute("aria-pressed", "false");
       const name = document.createElement("span");
       name.className = "table-name";
-      name.textContent = table.name;
+      table.name.split("_").forEach((part, index) => {
+        if (index) name.append("_", document.createElement("wbr"));
+        name.append(part);
+      });
       button.title = table.type === "view" ? `${table.name} · read-only view` : table.name;
       const count = document.createElement("span");
       count.className = "table-row-count";
