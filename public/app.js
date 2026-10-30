@@ -142,7 +142,6 @@ if (chartView) {
   }
 
   function updatePeople(center = true) {
-    canvas.classList.toggle("all-groups", view === "chart" && !groupFilter.value);
     const matchingNodes = new Set(nodes.filter((node) => matchesFilters(node)
       && (!groupFilter.value || node.closest(".reporting-group").dataset.rootId === groupFilter.value)));
     const filtered = Boolean(department.value || peopleSearch.value.trim());
@@ -229,15 +228,7 @@ if (chartView) {
   }
   peopleSearch.addEventListener("input", searchPeople);
   department.addEventListener("change", searchPeople);
-  groupFilter.addEventListener("change", () => {
-    if (!groupFilter.value) {
-      // Show every accepted branch in one continuous view. Unresolved roots
-      // remain unconnected because the database has no accepted edge for them.
-      for (const branch of branches) branch.open = true;
-      fitActive = false;
-    }
-    updatePeople();
-  });
+  groupFilter.addEventListener("change", () => updatePeople());
   expandButton.addEventListener("click", () => {
     const visibleBranches = branches.filter((branch) => !branch.closest(".reporting-group").hidden
       && !branch.closest(".tree-node").hidden);

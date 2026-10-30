@@ -64,7 +64,7 @@
   <title>{{ company.company.name ~ ' · ' if page == 'chart' else '' }}OrgGraph</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/style.css">
-  <script src="/app.js?v=schema-views" defer></script>
+  <script src="/app.js?v=reporting-groups" defer></script>
   {% if page == 'data' %}
   <link rel="stylesheet" href="/workbench.css">
   <script src="/sql-workbench.js?v=3" defer></script>
@@ -147,7 +147,7 @@
         <div class="group-toolbar" id="group-toolbar">
           <label for="group-filter" class="sr-only">Reporting group</label>
           <select id="group-filter">
-            <option value="">Whole chart · {{ roots|length }} groups, expanded</option>
+            <option value="">All {{ roots|length }} reporting groups</option>
             {% for person in roots %}
             <option value="{{ person.id }}" {% if person.inferredLevel == 'CEO' %}selected{% endif %}>{{ 'Company leadership' if person.inferredLevel == 'CEO' else 'Separate group' }} · {{ person.name }}</option>
             {% endfor %}
