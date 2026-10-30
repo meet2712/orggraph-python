@@ -35,11 +35,10 @@ def initialize_database(app: Flask) -> None:
         if company_id in seen:
             raise ValueError(f"Duplicate company ID: {company_id}")
         seen.add(company_id)
-    run_id, reused = ensure_snapshot(
+    reused = ensure_snapshot(
         Path(app.config["DATABASE"]), Path(app.config["DATABASE_SNAPSHOT"]),
         data_dir, Path(app.config["RAW_DATA_DIR"]), index,
     )
-    app.config["ACTIVE_RUN_ID"] = run_id
     app.config["DATABASE_REUSED"] = reused
     app.config["DATASET_INDEX"] = index
     app.config["EVALUATION"] = evaluation
@@ -86,22 +85,21 @@ def chart_context(payload: dict) -> dict:
 def page_context(page: str, company_id: str = DEFAULT_COMPANY) -> dict:
     if not COMPANY_ID.fullmatch(company_id):
         abort(404)
-    payload = read_company(get_database(), current_app.config["ACTIVE_RUN_ID"], company_id)
+    payload = read_company(get_database(), company_id)
     if payload is None:
         abort(404)
     index = current_app.config.get("STATIC_EXPORT_INDEX")
     if index is None:
-        index = read_index(get_database(), current_app.config["ACTIVE_RUN_ID"])
+        index = read_index(get_database())
     settings = get_database().execute(
-        "SELECT probability_threshold, margin_threshold FROM inference_runs WHERE run_id = ?",
-        (current_app.config["ACTIVE_RUN_ID"],),
+        "SELECT score_threshold, margin_threshold FROM inference_settings",
     ).fetchone()
     return {
         "page": page,
         "index": index,
         "evaluation": current_app.config["EVALUATION"],
         "sql_evaluation": current_app.config["SQL_EVALUATION"],
-        "threshold": {"probability": settings["probability_threshold"],
+        "threshold": {"score": settings["score_threshold"],
                       "margin": settings["margin_threshold"]},
         "company": payload,
         "companies": index["companies"],
@@ -172,11 +170,12 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     @app.get("/health")
     def health():
-        row = get_database().execute(
-            "SELECT load_status FROM inference_runs WHERE run_id = ?",
-            (app.config["ACTIVE_RUN_ID"],),
-        ).fetchone()
-        if row is None or row["load_status"] != "ready":
+        connection = get_database()
+        settings = connection.execute("SELECT score_threshold FROM inference_settings").fetchone()
+        tables = {row[0] for row in connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+        )}
+        if settings is None or tables != {"companies", "employees"}:
             abort(503)
         return {"status": "ok"}
 

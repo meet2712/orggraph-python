@@ -9,4 +9,4 @@ sys.path.insert(0, str(ROOT))
 from app import app  # noqa: E402
 
 action = "Reused" if app.config["DATABASE_REUSED"] else "Built"
-print(f"{action} checked database and compressed snapshot: {app.config['ACTIVE_RUN_ID']}")
+print(f"{action} checked database and compressed snapshot")

@@ -97,12 +97,13 @@ decision AS (
                     coalesce(finalists.runner_up_score, 0.0)), 4) AS margin
     FROM scoped r LEFT JOIN finalists USING(company_id, employee_id)
 )
-SELECT 'live' AS run_id, company_id, employee_id,
-       CASE WHEN inferred_level <> 'CEO' AND confidence >= 0.98
-                  AND margin >= 0.04 THEN candidate_id END AS accepted_manager_id,
+SELECT company_id, employee_id,
+       CASE WHEN inferred_level <> 'CEO' AND confidence >= settings.score_threshold
+                  AND margin >= settings.margin_threshold THEN candidate_id END AS accepted_manager_id,
        candidate_id AS best_candidate_id,
        min(1.0, confidence) AS confidence, margin,
        CASE WHEN inferred_level = 'CEO' THEN 'company_root'
-            WHEN confidence >= 0.98 AND margin >= 0.04 THEN 'accepted'
+            WHEN confidence >= settings.score_threshold
+                 AND margin >= settings.margin_threshold THEN 'accepted'
             ELSE 'unresolved' END AS decision
-FROM decision;
+FROM decision CROSS JOIN inference_settings settings;

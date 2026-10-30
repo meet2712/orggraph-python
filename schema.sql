@@ -18,24 +18,14 @@ CREATE TABLE employees (
     raw_team TEXT NOT NULL,
     location TEXT NOT NULL,
     work_email TEXT NOT NULL,
-    source_row_number INTEGER NOT NULL CHECK (source_row_number > 0),
     PRIMARY KEY (company_id, employee_id)
 );
 
 CREATE INDEX employees_by_company_team ON employees(company_id, raw_team);
 
--- A stable label for the live SQL rules. It contains no model output rows.
-CREATE VIEW inference_runs AS
-SELECT 'live' AS run_id,
-       'current employees' AS source_hash,
-       'sql-rules-v1' AS model_version,
-       'sql-views-v1' AS pipeline_version,
-       'Deterministic SQL hierarchy rules' AS model_type,
-       0.98 AS probability_threshold,
-       0.04 AS margin_threshold,
-       (SELECT count(*) FROM companies) AS source_company_count,
-       (SELECT count(*) FROM employees) AS source_employee_count,
-       'ready' AS load_status;
+-- Acceptance settings are one row, not a saved or historical run.
+CREATE VIEW inference_settings AS
+SELECT 0.98 AS score_threshold, 0.04 AS margin_threshold;
 
 CREATE VIEW company_profiles AS
 SELECT c.company_id, c.company_name, c.industry,
@@ -48,7 +38,7 @@ GROUP BY c.company_id;
 
 -- Normalize only the observed text; no answer-key columns enter inference.
 CREATE VIEW employee_text AS
-SELECT e.*,
+SELECT e.company_id, e.employee_id, e.location,
        ' ' || trim(replace(replace(replace(replace(replace(replace(replace(
            lower(e.job_title), '.', ' '), ',', ' '), '-', ' '), '/', ' '),
            '  ', ' '), '  ', ' '), '  ', ' ')) || ' ' AS title_text,
@@ -61,7 +51,7 @@ FROM employees e;
 -- leadership role. Senior, Staff and Principal ICs remain individual
 -- contributors. Manager in an account/product/success IC title is ambiguous.
 CREATE VIEW employee_classification AS
-SELECT t.*,
+SELECT t.company_id, t.employee_id, t.location, t.team_path,
        CASE
          WHEN title_text LIKE '% chief executive officer %' OR trim(title_text) = 'ceo'
            THEN 'CEO'
@@ -167,7 +157,7 @@ SELECT t.*,
 FROM employee_text t;
 
 CREATE VIEW employee_features AS
-SELECT 'live' AS run_id, company_id, employee_id, inferred_department,
+SELECT company_id, employee_id, inferred_department,
        inferred_level,
        CASE inferred_level
          WHEN 'CEO' THEN 10 WHEN 'C-Suite' THEN 9
@@ -177,8 +167,7 @@ SELECT 'live' AS run_id, company_id, employee_id, inferred_department,
          WHEN 'Team Lead / Supervisor' THEN 3
          WHEN 'Principal / Staff IC' THEN 3
          WHEN 'Senior IC' THEN 2 WHEN 'Junior IC' THEN 0
-         ELSE 1 END AS inferred_rank,
-       'processed' AS processing_status
+         ELSE 1 END AS inferred_rank
 FROM employee_classification;
 
 -- Candidate set stays inside one company and permits only explicit managers.
@@ -190,7 +179,7 @@ SELECT r.company_id, r.employee_id, c.employee_id AS candidate_id,
        rf.inferred_level AS report_level, cf.inferred_level AS candidate_level,
        rf.inferred_department AS report_department,
        cf.inferred_department AS candidate_department,
-       r.team_path AS report_team, c.team_path AS candidate_team,
+       c.team_path AS candidate_team,
        CASE WHEN r.team_path = c.team_path AND r.team_path NOT IN ('','n/a','unknown','-')
                  THEN 'same_team'
             WHEN r.team_path <> '' AND c.team_path <> ''
@@ -222,7 +211,8 @@ WHERE r.employee_id <> c.employee_id
 -- Scores represent strength of visible hierarchy evidence, not a learned
 -- probability. Missing or conflicting team paths fall below the accept floor.
 CREATE VIEW candidate_scores AS
-SELECT m.*,
+SELECT m.company_id, m.employee_id, m.candidate_id,
+       m.candidate_rank, m.candidate_team,
        CASE
          WHEN report_level = 'C-Suite' AND candidate_level = 'CEO' THEN 0.995
          WHEN report_level = 'VP / Head' AND candidate_level = 'CEO'
@@ -258,91 +248,92 @@ SELECT m.*,
 FROM manager_candidates m;
 
 -- Correlate the shortlist to one employee so a company-page lookup does not
--- rank every employee in the database. The top two scores fit in one JSON
--- value; this avoids three separate candidate scans per employee.
+-- rank every employee in the database. JSON is only an internal way to fetch
+-- the top two in one scan; the view exposes named candidate and score columns.
 CREATE VIEW employee_top_candidates AS
 SELECT e.company_id, e.employee_id,
-       (SELECT json_group_array(json_array(top.candidate_id, top.evidence_score))
-        FROM (
-            SELECT s.candidate_id, s.evidence_score
-            FROM candidate_scores s
-            WHERE s.company_id = e.company_id AND s.employee_id = e.employee_id
-            ORDER BY s.evidence_score DESC, length(s.candidate_team) DESC,
-                     s.candidate_rank ASC, s.candidate_id
-            LIMIT 2
-        ) top) AS top_two_json
-FROM employees e;
+       json_extract(shortlist.value, '$[0][0]') AS best_candidate_id,
+       json_extract(shortlist.value, '$[0][1]') AS best_score,
+       json_extract(shortlist.value, '$[1][1]') AS second_score
+FROM employees e
+CROSS JOIN json_each(json_array(
+    (SELECT json_group_array(json_array(top.candidate_id, top.evidence_score))
+     FROM (
+         SELECT s.candidate_id, s.evidence_score
+         FROM candidate_scores s
+         WHERE s.company_id = e.company_id AND s.employee_id = e.employee_id
+         ORDER BY s.evidence_score DESC, length(s.candidate_team) DESC,
+                  s.candidate_rank ASC, s.candidate_id
+         LIMIT 2
+     ) top)
+)) AS shortlist;
 
 CREATE VIEW reporting_predictions AS
 WITH scored AS (
     SELECT e.company_id, e.employee_id, f.inferred_level,
-           json_extract(t.top_two_json, '$[0][0]') AS candidate_id,
-           round(coalesce(json_extract(t.top_two_json, '$[0][1]'), 0.0), 4)
-               AS confidence,
-           round(max(0.0, coalesce(json_extract(t.top_two_json, '$[0][1]'), 0.0) -
-                    coalesce(json_extract(t.top_two_json, '$[1][1]'), 0.0)), 4)
-               AS margin
+           t.best_candidate_id AS candidate_id,
+           round(coalesce(t.best_score, 0.0), 4) AS confidence,
+           round(max(0.0, coalesce(t.best_score, 0.0) -
+                    coalesce(t.second_score, 0.0)), 4) AS margin
     FROM employees e
     JOIN employee_features f USING(company_id, employee_id)
     JOIN employee_top_candidates t USING(company_id, employee_id)
 )
-SELECT 'live' AS run_id, company_id, employee_id,
-       CASE WHEN inferred_level <> 'CEO' AND confidence >= 0.98
-                  AND margin >= 0.04 THEN candidate_id END AS accepted_manager_id,
+SELECT company_id, employee_id,
+       CASE WHEN inferred_level <> 'CEO' AND confidence >= s.score_threshold
+                  AND margin >= s.margin_threshold THEN candidate_id END AS accepted_manager_id,
        candidate_id AS best_candidate_id,
        min(1.0, confidence) AS confidence, margin,
        CASE WHEN inferred_level = 'CEO' THEN 'company_root'
-            WHEN confidence >= 0.98 AND margin >= 0.04 THEN 'accepted'
+            WHEN confidence >= s.score_threshold AND margin >= s.margin_threshold THEN 'accepted'
             ELSE 'unresolved' END AS decision
-FROM scored;
+FROM scored CROSS JOIN inference_settings s;
 
 CREATE VIEW prediction_reasons AS
-SELECT p.run_id, p.company_id, p.employee_id, 0 AS position,
+SELECT p.company_id, p.employee_id,
        CASE WHEN p.decision = 'company_root' THEN 'CEO is the company root'
             WHEN p.best_candidate_id IS NULL THEN 'No suitable management title'
             WHEN p.decision = 'accepted' THEN 'Team path and seniority identify a manager'
-            WHEN p.confidence < 0.98 THEN 'Insufficient team or role evidence'
+            WHEN p.confidence < s.score_threshold THEN 'Insufficient team or role evidence'
             ELSE 'Several candidates have similar evidence' END AS reason
-FROM reporting_predictions p;
+FROM reporting_predictions p CROSS JOIN inference_settings s;
 
-CREATE VIEW company_run_metrics AS
-SELECT p.run_id, p.company_id,
+CREATE VIEW company_metrics AS
+SELECT p.company_id,
        sum(p.decision = 'accepted') AS resolved_count,
        sum(p.decision = 'unresolved') AS unresolved_count,
        round(1.0 * sum(p.decision = 'accepted') /
              max(sum(p.decision <> 'company_root'), 1), 4) AS coverage,
        round(coalesce(avg(CASE WHEN p.decision = 'accepted'
              THEN p.confidence END), 0), 4) AS average_confidence
-FROM reporting_predictions p GROUP BY p.run_id, p.company_id;
+FROM reporting_predictions p GROUP BY p.company_id;
 
-CREATE VIEW run_metrics AS
-SELECT 'live' AS run_id, count(DISTINCT company_id) AS company_count,
+CREATE VIEW dataset_metrics AS
+SELECT count(DISTINCT company_id) AS company_count,
        count(*) AS employee_count,
        sum(decision = 'accepted') AS accepted_count,
        sum(decision = 'unresolved') AS unresolved_count,
-       0 AS pending_inference_count,
        round(coalesce(avg(CASE WHEN decision = 'accepted'
              THEN confidence END), 0), 4) AS average_resolved_confidence
 FROM reporting_predictions;
 
 CREATE VIEW employee_reporting_audit AS
-SELECT p.run_id, e.company_id, e.employee_id, e.full_name, e.job_title,
+SELECT e.company_id, e.employee_id, e.full_name, e.job_title,
        e.raw_department, e.raw_team, e.location,
-       f.inferred_department, f.inferred_level, f.processing_status,
+       f.inferred_department, f.inferred_level,
        p.accepted_manager_id, manager.full_name AS inferred_manager,
        p.best_candidate_id, candidate.full_name AS leading_candidate,
        p.confidence, p.margin, p.decision,
-       r.probability_threshold, r.margin_threshold,
+       s.score_threshold, s.margin_threshold,
        CASE WHEN p.decision = 'company_root' THEN 'observed_ceo_title'
             WHEN p.decision = 'accepted' THEN 'cleared_both_checks'
             WHEN p.best_candidate_id IS NULL THEN 'no_suitable_candidate'
-            WHEN p.confidence < r.probability_threshold THEN 'low_confidence'
-            ELSE 'ambiguous_candidates' END AS decision_reason,
-       r.source_hash, r.model_version, r.pipeline_version
+            WHEN p.confidence < s.score_threshold THEN 'low_confidence'
+            ELSE 'ambiguous_candidates' END AS decision_reason
 FROM reporting_predictions p
-JOIN inference_runs r USING(run_id)
 JOIN employees e USING(company_id, employee_id)
-JOIN employee_features f USING(run_id, company_id, employee_id)
+JOIN employee_features f USING(company_id, employee_id)
+CROSS JOIN inference_settings s
 LEFT JOIN employees manager ON manager.company_id = p.company_id
       AND manager.employee_id = p.accepted_manager_id
 LEFT JOIN employees candidate ON candidate.company_id = p.company_id

@@ -20,7 +20,7 @@ FROM company_profiles AS c LEFT JOIN employees AS e USING (company_id)
 GROUP BY c.company_id, c.employee_count
 HAVING c.employee_count <> count(e.employee_id);
 
--- Expected: zero rows. Every observed employee has exactly one live decision.
+-- Expected: zero rows. Every observed employee has exactly one decision.
 SELECT e.company_id, e.employee_id, count(p.employee_id) AS prediction_rows
 FROM employees AS e LEFT JOIN reporting_predictions AS p USING (company_id, employee_id)
 GROUP BY e.company_id, e.employee_id
@@ -75,9 +75,9 @@ SELECT decision, count(*) AS employees FROM reporting_predictions GROUP BY decis
 
 -- Expected: zero rows. The published acceptance thresholds come from the SQL view.
 SELECT p.company_id, p.employee_id FROM reporting_predictions AS p
-CROSS JOIN inference_runs AS r
+CROSS JOIN inference_settings AS s
 WHERE p.decision = 'accepted'
-  AND (p.confidence < r.probability_threshold OR p.margin < r.margin_threshold);
+  AND (p.confidence < s.score_threshold OR p.margin < s.margin_threshold);
 
 -- Example: inspect one employee's live manager chain.
 WITH RECURSIVE manager_chain AS (

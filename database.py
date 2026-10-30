@@ -59,11 +59,11 @@ def read_json(path: Path) -> dict:
 def read_employee_csv(path: Path) -> dict:
     records = {}
     with path.open(newline="", encoding="utf-8") as source:
-        for row_number, row in enumerate(csv.DictReader(source), start=2):
+        for row in csv.DictReader(source):
             key = (row["company_id"], row["employee_id"])
             if key in records:
                 raise ValueError(f"Duplicate employee in {path.name}: {key}")
-            records[key] = {**row, "source_row_number": row_number}
+            records[key] = row
     return records
 
 
@@ -128,31 +128,28 @@ def file_digest(path: Path) -> str:
         return hashlib.file_digest(source, "sha256").hexdigest()
 
 
-def cached_run(database: Path, fingerprint: str) -> str | None:
+def cached_snapshot(database: Path, fingerprint: str) -> bool:
     """Reuse a healthy database even when source employees were edited locally."""
     try:
         manifest = read_json(database.with_suffix(".manifest.json"))
         if manifest["source_hash"] != fingerprint:
-            return None
+            return False
         with closing(connect(database, readonly=True)) as connection:
             if connection.execute("PRAGMA quick_check(1)").fetchone()[0] != "ok":
-                return None
-            run = connection.execute("SELECT * FROM inference_runs").fetchone()
+                return False
+            settings = connection.execute("SELECT * FROM inference_settings").fetchone()
             tables = {row[0] for row in connection.execute(
                 "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
             )}
-            if run is None or run["run_id"] != "live" or tables != {"companies", "employees"}:
-                return None
-            return run["run_id"]
+            return settings is not None and tables == {"companies", "employees"}
     except (OSError, ValueError, KeyError, sqlite3.Error):
-        return None
+        return False
 
 
 def ensure_snapshot(database: Path, snapshot: Path, data_dir: Path, raw_dir: Path,
-                    index: dict) -> tuple[str, bool]:
+                    index: dict) -> bool:
     fingerprint = snapshot_fingerprint(data_dir, raw_dir)
-    run_id = cached_run(database, fingerprint)
-    if run_id is not None:
+    if cached_snapshot(database, fingerprint):
         database_hash = file_digest(database)
         try:
             manifest = read_json(database.with_suffix(".manifest.json"))
@@ -164,19 +161,18 @@ def ensure_snapshot(database: Path, snapshot: Path, data_dir: Path, raw_dir: Pat
         if not snapshot_current:
             write_compressed_snapshot(database, snapshot)
             manifest = {
-                "source_hash": fingerprint, "run_id": run_id,
+                "source_hash": fingerprint,
                 "database_sha256": database_hash,
                 "snapshot_sha256": file_digest(snapshot),
             }
             database.with_suffix(".manifest.json").write_text(
                 json.dumps(manifest), encoding="utf-8"
             )
-        return run_id, True
-    run_id = load_snapshot(database, data_dir, raw_dir, index)
+        return True
+    load_snapshot(database, data_dir, raw_dir, index)
     write_compressed_snapshot(database, snapshot)
     manifest = {
         "source_hash": fingerprint,
-        "run_id": run_id,
         "database_sha256": file_digest(database),
         "snapshot_sha256": file_digest(snapshot),
     }
@@ -187,16 +183,15 @@ def ensure_snapshot(database: Path, snapshot: Path, data_dir: Path, raw_dir: Pat
         os.replace(staging, database.with_suffix(".manifest.json"))
     finally:
         staging.unlink(missing_ok=True)
-    return run_id, False
+    return False
 
 
-def load_snapshot(database: Path, data_dir: Path, raw_dir: Path, index: dict) -> str:
+def load_snapshot(database: Path, data_dir: Path, raw_dir: Path, index: dict) -> None:
     """Create a source-only database; every inference result is a SQL view."""
     raw = read_employee_csv(raw_dir / "employees_messy.csv")
     if len(raw) != index["summary"]["employeeCount"]:
         raise ValueError("Raw employee count does not match the source index")
     company_ids = [company["id"] for company in index["companies"]]
-    run_id = "live"
     database.parent.mkdir(parents=True, exist_ok=True)
     with NamedTemporaryFile(prefix=".orggraph-load-", suffix=".sqlite3", dir=database.parent, delete=False) as temporary:
         staging = Path(temporary.name)
@@ -210,28 +205,27 @@ def load_snapshot(database: Path, data_dir: Path, raw_dir: Path, index: dict) ->
                      for row in index["companies"]],
                 )
                 connection.executemany(
-                    "INSERT INTO employees VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    "INSERT INTO employees VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                     [(row["company_id"], row["employee_id"], row["full_name"], row["job_title"],
-                      row["department"], row["team"], row["location"], row["work_email"],
-                      row["source_row_number"]) for row in raw.values()],
+                      row["department"], row["team"], row["location"], row["work_email"])
+                     for row in raw.values()],
                 )
-                check_loaded_snapshot(connection, run_id, len(company_ids), len(raw))
+                check_loaded_snapshot(connection, len(company_ids), len(raw))
         os.replace(staging, database)
     finally:
         staging.unlink(missing_ok=True)
-    return run_id
 
 
-def check_loaded_snapshot(connection, run_id, company_count, employee_count):
+def check_loaded_snapshot(connection, company_count, employee_count):
     counts = [connection.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
               for table in ("companies", "employees")]
     if counts != [company_count, employee_count]:
         raise ValueError("Loaded table counts do not match the source")
     if connection.execute("PRAGMA foreign_key_check").fetchone():
         raise ValueError("Foreign-key validation failed")
-    required_views = {"inference_runs", "company_profiles", "employee_features",
-                      "reporting_predictions", "prediction_reasons",
-                      "company_run_metrics", "run_metrics", "employee_reporting_audit"}
+    required_views = {"inference_settings", "company_profiles", "employee_features",
+                      "reporting_predictions", "prediction_reasons", "company_metrics",
+                      "dataset_metrics", "employee_reporting_audit"}
     views = {row[0] for row in connection.execute(
         "SELECT name FROM sqlite_master WHERE type = 'view'"
     )}
@@ -239,7 +233,7 @@ def check_loaded_snapshot(connection, run_id, company_count, employee_count):
         raise ValueError("Required inference views are missing")
 
 
-def read_index(connection: sqlite3.Connection, run_id: str) -> dict:
+def read_index(connection: sqlite3.Connection) -> dict:
     """Build the directory from live headcounts without scoring all companies."""
     companies = []
     for row in connection.execute("""
@@ -264,7 +258,7 @@ def read_index(connection: sqlite3.Connection, run_id: str) -> dict:
     }
 
 
-def read_company(connection: sqlite3.Connection, run_id: str, company_id: str) -> dict | None:
+def read_company(connection: sqlite3.Connection, company_id: str) -> dict | None:
     profile = connection.execute(
         "SELECT * FROM company_profiles WHERE company_id = ?", (company_id,)
     ).fetchone()
@@ -284,14 +278,14 @@ def read_company(connection: sqlite3.Connection, run_id: str, company_id: str) -
                         THEN 'No suitable management title'
                         WHEN p.decision = 'accepted'
                         THEN 'Team path and seniority identify a manager'
-                        WHEN p.confidence < settings.probability_threshold
+                        WHEN p.confidence < settings.score_threshold
                         THEN 'Insufficient team or role evidence'
                         ELSE 'Several candidates have similar evidence'
                    END AS reason
             FROM employees e
             JOIN employee_features f USING (company_id, employee_id)
             JOIN predictions p USING (company_id, employee_id)
-            CROSS JOIN inference_runs settings
+            CROSS JOIN inference_settings settings
             WHERE e.company_id = :company_id
         )
         SELECT *,
@@ -301,7 +295,7 @@ def read_company(connection: sqlite3.Connection, run_id: str, company_id: str) -
                      max(sum(decision <> 'company_root') OVER (), 1), 4) AS coverage,
                round(coalesce(avg(CASE WHEN decision = 'accepted' THEN confidence END)
                      OVER (), 0.0), 4) AS average_confidence
-        FROM person_rows ORDER BY source_row_number
+        FROM person_rows ORDER BY employee_id
     """
     rows = connection.execute(query, {"company_id": company_id}).fetchall()
     if not rows:

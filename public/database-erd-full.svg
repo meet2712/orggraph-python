@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="740" viewBox="0 0 1200 740" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="716" viewBox="0 0 1200 716" role="img" aria-labelledby="title desc">
 <title id="title">OrgGraph database entity relationship diagram</title>
 <desc id="desc">The two persisted source tables and their columns. Inference and metrics are calculated by SQL views.</desc>
 <rect width="1200" height="100%" fill="#fafbf8"/>
@@ -26,7 +26,7 @@
 <text x="346" y="221" text-anchor="end" class="key">TEXT</text>
 <text x="56" y="247" class="note">4 columns</text></g>
 <g aria-label="employees">
-<rect x="40" y="364" width="320" height="316" rx="6" fill="white" stroke="#b9c8b9"/>
+<rect x="40" y="364" width="320" height="292" rx="6" fill="white" stroke="#b9c8b9"/>
 <path d="M40,426 H360" stroke="#e1e8dd"/>
 <text x="56" y="390" font-size="17" font-weight="650">employees</text>
 <text x="56" y="411" class="note">One observed employee</text>
@@ -54,8 +54,5 @@
 <text x="56" y="617" class="key"></text>
 <text x="104" y="617" class="field">work_email</text>
 <text x="346" y="617" text-anchor="end" class="key">TEXT</text>
-<text x="56" y="641" class="key"></text>
-<text x="104" y="641" class="field">source_row_number</text>
-<text x="346" y="641" text-anchor="end" class="key">INTEGER</text>
-<text x="56" y="667" class="note">9 columns</text></g>
-<text x="40" y="720" class="note">Circle = optional · bar = one · fork = many. Solid = identifying relationship · dashed = non-identifying.</text></svg>
+<text x="56" y="643" class="note">8 columns</text></g>
+<text x="40" y="696" class="note">Circle = optional · bar = one · fork = many. Solid = identifying relationship · dashed = non-identifying.</text></svg>

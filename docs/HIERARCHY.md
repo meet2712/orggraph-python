@@ -61,7 +61,7 @@ The operational database derives features and manager choices in SQL views.
 It normalizes explicit management titles, filters to more-senior candidates in
 the same company, and scores team scope and function evidence. A candidate is
 accepted only when the evidence score and its lead over the next candidate
-clear the thresholds in the `inference_runs` view. Ties and missing evidence
+clear the thresholds in the `inference_settings` view. Ties and missing evidence
 remain unresolved. The evidence score is a heuristic rather than a calibrated
 probability. Senior, Staff and Principal IC titles do not become managers just
 because of their seniority.

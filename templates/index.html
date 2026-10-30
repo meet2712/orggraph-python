@@ -7,7 +7,7 @@
       {% if person.predictedManagerId %}
         <small>Reports to {{ employees_by_id[person.predictedManagerId].name }}</small>
       {% elif person.inferredLevel != 'CEO' %}
-        <small>{% if not person.bestCandidateId %}No suitable manager candidate{% elif person.confidence < threshold.probability %}Evidence below the acceptance threshold{% else %}Candidates too close to choose a manager{% endif %}</small>
+        <small>{% if not person.bestCandidateId %}No suitable manager candidate{% elif person.confidence < threshold.score %}Evidence below the acceptance threshold{% else %}Candidates too close to choose a manager{% endif %}</small>
       {% endif %}
       {% if not person.predictedManagerId and person.bestCandidateId %}
         <small>Unconfirmed candidate: {{ employees_by_id[person.bestCandidateId].name }}</small>
@@ -193,13 +193,13 @@
           <span id="people-result-count" aria-live="polite">{{ company.summary.resolved }} reporting lines · {{ company.summary.coverage|percent }} coverage</span>
         </div>
       </section>
-      <p class="company-footnote">This company and its people are generated. A line is accepted when its evidence score is at least {{ threshold.probability|percent }} and the lead over the next candidate is at least {{ threshold.margin|points }} percentage points. Uncertain matches stay in Needs review.</p>
+      <p class="company-footnote">This company and its people are generated. A line is accepted when its evidence score is at least {{ threshold.score|percent }} and the lead over the next candidate is at least {{ threshold.margin|points }} percentage points. Uncertain matches stay in Needs review.</p>
       <noscript><p class="note">Company links and reporting branches work without JavaScript. Enable JavaScript to search, filter, and open a person’s details.</p></noscript>
     </main>
   </div>
 
   <script type="application/json" id="company-records">{{ company.employees|tojson }}</script>
-  <dialog class="person-dialog" id="person-dialog" aria-labelledby="dialog-name" data-probability="{{ threshold.probability }}" data-margin="{{ threshold.margin }}">
+  <dialog class="person-dialog" id="person-dialog" aria-labelledby="dialog-name">
     <form method="dialog"><button class="close-button" aria-label="Close details">✕</button></form>
     <span class="person-avatar large" id="dialog-avatar" aria-hidden="true"></span>
     <h2 id="dialog-name" tabindex="-1"></h2>
@@ -215,7 +215,7 @@
       <button type="button" class="manager-link" id="dialog-manager" hidden><span id="dialog-manager-name"></span> <span aria-hidden="true">↗</span></button>
       <p id="dialog-decision-description"></p>
       <dl class="decision-numbers" id="dialog-decision-numbers">
-        <div><dt>Evidence score</dt><dd id="dialog-confidence"></dd><small>Needs {{ threshold.probability|percent }}</small></div>
+        <div><dt>Evidence score</dt><dd id="dialog-confidence"></dd><small>Needs {{ threshold.score|percent }}</small></div>
         <div><dt>Lead over next candidate</dt><dd id="dialog-margin"></dd><small>Percentage points · needs {{ threshold.margin|points }}</small></div>
       </dl>
       <div id="dialog-signals">
@@ -258,7 +258,7 @@
     </section>
     <section class="paper-section">
       <h2>What the evidence score means</h2>
-      <p>The score reflects title seniority, functional match, and team scope. It is a heuristic, not a calibrated probability. A link is accepted only when its score reaches {{ threshold.probability|percent }} and exceeds the next candidate by {{ threshold.margin|points }} percentage points. The separate generated answer file can be used for offline accuracy checks; it is not stored in the app database.</p>
+      <p>The score reflects title seniority, functional match, and team scope. It is a heuristic, not a calibrated probability. A link is accepted only when its score reaches {{ threshold.score|percent }} and exceeds the next candidate by {{ threshold.margin|points }} percentage points. The separate generated answer file can be used for offline accuracy checks; it is not stored in the app database.</p>
     </section>
   </main>
 
@@ -283,10 +283,10 @@
       <div class="score-formula-grid">
         <article class="formula-card"><span class="formula-label">Evidence score</span><code>score = strongest matching hierarchy/team rule + location tie-break</code><p>The SQL <code>CASE</code> order sets the main score. Location contributes a small tie-break. The score is not a calibrated probability.</p></article>
         <article class="formula-card"><span class="formula-label">Lead over next candidate</span><code>lead = top score − second score</code><p>If two candidates look too similar, the SQL rules leave the manager unresolved.</p></article>
-        <article class="formula-card"><span class="formula-label">Acceptance</span><code>score ≥ {{ threshold.probability|percent }} AND lead ≥ {{ threshold.margin|points }} points</code><p>Thresholds are visible in the <code>inference_runs</code> view and decision audit.</p></article>
+        <article class="formula-card"><span class="formula-label">Acceptance</span><code>score ≥ {{ threshold.score|percent }} AND lead ≥ {{ threshold.margin|points }} points</code><p>Thresholds are visible in the <code>inference_settings</code> view and decision audit.</p></article>
       </div>
     </section>
-    <section class="paper-section"><h2>3. Inspect the decision</h2><p><code>employee_reporting_audit</code> joins the raw employee row with inferred features, the selected manager or leading candidate, score, margin and decision reason. <code>company_profiles</code> and <code>company_run_metrics</code> calculate headcount, size band and coverage from current rows. Each app page runs a company-scoped SQL form of the same inference rules for speed.</p><p>Open the <a href="/schema.html">schema page</a> to read every <code>CREATE VIEW</code> statement, or run a query in the <a href="/data.html">database explorer</a>.</p></section>
+    <section class="paper-section"><h2>3. Inspect the decision</h2><p><code>employee_reporting_audit</code> joins the raw employee row with inferred features, the selected manager or leading candidate, score, margin and decision reason. <code>company_profiles</code> and <code>company_metrics</code> calculate headcount, size band and coverage from current rows. Each app page runs a company-scoped SQL form of the same inference rules for speed.</p><p>Open the <a href="/schema.html">schema page</a> to read every <code>CREATE VIEW</code> statement, or run a query in the <a href="/data.html">database explorer</a>.</p></section>
     <section class="paper-section"><h2>4. Check quality separately</h2><p>The generated answer CSV can be compared with the SQL view output outside the app. This avoids putting employee-to-manager answer mappings in the operational database. Coverage describes how many lines were accepted; precision requires that separate answer key. A high evidence score alone does not prove a correct manager.</p></section>
     <section class="paper-section"><h2>Try it yourself</h2><p>The source package includes the generator, schema, app and quality queries. The dataset package includes observed records and the separate answer key.</p><div class="download-row"><a class="button" href="/downloads/firmable-org-chart-dataset.zip" download>Download dataset</a><a class="button" href="/downloads/orggraph-source.zip" download>Download source</a></div></section>
   </main>

@@ -17,10 +17,10 @@ VIEW_GRAINS = {
     'employee_features': 'One live feature set per employee',
     'reporting_predictions': 'One live decision per employee',
     'prediction_reasons': 'One explanation signal per decision',
-    'company_run_metrics': 'One live company summary',
-    'run_metrics': 'One live database summary',
+    'company_metrics': 'One live company summary',
+    'dataset_metrics': 'One live database summary',
     'employee_reporting_audit': 'One inspectable decision per employee',
-    'inference_runs': 'Current SQL rules and thresholds',
+    'inference_settings': 'Current decision thresholds',
     'employee_text': 'Normalized title and source text',
     'employee_classification': 'Title-derived function and seniority',
     'manager_candidates': 'Plausible manager pairs',
@@ -44,12 +44,12 @@ def view_dependencies(tables, views):
 def render_view_flow(tables, views, dependencies):
     """Draw the five-stage read path without crossing every SQL join."""
     stages = [
-        ('1 · SOURCE', ['companies', 'employees', 'inference_runs']),
+        ('1 · INPUT', ['companies', 'employees', 'inference_settings']),
         ('2 · PREPARE', ['employee_text', 'employee_classification', 'employee_features']),
         ('3 · MATCH', ['manager_candidates', 'candidate_scores', 'employee_top_candidates']),
         ('4 · DECIDE', ['reporting_predictions', 'prediction_reasons']),
-        ('5 · INSPECT', ['company_profiles', 'company_run_metrics',
-                         'run_metrics', 'employee_reporting_audit']),
+        ('5 · INSPECT', ['company_profiles', 'company_metrics',
+                         'dataset_metrics', 'employee_reporting_audit']),
     ]
     objects = {item['name'] for item in [*tables, *views]}
     shown = [name for _, stage in stages for name in stage]
@@ -59,7 +59,7 @@ def render_view_flow(tables, views, dependencies):
     descriptions = {
         'companies': 'Company details',
         'employees': 'Messy employee records',
-        'inference_runs': 'Current SQL thresholds',
+        'inference_settings': 'Current decision thresholds',
         'employee_text': 'Normalize title and team text',
         'employee_classification': 'Function and seniority',
         'employee_features': 'One feature set per person',
@@ -69,8 +69,8 @@ def render_view_flow(tables, views, dependencies):
         'reporting_predictions': 'Accept a link or abstain',
         'prediction_reasons': 'Explain the decision',
         'company_profiles': 'Headcount and size band',
-        'company_run_metrics': 'Per-company coverage',
-        'run_metrics': 'Overall counts and mean score',
+        'company_metrics': 'Per-company coverage',
+        'dataset_metrics': 'Overall counts and mean score',
         'employee_reporting_audit': 'Inspect an employee decision',
     }
     width, height, card_width, card_height = 1810, 640, 318, 96

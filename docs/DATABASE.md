@@ -7,24 +7,31 @@ The SQLite app database persists only the company directory and observed employe
 | Table | Grain | Stored fields |
 |---|---|---|
 | `companies` | One company | ID, name, industry, headquarters |
-| `employees` | One observed person | Company and employee IDs, name, job title, department, team, location, email and source row number |
+| `employees` | One observed person | Company and employee IDs, name, job title, department, team, location and email |
 
 Employee IDs identify rows and join an employee to their company. They do **not** encode who reports to whom. `companies` has no stored employee count or size band.
+
+There is no `run_id` in the live views. The former value `live` was only a fixed label: it did not identify a stored run or change a join. Removing it leaves the same reporting decisions and makes the schema easier to read.
 
 ## Views
 
 | View | Calculation |
 |---|---|
-| `company_profiles` | Live employee count and size band |
-| `employee_features` | Normalized function and seniority from observed titles and fields |
-| `reporting_predictions` | Leading manager candidate, evidence score, lead over second place, and accepted or unresolved decision |
+| `inference_settings` | The score and margin thresholds used to accept a line |
+| `employee_text` | Normalized title and team text |
+| `employee_classification` | Function and seniority inferred from the title |
+| `employee_features` | Inferred function, seniority and rank per employee |
+| `manager_candidates` | Plausible manager pairs within each company |
+| `candidate_scores` | Evidence score for each possible reporting line |
+| `employee_top_candidates` | Best candidate and lead over the next candidate |
+| `reporting_predictions` | Accepted manager or unresolved decision |
 | `prediction_reasons` | Readable signals behind each decision |
-| `company_run_metrics` | Accepted and unresolved line counts, coverage and average accepted score |
-| `run_metrics` | Current totals across companies and employees |
+| `company_profiles` | Live employee count and size band |
+| `company_metrics` | Accepted and unresolved line counts, coverage and average accepted score |
+| `dataset_metrics` | Current totals across companies and employees |
 | `employee_reporting_audit` | Raw input and derived decision side by side |
-| `inference_runs` | Current SQL rule version and acceptance thresholds, as a view |
 
-The SQL in [`schema.sql`](../schema.sql) defines all these views. The [schema page](../templates/schema.html) exposes their complete definitions. The Flask page uses [`sql/company_predictions.sql`](../sql/company_predictions.sql), a company-scoped form of the same inference logic so it does not evaluate all 500 companies for one page. Candidate ranking is entirely in SQL. Adding an employee recalculates that employee's match and can change another employee's top candidate. A match is accepted only when the score reaches the threshold **and** its lead over the next candidate is large enough. The score is an interpretable heuristic, not a calibrated probability.
+The SQL in [`schema.sql`](../schema.sql) defines all 13 views. The [schema page](../templates/schema.html) exposes their complete definitions. The Flask page uses [`sql/company_predictions.sql`](../sql/company_predictions.sql), a company-scoped form of the same inference logic so it does not evaluate all 500 companies for one page. Candidate ranking is entirely in SQL. Adding an employee recalculates that employee's match and can change another employee's top candidate. A match is accepted only when the score reaches `inference_settings.score_threshold` **and** its lead over the next candidate reaches `inference_settings.margin_threshold`. The score is an interpretable heuristic, not a calibrated probability.
 
 A quick check in PyCharm:
 

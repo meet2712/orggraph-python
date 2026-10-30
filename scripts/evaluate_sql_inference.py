@@ -28,7 +28,7 @@ def evaluate(database: Path, labels: Path, minimum_company_number: int = 426) ->
     with sqlite3.connect(database) as connection:
         for company_id in sorted({company_id for company_id, _ in truth}):
             for result in connection.execute(query, {"company_id": company_id}):
-                _, result_company_id, employee_id, manager_id, _, _, _, decision = result
+                result_company_id, employee_id, manager_id, _, _, _, decision = result
                 key = result_company_id, employee_id
                 if key not in truth:
                     continue

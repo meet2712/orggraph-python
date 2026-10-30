@@ -69,13 +69,11 @@ class SourceDatabaseTests(unittest.TestCase):
                       department="Engineering",
                       team="Company / Technology / Engineering / Quality & Reliability"):
         with closing(connect(self.database)) as connection, connection:
-            next_row = connection.execute(
-                "SELECT max(source_row_number) + 1 FROM employees").fetchone()[0]
             connection.execute("""
                 INSERT INTO employees VALUES
-                ('cmp_0001', ?, ?, ?, ?, ?, 'Sydney, AU', ?, ?)
+                ('cmp_0001', ?, ?, ?, ?, ?, 'Sydney, AU', ?)
             """, (employee_id, employee_id.title(), title, department, team,
-                  f"{employee_id}@example.test", next_row))
+                  f"{employee_id}@example.test"))
 
     def test_only_basic_source_tables_are_persisted(self):
         with closing(connect(self.database, readonly=True)) as connection:
@@ -87,13 +85,13 @@ class SourceDatabaseTests(unittest.TestCase):
             views = {row[0] for row in connection.execute(
                 "SELECT name FROM sqlite_master WHERE type = 'view'")}
             self.assertIn("reporting_predictions", views)
-            self.assertIn("company_run_metrics", views)
+            self.assertIn("company_metrics", views)
             self.assertNotIn("benchmark_labels", tables | views)
             self.assertNotIn("inference_outputs", tables | views)
 
     def test_reporting_line_uses_current_employee_rows(self):
         with closing(connect(self.database, readonly=True)) as connection:
-            payload = read_company(connection, "live", "cmp_0001")
+            payload = read_company(connection, "cmp_0001")
             people = {person["id"]: person for person in payload["employees"]}
             self.assertEqual(people["cto"]["predictedManagerId"], "ceo")
             self.assertIsNone(people["junior"]["predictedManagerId"])
@@ -105,11 +103,11 @@ class SourceDatabaseTests(unittest.TestCase):
         self.insert_person("new_cfo", "Chief Financial Officer", "Executive",
                            "Company / Finance & Risk")
         with closing(connect(self.database, readonly=True)) as connection:
-            payload = read_company(connection, "live", "cmp_0001")
+            payload = read_company(connection, "cmp_0001")
             new_hire = next(p for p in payload["employees"] if p["id"] == "new_cfo")
             self.assertEqual(new_hire["predictedManagerId"], "ceo")
             self.assertEqual(payload["company"]["employeeCount"], 5)
-            self.assertEqual(read_index(connection, "live")["summary"]["employeeCount"], 5)
+            self.assertEqual(read_index(connection)["summary"]["employeeCount"], 5)
         restarted = create_app(self.config)
         self.assertTrue(restarted.config["DATABASE_REUSED"])
         with closing(connect(self.database, readonly=True)) as connection:
@@ -120,9 +118,9 @@ class SourceDatabaseTests(unittest.TestCase):
     def test_headcount_and_size_band_recalculate(self):
         with closing(connect(self.database)) as connection, connection:
             rows = [("cmp_0001", f"extra_{i:03d}", f"Extra {i}", "Analyst",
-                     "Operations", "", "Sydney, AU", f"extra_{i}@example.test", i + 6)
+                     "Operations", "", "Sydney, AU", f"extra_{i}@example.test")
                     for i in range(125)]
-            connection.executemany("INSERT INTO employees VALUES (?,?,?,?,?,?,?,?,?)", rows)
+            connection.executemany("INSERT INTO employees VALUES (?,?,?,?,?,?,?,?)", rows)
             before = connection.execute("""
                 SELECT employee_count, size_band FROM company_profiles
                 WHERE company_id = 'cmp_0001'
@@ -131,7 +129,7 @@ class SourceDatabaseTests(unittest.TestCase):
             connection.execute("""
                 INSERT INTO employees VALUES
                 ('cmp_0001', 'threshold_hire', 'Threshold Hire', 'Analyst',
-                 'Operations', '', 'Sydney, AU', 'threshold@example.test', 131)
+                 'Operations', '', 'Sydney, AU', 'threshold@example.test')
             """)
             after = connection.execute("""
                 SELECT employee_count, size_band FROM company_profiles
@@ -144,12 +142,12 @@ class SourceDatabaseTests(unittest.TestCase):
             with self.assertRaises(sqlite3.IntegrityError):
                 connection.execute("""
                     INSERT INTO employees VALUES
-                    ('cmp_0001', 'ceo', 'Duplicate', 'CEO', '', '', '', '', 99)
+                    ('cmp_0001', 'ceo', 'Duplicate', 'CEO', '', '', '', '')
                 """)
             with self.assertRaises(sqlite3.IntegrityError):
                 connection.execute("""
                     INSERT INTO employees VALUES
-                    ('missing', 'another', 'Another', 'Analyst', '', '', '', '', 99)
+                    ('missing', 'another', 'Another', 'Analyst', '', '', '', '')
                 """)
 
 

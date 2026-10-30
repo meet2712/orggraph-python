@@ -7,7 +7,7 @@
 <text x="28" y="35" class="heading">Two source tables → live reporting views</text>
 <text x="28" y="58" class="note">Arrows trace the main reporting path. Side views can read source tables directly; each “Reads” line gives the exact inputs.</text>
 <rect x="20" y="105" width="334" height="480" rx="9" fill="#f0f4ef" stroke="#dae5da"/>
-<text x="35" y="137" class="stage">1 · SOURCE</text>
+<text x="35" y="137" class="stage">1 · INPUT</text>
 <path d="M352,128 H369" fill="none" stroke="#4b7965" stroke-width="2.5" marker-end="url(#flow-arrow)"/>
 <g aria-label="companies">
 <rect x="28" y="166" width="318" height="96" rx="7" fill="#e4efe6" stroke="#80a98b"/>
@@ -21,11 +21,11 @@
 <text x="40" y="311" class="description">Messy employee records</text>
 <text x="40" y="333" class="kind">SOURCE TABLE · stores rows</text>
 </g>
-<g aria-label="inference_runs">
+<g aria-label="inference_settings">
 <rect x="28" y="374" width="318" height="96" rx="7" fill="#ffffff" stroke="#b9cbbd"/>
-<text x="40" y="395" class="name">inference_runs</text>
-<text x="40" y="415" class="description">Current SQL thresholds</text>
-<text x="40" y="437" class="reads">Reads: companies, employees</text>
+<text x="40" y="395" class="name">inference_settings</text>
+<text x="40" y="415" class="description">Current decision thresholds</text>
+<text x="40" y="437" class="reads">Reads: </text>
 </g>
 <rect x="376" y="105" width="334" height="480" rx="9" fill="#f0f4ef" stroke="#dae5da"/>
 <text x="391" y="137" class="stage">2 · PREPARE</text>
@@ -68,7 +68,7 @@
 <rect x="740" y="374" width="318" height="96" rx="7" fill="#ffffff" stroke="#b9cbbd"/>
 <text x="752" y="395" class="name">employee_top_candidates</text>
 <text x="752" y="415" class="description">Best and second-best candidate</text>
-<text x="752" y="437" class="reads">Reads: candidate_scores, employees</text>
+<text x="752" y="437" class="reads">Reads: employees, candidate_scores</text>
 </g>
 <rect x="1088" y="105" width="334" height="480" rx="9" fill="#f0f4ef" stroke="#dae5da"/>
 <text x="1103" y="137" class="stage">4 · DECIDE</text>
@@ -78,13 +78,14 @@
 <text x="1108" y="187" class="name">reporting_predictions</text>
 <text x="1108" y="207" class="description">Accept a link or abstain</text>
 <text x="1108" y="229" class="reads">Reads: employees, employee_features</text>
-<text x="1108" y="242" class="reads">employee_top_candidates</text>
+<text x="1108" y="242" class="reads">employee_top_candidates, inference_settings</text>
 </g>
 <g aria-label="prediction_reasons">
 <rect x="1096" y="270" width="318" height="96" rx="7" fill="#ffffff" stroke="#b9cbbd"/>
 <text x="1108" y="291" class="name">prediction_reasons</text>
 <text x="1108" y="311" class="description">Explain the decision</text>
 <text x="1108" y="333" class="reads">Reads: reporting_predictions</text>
+<text x="1108" y="346" class="reads">inference_settings</text>
 </g>
 <rect x="1444" y="105" width="334" height="480" rx="9" fill="#f0f4ef" stroke="#dae5da"/>
 <text x="1459" y="137" class="stage">5 · INSPECT</text>
@@ -94,15 +95,15 @@
 <text x="1464" y="207" class="description">Headcount and size band</text>
 <text x="1464" y="229" class="reads">Reads: companies, employees</text>
 </g>
-<g aria-label="company_run_metrics">
+<g aria-label="company_metrics">
 <rect x="1452" y="270" width="318" height="96" rx="7" fill="#ffffff" stroke="#b9cbbd"/>
-<text x="1464" y="291" class="name">company_run_metrics</text>
+<text x="1464" y="291" class="name">company_metrics</text>
 <text x="1464" y="311" class="description">Per-company coverage</text>
 <text x="1464" y="333" class="reads">Reads: reporting_predictions</text>
 </g>
-<g aria-label="run_metrics">
+<g aria-label="dataset_metrics">
 <rect x="1452" y="374" width="318" height="96" rx="7" fill="#ffffff" stroke="#b9cbbd"/>
-<text x="1464" y="395" class="name">run_metrics</text>
+<text x="1464" y="395" class="name">dataset_metrics</text>
 <text x="1464" y="415" class="description">Overall counts and mean score</text>
 <text x="1464" y="437" class="reads">Reads: reporting_predictions</text>
 </g>
@@ -110,8 +111,8 @@
 <rect x="1452" y="478" width="318" height="96" rx="7" fill="#ffffff" stroke="#b9cbbd"/>
 <text x="1464" y="499" class="name">employee_reporting_audit</text>
 <text x="1464" y="519" class="description">Inspect an employee decision</text>
-<text x="1464" y="541" class="reads">Reads: reporting_predictions, inference_runs</text>
-<text x="1464" y="554" class="reads">employees, employee_features</text>
+<text x="1464" y="541" class="reads">Reads: reporting_predictions, employees</text>
+<text x="1464" y="554" class="reads">employee_features, inference_settings</text>
 </g>
 <text x="28" y="616" class="note">Green = stored source table · White = calculated SQL view · Views run on query and do not copy rows</text>
 </svg>

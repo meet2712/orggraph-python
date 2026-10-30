@@ -50,7 +50,7 @@ def export_site(base_path: str = "") -> None:
     )
     app.config["TESTING"] = True
     with closing(connect(app.config["DATABASE"], readonly=True)) as connection:
-        index = read_index(connection, app.config["ACTIVE_RUN_ID"])
+        index = read_index(connection)
     # The export is a fixed snapshot. Reuse one view result while rendering 505
     # pages; normal Flask requests continue to query the live views.
     app.config["STATIC_EXPORT_INDEX"] = index

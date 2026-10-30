@@ -60,18 +60,18 @@ WHERE p.company_id = 'cmp_0004'
 ORDER BY e.employee_id;`,
     chain: `WITH RECURSIVE manager_chain AS (
   SELECT e.company_id, e.employee_id, e.full_name, e.job_title,
-         p.run_id, p.accepted_manager_id, 0 AS depth
+         p.accepted_manager_id, 0 AS depth
   FROM employees AS e
   JOIN reporting_predictions AS p USING (company_id, employee_id)
   WHERE e.company_id = 'cmp_0001' AND e.employee_id = 'emp_0000018'
   UNION ALL
   SELECT e.company_id, e.employee_id, e.full_name, e.job_title,
-         p.run_id, p.accepted_manager_id, chain.depth + 1
+         p.accepted_manager_id, chain.depth + 1
   FROM manager_chain AS chain
   JOIN employees AS e ON e.company_id = chain.company_id
     AND e.employee_id = chain.accepted_manager_id
   JOIN reporting_predictions AS p ON p.company_id = e.company_id
-    AND p.employee_id = e.employee_id AND p.run_id = chain.run_id
+    AND p.employee_id = e.employee_id
   WHERE chain.depth < 12
 )
 SELECT depth, full_name, job_title, accepted_manager_id
@@ -82,8 +82,8 @@ FROM manager_chain ORDER BY depth;`,
        SUM(CASE WHEN TRIM(raw_team) = '' THEN 1 ELSE 0 END) AS missing_teams,
        SUM(CASE WHEN TRIM(location) = '' THEN 1 ELSE 0 END) AS missing_locations
 FROM employees;`,
-    lineage: `SELECT run_id, model_type, probability_threshold, margin_threshold
-FROM inference_runs;`,
+    thresholds: `SELECT score_threshold, margin_threshold
+FROM inference_settings;`,
   };
 
   function placeholder(text) {
