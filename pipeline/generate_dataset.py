@@ -177,16 +177,16 @@ TEAM_CLUSTERS = {
 MANAGER_TITLES = {
     "Engineering": ["Engineering Manager", "Software Development Manager", "QA Manager"],
     "Sales": ["Sales Manager", "Regional Sales Manager", "Business Development Manager"],
-    "Customer Success": ["Customer Success Team Manager", "Client Success Lead", "Support Manager"],
-    "Operations": ["Operations Manager", "Business Operations Manager", "Program Lead"],
-    "Product": ["Group Product Manager", "Product Team Lead", "Product Operations Manager"],
+    "Customer Success": ["Customer Success Team Manager", "Client Success Team Manager", "Support Manager"],
+    "Operations": ["Operations Manager", "Business Operations Manager", "Program Manager"],
+    "Product": ["Group Product Manager", "Product Operations Manager"],
     "Marketing": ["Marketing Manager", "Growth Marketing Manager", "Demand Generation Manager"],
     "Data & Analytics": ["Data Engineering Manager", "Analytics Manager", "Data Science Manager"],
     "Finance": ["Finance Manager", "FP&A Manager", "Accounting Manager"],
     "People": ["People Operations Manager", "HR Manager", "Talent Acquisition Manager"],
     "Security": ["Security Engineering Manager", "GRC Manager", "Security Operations Manager"],
     "IT": ["IT Manager", "Infrastructure Manager", "Service Desk Manager"],
-    "Legal": ["Legal Operations Manager", "Senior Counsel", "Compliance Manager"],
+    "Legal": ["Legal Operations Manager", "Legal Team Manager", "Compliance Manager"],
 }
 
 SENIOR_MANAGER_TITLES = {
@@ -231,7 +231,7 @@ TEAM_MANAGER_TITLES = {
     "Operations": {
         "Business Operations": ["Business Operations Manager"],
         "Revenue Operations": ["Business Operations Manager"],
-        "Programs": ["Program Lead"],
+        "Programs": ["Program Manager"],
         "Delivery": ["Operations Manager"],
         "Strategy": ["Business Operations Manager"],
     },
@@ -296,17 +296,64 @@ TEAM_LEAD_TITLES = {
         "Applications": "Application Engineering Team Lead", "Mobile": "Mobile Engineering Team Lead",
         "Web": "Web Engineering Team Lead",
     },
-    "Sales": {"default": "Sales Team Lead"},
-    "Customer Success": {"Support": "Support Team Lead", "default": "Customer Success Team Lead"},
-    "Operations": {"default": "Operations Team Lead"},
-    "Product": {"Design": "Design Team Lead", "Research": "Research Team Lead", "default": "Product Team Lead"},
-    "Marketing": {"default": "Marketing Team Lead"},
-    "Data & Analytics": {"default": "Data & Analytics Team Lead"},
-    "Finance": {"default": "Finance Team Lead"},
-    "People": {"default": "People Operations Team Lead"},
-    "Security": {"default": "Security Team Lead"},
-    "IT": {"Service Desk": "Service Desk Supervisor", "default": "IT Team Lead"},
-    "Legal": {"default": "Legal Operations Team Lead"},
+    "Sales": {
+        "Enterprise": "Enterprise Sales Team Lead", "Mid-Market": "Mid-Market Sales Team Lead",
+        "SMB": "SMB Sales Team Lead", "Partnerships": "Partnerships Team Lead",
+        "APAC": "APAC Sales Team Lead", "EMEA": "EMEA Sales Team Lead",
+        "Americas": "Americas Sales Team Lead", "default": "Sales Team Lead",
+    },
+    "Customer Success": {
+        "Enterprise Success": "Enterprise Success Team Lead",
+        "Commercial Success": "Commercial Success Team Lead", "Support": "Support Team Lead",
+        "Onboarding": "Onboarding Team Lead", "Implementations": "Implementation Team Lead",
+        "default": "Customer Success Team Lead",
+    },
+    "Operations": {
+        "Business Operations": "Business Operations Team Lead",
+        "Revenue Operations": "Revenue Operations Team Lead", "Programs": "Programs Team Lead",
+        "Delivery": "Delivery Team Lead", "Strategy": "Strategy Team Lead",
+        "default": "Operations Team Lead",
+    },
+    "Product": {
+        "Core Product": "Core Product Team Lead", "Growth Product": "Growth Product Team Lead",
+        "Platform Product": "Platform Product Team Lead", "Design": "Design Team Lead",
+        "Research": "Research Team Lead", "default": "Product Team Lead",
+    },
+    "Marketing": {
+        "Growth": "Growth Marketing Team Lead", "Demand Generation": "Demand Generation Team Lead",
+        "Content": "Content Team Lead", "Brand": "Brand Team Lead",
+        "Product Marketing": "Product Marketing Team Lead", "default": "Marketing Team Lead",
+    },
+    "Data & Analytics": {
+        "Data Platform": "Data Platform Team Lead", "ML Platform": "ML Platform Team Lead",
+        "Analytics": "Analytics Team Lead", "Business Intelligence": "BI Team Lead",
+        "Data Science": "Data Science Team Lead", "default": "Data & Analytics Team Lead",
+    },
+    "Finance": {
+        "Financial Planning": "Financial Planning Team Lead", "Commercial Finance": "Commercial Finance Team Lead",
+        "Accounting": "Accounting Team Lead", "Payroll": "Payroll Team Lead",
+        "default": "Finance Team Lead",
+    },
+    "People": {
+        "People Operations": "People Operations Team Lead", "Business Partners": "HR Business Partners Team Lead",
+        "Talent": "Talent Team Lead", "Learning": "Learning Team Lead",
+        "default": "People Operations Team Lead",
+    },
+    "Security": {
+        "Security Engineering": "Security Engineering Team Lead", "Identity": "Identity Team Lead",
+        "GRC": "GRC Team Lead", "Security Operations": "Security Operations Team Lead",
+        "default": "Security Team Lead",
+    },
+    "IT": {
+        "Infrastructure": "Infrastructure Team Lead", "Cloud Operations": "Cloud Operations Team Lead",
+        "Service Desk": "Service Desk Supervisor", "Enterprise Applications": "Enterprise Applications Team Lead",
+        "default": "IT Team Lead",
+    },
+    "Legal": {
+        "Commercial Legal": "Commercial Legal Team Lead", "Legal Operations": "Legal Operations Team Lead",
+        "Compliance": "Compliance Team Lead", "Privacy": "Privacy Team Lead",
+        "default": "Legal Operations Team Lead",
+    },
 }
 
 IC_TITLES = {

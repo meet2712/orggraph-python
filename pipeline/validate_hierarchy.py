@@ -119,6 +119,11 @@ def main() -> None:
     accepted_non_manager_parents: list[str] = []
     accepted_qa_mismatches: list[str] = []
     accepted_by_level: Counter[str] = Counter()
+    correct_by_level: Counter[str] = Counter()
+    population_by_level: Counter[str] = Counter(
+        row["canonical_level"] for row in sample if row["manager_employee_id"]
+    )
+    accepted_team_lead_skips = 0
     for company_id in sorted(selected):
         payload = json.loads(
             (args.output_dir / "companies" / f"{company_id}.json").read_text(encoding="utf-8")
@@ -132,6 +137,15 @@ def main() -> None:
             manager = by_id[manager_id]
             correct += int(manager_id == report["manager_employee_id"])
             accepted_by_level[report["canonical_level"]] += 1
+            correct_by_level[report["canonical_level"]] += int(
+                manager_id == report["manager_employee_id"]
+            )
+            true_manager = by_id[report["manager_employee_id"]]
+            if (
+                report["canonical_level"] in {"Junior", "Individual Contributor"}
+                and true_manager["canonical_level"] == "Team Lead"
+            ):
+                accepted_team_lead_skips += int(manager["canonical_level"] != "Team Lead")
             if RANK[manager["canonical_level"]] <= RANK[report["canonical_level"]]:
                 accepted_rank_violations.append(report["employee_id"])
             if manager["canonical_level"] not in PEOPLE_MANAGER_LEVELS:
@@ -154,11 +168,51 @@ def main() -> None:
             f"{len(accepted_qa_mismatches)} accepted QA edges leave the QA chain")
     require(precision >= 0.965, f"sample precision is below 96.5%: {precision:.2%}")
 
+    coverage_floors = {
+        "C-Suite": 0.90,
+        "VP": 0.65,
+        "Director": 0.90,
+        "Senior Manager": 0.50,
+        "Manager": 0.90,
+        "Team Lead": 0.80,
+    }
+    for level, floor in coverage_floors.items():
+        level_coverage = accepted_by_level[level] / max(population_by_level[level], 1)
+        require(
+            level_coverage >= floor,
+            f"{level} accepted coverage is below {floor:.0%}: {level_coverage:.2%}",
+        )
+    management_levels = set(coverage_floors)
+    management_accepted = sum(accepted_by_level[level] for level in management_levels)
+    management_correct = sum(correct_by_level[level] for level in management_levels)
+    management_precision = management_correct / max(management_accepted, 1)
+    require(
+        management_precision >= 0.98,
+        f"management-track precision is below 98%: {management_precision:.2%}",
+    )
+    # Count every generated junior/intermediate relationship to a Team Lead,
+    # including unresolved predictions, so abstention cannot hide a flattened
+    # hierarchy regression.
+    generated_team_lead_population = sum(
+        1
+        for row in sample
+        if row["canonical_level"] in {"Junior", "Individual Contributor"}
+        and row["manager_employee_id"]
+        and by_id[row["manager_employee_id"]]["canonical_level"] == "Team Lead"
+    )
+    team_lead_skip_rate = accepted_team_lead_skips / max(generated_team_lead_population, 1)
+    require(
+        team_lead_skip_rate <= 0.02,
+        f"accepted edges skip the generated Team Lead too often: {team_lead_skip_rate:.2%}",
+    )
+
     print("Hierarchy validation passed")
     print(f"Companies sampled: {len(selected):,}")
     print(f"Employees sampled: {len(sample):,}")
     print(f"Accepted reporting lines: {accepted:,}")
     print(f"Accepted precision: {precision:.2%}")
+    print(f"Management-track precision: {management_precision:.2%}")
+    print(f"Accepted Team Lead skip rate: {team_lead_skip_rate:.2%}")
     print(f"People-manager span: {min(manager_spans):,}-{max(manager_spans):,}")
     print("Accepted edges by canonical level: " + json.dumps(dict(sorted(accepted_by_level.items()))))
 

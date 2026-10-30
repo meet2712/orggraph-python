@@ -42,8 +42,8 @@ def main() -> None:
     companies = index["companies"]
     require(len(companies) == evaluation["dataset"]["companies"], "company count mismatch")
     require(evaluation["model"]["precision"] >= 0.965, "held-out precision is below 96.5%")
-    require(evaluation["model"]["coverage"] >= 0.55, "held-out coverage is below 55%")
-    require(evaluation["model"]["candidate_recall"] >= 0.80, "candidate recall is below 80%")
+    require(evaluation["model"]["coverage"] >= 0.75, "held-out coverage is below 75%")
+    require(evaluation["model"]["candidate_recall"] >= 0.88, "candidate recall is below 88%")
 
     employee_total = 0
     edge_total = 0

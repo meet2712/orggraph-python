@@ -9,7 +9,7 @@ plausible, the person stays unresolved.
 [Browse the database and run SQL](https://meet2712.github.io/orggraph-python/data.html) ·
 [Database ER diagram](https://meet2712.github.io/orggraph-python/schema.html)
 
-The dataset is generated: 500 companies, 87,160 employees and ten industries.
+The dataset is generated: 500 companies, 87,796 employees and ten industries.
 Every company has 100–250 employees. Names, emails and reporting lines are made
 up; the clean hierarchy is kept separately so the predictions can be measured.
 
@@ -88,16 +88,25 @@ Engineering leadership. The hierarchy policy and external references are in
 
 Only titles with an explicit management cue—such as Team Lead, Supervisor,
 Manager, Director, VP, Head or Chief—are considered as manager candidates.
-Department, team scope, role family, seniority gap, location and missing-field
-signals contribute to the score. Titles such as Product Manager, Account
-Manager and Customer Success Manager remain IC roles unless another explicit
-management cue is present.
+The management ladder first narrows each leader to the next plausible parent
+layer. Title-derived department and executive portfolio come before noisy team
+text; exact team scope and function words separate peers. A unique match on
+that ladder receives deterministic structural confidence. All other candidates
+are scored using department, team scope, role family, seniority gap, location
+and missing-field signals. Titles such as Product Manager, Account Manager and
+Customer Success Manager remain IC roles unless another explicit management
+cue is present.
+
+For junior and intermediate employees, an explicit Team Lead/Supervisor in the
+same inferred scope is considered before a formal Manager. If a possible Team
+Lead cannot be placed because its title or team is missing, the direct edge is
+left unresolved instead of flattening the chart.
 
 Training uses generated manager labels. Calibration and threshold selection
 use separate validation companies. At scoring time, the model uses only the
 messy observed fields; it cannot read the answer key as an input feature.
 
-A line needs at least 80% calibrated confidence and a 10 percentage-point lead
+A line needs at least 47.5% combined confidence and a 10 percentage-point lead
 over the next candidate. Both checks must pass. These cutoffs were chosen to
 reach 97% validation precision with at least 50 accepted examples. If no pair
 of cutoffs meets that target, the pipeline accepts no lines.
@@ -113,15 +122,15 @@ final test. All employees from a company stay in the same split.
 
 | Method, on the 75 test companies | Precision | Coverage | Recall | F1 |
 |---|---:|---:|---:|---:|
-| Rules baseline | 83.37% | 97.64% | 81.40% | 82.37% |
-| Learned pair scores | 96.67% | 55.47% | 53.62% | 68.98% |
+| Rules baseline | 89.67% | 96.32% | 86.37% | 87.99% |
+| Hybrid hierarchy + pair scores | 97.44% | 83.74% | 81.60% | 88.82% |
 
 Precision measures how many accepted lines are correct. Coverage measures how
 many employees with a true manager received an accepted prediction. Recall
 measures how many true reporting lines were recovered correctly.
 
-Across all 500 companies, the published run has 47,579 accepted lines, 39,097
-unresolved decisions and 484 people identified as company roots from their
+Across all 500 companies, the published run has 72,837 accepted lines, 14,463
+unresolved decisions and 496 people identified as company roots from their
 observed titles. These operational counts are kept separate from the test
 metrics above.
 

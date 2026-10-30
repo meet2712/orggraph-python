@@ -48,6 +48,17 @@ explicit management cue identifies a people-management role.
 - Team names form a containment path, for example
   `Company / Technology / Engineering / Quality & Reliability / Quality`.
 
+## Inference rule
+
+The inference pipeline reconstructs explicit management titles against the
+same ladder before pair scoring. It uses title-derived department and executive
+portfolio first, then exact team/parent-team scope and distinguishing function
+words. Only one unambiguous parent can receive the deterministic hierarchy
+confidence; ties and missing evidence still abstain. Junior and intermediate
+ICs are routed to an explicit Team Lead/Supervisor when its scope can be
+identified. Senior, Staff and Principal titles remain ICs and are never turned
+into managers by seniority alone.
+
 ## Research basis
 
 The policy is a synthetic default, not a claim that every real company uses one
@@ -80,7 +91,9 @@ fails when:
 - a reporting edge violates the allowed management ladder;
 - a QA delivery edge leaves the QA branch;
 - an accepted prediction points to a non-manager title; or
-- accepted precision falls below the configured quality floor.
+- accepted precision falls below the configured quality floor;
+- management-layer coverage regresses and disconnects the chart; or
+- accepted junior/intermediate edges skip generated Team Leads too often.
 
 `pipeline/validate_dataset.py` additionally checks all 500 companies for one
 CEO root, acyclic reporting lines, same-company edges and nested team scope.

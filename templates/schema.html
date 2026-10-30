@@ -19,7 +19,7 @@
   </section>
   <section class="paper-section">
     <h2>A decision audit, not a second copy of the data</h2>
-    <p><code>employee_reporting_audit</code> joins an employee's raw fields to their inferred features, accepted manager, leading candidate, scores, thresholds and run hashes. Its <code>decision_reason</code> distinguishes low confidence, close candidates, missing candidates and accepted links. The generated answer key is excluded.</p>
+    <p><code>employee_reporting_audit</code> joins an employee's raw fields to their inferred features, accepted manager, leading candidate, scores, thresholds and run hashes. Its <code>decision_reason</code> distinguishes low confidence, close candidates, missing candidates and accepted links. Ordered reasons can also identify an explicit management-path match. The generated answer key is excluded.</p>
     <pre class="schema-query">SELECT full_name, inferred_manager, leading_candidate,
        confidence, margin, decision_reason
 FROM employee_reporting_audit

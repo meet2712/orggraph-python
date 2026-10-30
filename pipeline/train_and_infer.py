@@ -44,17 +44,17 @@ DEPARTMENT_TITLE_PRIORITY = [
     ("Executive", ["chief executive", "ceo"]),
     ("People", ["cpo people", "people", "human resources", "hr", "recruiter", "recruiting", "talent"]),
     ("Product", ["product", "ux", "designer", "researcher", "cpo"]),
-    ("Operations", ["revenue operations", "sales operations"]),
+    ("Operations", ["revenue operations", "revenue ops", "sales operations", "sales ops"]),
     ("Data & Analytics", ["data", "analytics", "analtyics", "bi analyst", "machine learning", "ml", "ai", "cdo"]),
     ("Security", ["security", "securty", "infosec", "cyber", "grc", "incident response", "ciso"]),
     ("IT", ["information technology", "info tech", "it", "infrastructure", "systems administrator", "network engineer", "cloud administrator", "service desk", "chief information officer", "cio"]),
     ("Legal", ["legal", "counsel", "paralegal", "compliance", "contracts"]),
-    ("Customer Success", ["customer success", "cust success", "client success", "onboarding", "implementation", "chief customer officer", "cco"]),
-    ("Sales", ["sales", "revenue", "account executive", "account manager", "account mgr", "account manger", "business development", "commercial", "sdr", "bdr", "gtm", "cro"]),
+    ("Customer Success", ["customer success", "cust success", "client success", "enterprise success", "commercial success", "onboarding", "implementation", "chief customer officer", "cco"]),
+    ("Sales", ["sales", "revenue", "partnership", "partnerships", "account executive", "account manager", "account mgr", "account manger", "business development", "commercial", "sdr", "bdr", "gtm", "cro"]),
     ("Finance", ["finance", "financial", "fp&a", "accountant", "accounting", "payroll", "cfo"]),
     ("Marketing", ["marketing", "mktg", "growth", "demand gen", "demand generation", "content", "cmo"]),
     ("Operations", ["operations", "ops", "bizops", "business ops", "program", "project coordinator", "chief operating officer", "coo"]),
-    ("Engineering", ["engineering", "engineer", "developer", "software", "devops", "qa", "technology", "cto", "eng", "r&d"]),
+    ("Engineering", ["product engineering", "engineering", "enginering", "engineer", "developer", "software", "devops", "qa", "technology", "cto", "eng", "r&d"]),
     ("Customer Success", ["support", "cx"]),
 ]
 
@@ -135,6 +135,7 @@ class Candidate:
     manager_id: str
     features: tuple[float, ...]
     heuristic_score: float
+    structural_match: bool = False
 
 
 @dataclass
@@ -179,7 +180,7 @@ def infer_role_family(title: str) -> str:
         ("Support", [" support ", " service desk "]),
         ("Onboarding", [" onboarding ", " implementation "]),
         ("Design", [" designer ", " design ", " ux ", " researcher "]),
-        ("Sales", [" sales ", " account ", " business development ", " sdr ", " bdr "]),
+        ("Sales", [" sales ", " account ", " partnership ", " business development ", " sdr ", " bdr "]),
         ("Marketing", [" marketing ", " mktg ", " growth ", " content ", " demand generation "]),
         ("Finance", [" finance ", " financial ", " fp&a ", " accounting ", " accountant ", " payroll "]),
         ("People", [" people ", " human resources ", " hr ", " recruiter ", " talent "]),
@@ -205,26 +206,50 @@ def infer_department(title: str, raw_department: str, raw_team: str = "") -> tup
                 break
         raw_match = raw_match or DEPARTMENT_ALIASES.get(raw_text)
 
-    title_match = next(
+    # "Product Engineering" is an engineering function, not Product
+    # Management. Resolve this common compound title before the generic
+    # Product keyword is considered.
+    title_match = (
+        "Engineering"
+        if any(term in title_text for term in (" product engineering ", " product eng "))
+        else next(
         (
             department
             for department, terms in DEPARTMENT_TITLE_PRIORITY
             if any(normalize_text(term) in title_text for term in terms)
         ),
         None,
+        )
     )
+
+    # Generated team values are containment paths such as
+    # Company / Technology / Engineering / Product Engineering.  Use an exact
+    # path segment as a second independent department signal; the previous
+    # parser inspected only the first segment ("Company") and discarded this
+    # useful evidence.
+    team_match = None
+    # Inspect the deepest path segment first. In
+    # Company / Revenue / Customer Success, "Revenue" is a portfolio while
+    # "Customer Success" is the employee's department.
+    for segment in reversed(str(raw_team or "").split("/")):
+        normalized_segment = normalize_text(segment).strip()
+        for department in DEPARTMENTS:
+            if normalized_segment == normalize_text(department).strip():
+                team_match = department
+                break
+        team_match = team_match or DEPARTMENT_ALIASES.get(normalized_segment)
+        if team_match:
+            break
     if raw_match and title_match == raw_match:
         return raw_match, 0.98, missing
     if title_match:
         return title_match, 0.88 if raw_match is None else 0.72, missing
+    if team_match and raw_match == team_match:
+        return team_match, 0.96, missing
+    if team_match:
+        return team_match, 0.82 if raw_match is None else 0.70, missing
     if raw_match:
         return raw_match, 0.76, missing
-    team_department = normalize_text(raw_team).split("/", 1)[0].strip()
-    for department in DEPARTMENTS:
-        if team_department == normalize_text(department).strip():
-            return department, 0.68, missing
-    if team_department in DEPARTMENT_ALIASES:
-        return DEPARTMENT_ALIASES[team_department], 0.68, missing
     return "Unknown", 0.22, True
 
 
@@ -272,7 +297,7 @@ def infer_rank(title: str) -> tuple[int, str, float]:
         return 5, "Senior Manager", 0.92
     if "team lead" in compact or "supervisor" in compact:
         return 3, "Team Lead / Supervisor", 0.91
-    management_terms = ["manager", "group product", "program lead", "client success lead", "senior counsel"]
+    management_terms = ["manager", "group product"]
     if any(f" {term} " in f" {compact} " for term in management_terms):
         return 4, "Manager", 0.88
     if compact.startswith("staff ") or compact.startswith("lead ") or compact.startswith("principal "):
@@ -380,6 +405,163 @@ def heuristic_score(report: ParsedEmployee, manager: ParsedEmployee, features: t
     return score
 
 
+EXECUTIVE_SCOPE_DEPARTMENTS = {
+    "technology": {"Engineering", "Product", "Data & Analytics", "Security", "IT"},
+    "cto": {"Engineering", "Product", "Data & Analytics", "Security", "IT"},
+    "revenue": {"Sales", "Marketing", "Customer Success"},
+    "cro": {"Sales", "Marketing", "Customer Success"},
+    "operating": {"Operations"},
+    "coo": {"Operations"},
+    "financial": {"Finance", "Legal"},
+    "cfo": {"Finance", "Legal"},
+    "people": {"People"},
+}
+
+SCOPE_STOPWORDS = {
+    "company", "chief", "officer", "of", "vp", "vice", "president", "head",
+    "director", "senior", "manager", "mgr", "manger", "team", "lead",
+    "supervisor", "engineering", "sales", "customer", "success", "operations",
+    "product", "marketing", "data", "analytics", "finance", "people", "security",
+    "it", "legal", "technology", "revenue", "risk", "and",
+}
+
+
+def scope_tokens(value: str) -> set[str]:
+    """Keep only the words that distinguish one functional scope from another."""
+    return set(normalize_text(value).strip().split()) - SCOPE_STOPWORDS
+
+
+def team_leaf(team: str) -> str:
+    return team.rsplit(" / ", 1)[-1] if team != "Unknown" else ""
+
+
+def executive_scope_departments(person: ParsedEmployee) -> set[str]:
+    title = normalize_text(person.job_title)
+    return next(
+        (departments for cue, departments in EXECUTIVE_SCOPE_DEPARTMENTS.items() if cue in title),
+        set(),
+    )
+
+
+def management_parent_pool(
+    report: ParsedEmployee, company: list[ParsedEmployee]
+) -> tuple[list[ParsedEmployee], str]:
+    """Reconstruct the likely parent layer for an explicit management title.
+
+    Rank and title-derived department/portfolio determine the layer. Team paths
+    and role words only separate peers inside that layer. The function returns
+    a high-confidence parent only when that evidence identifies one person.
+    """
+    pool = [
+        person for person in company
+        if person.employee_id != report.employee_id
+        and person.rank > report.rank
+        and person.people_manager_cue
+        and not person.title_missing
+    ]
+    if report.rank == 9:
+        pool = [person for person in pool if person.rank == 10]
+    elif report.rank == 8:
+        pool = [
+            person for person in pool
+            if person.rank == 9 and report.department in executive_scope_departments(person)
+        ]
+    elif report.rank in {6, 7}:
+        pool = [
+            person for person in pool
+            if person.rank == 8 and person.department == report.department
+        ]
+    elif report.rank == 5:
+        pool = [
+            person for person in pool
+            if person.rank in {6, 7} and person.department == report.department
+        ]
+    elif report.rank == 4:
+        pool = [
+            person for person in pool
+            if person.rank in {5, 6, 7, 8} and person.department == report.department
+        ]
+    elif report.rank == 3 and report.rank_label == "Team Lead / Supervisor":
+        pool = [
+            person for person in pool
+            if person.rank == 4 and person.department == report.department
+        ]
+    else:
+        return [], ""
+
+    if not pool:
+        return [], ""
+    closest_rank = min(person.rank for person in pool)
+    pool = [person for person in pool if person.rank == closest_rank]
+    # Senior Manager relationships remain model-scored: their title alone does
+    # not reliably identify which Director owns the scope.
+    can_mark_structural = report.rank_label != "Senior Manager"
+    if len(pool) == 1 and report.rank_label != "Team Lead / Supervisor":
+        return pool, pool[0].employee_id if can_mark_structural else ""
+
+    report_tokens = scope_tokens(team_leaf(report.team)) | scope_tokens(report.job_title)
+    parent_team = report.team.rsplit(" / ", 1)[0] if " / " in report.team else ""
+    scored: list[tuple[float, bool, ParsedEmployee]] = []
+    for person in pool:
+        exact_team = report.team != "Unknown" and report.team == person.team
+        parent_team_match = bool(parent_team) and parent_team == person.team
+        overlap = len(
+            report_tokens
+            & (scope_tokens(team_leaf(person.team)) | scope_tokens(person.job_title))
+        )
+        role_match = (
+            report.role_family != "Unknown" and report.role_family == person.role_family
+        )
+        score = 8.0 * exact_team + 10.0 * parent_team_match + 4.0 * role_match + 3.0 * overlap
+        has_scope_evidence = exact_team or parent_team_match or overlap > 0
+        scored.append((score, has_scope_evidence, person))
+    scored.sort(key=lambda item: (-item[0], item[2].employee_id))
+    pool = [item[2] for item in scored]
+    unique_scope = (
+        can_mark_structural
+        and scored[0][1]
+        and (len(scored) == 1 or scored[0][0] > scored[1][0])
+    )
+    return pool, pool[0].employee_id if unique_scope else ""
+
+
+def apply_structural_confidence(
+    report_candidates: list[Candidate], probabilities: np.ndarray
+) -> np.ndarray:
+    """Blend a validated deterministic hierarchy match into model confidence."""
+    structural = [index for index, candidate in enumerate(report_candidates) if candidate.structural_match]
+    if len(structural) != 1:
+        return probabilities
+    adjusted = probabilities.copy()
+    adjusted[structural[0]] = max(float(adjusted[structural[0]]), 0.995)
+    return adjusted
+
+
+def preserves_team_lead_layer(
+    report: ParsedEmployee,
+    manager: ParsedEmployee,
+    company: list[ParsedEmployee],
+) -> bool:
+    """Do not publish a junior/intermediate edge that may skip a Team Lead.
+
+    A missing Team Lead scope makes the direct parent ambiguous; leaving the
+    edge unresolved is safer than attaching the employee straight to a formal
+    Manager and flattening the visible hierarchy.
+    """
+    if report.rank >= 2 or manager.rank < 4:
+        return True
+    plausible_leads = [
+        person for person in company
+        if person.rank_label == "Team Lead / Supervisor"
+        and person.department == report.department
+        and (
+            person.team == "Unknown"
+            or (report.team != "Unknown" and person.team == report.team)
+        )
+    ]
+    return not plausible_leads
+
+
 def build_candidates(company: list[ParsedEmployee], limit: int = 48) -> dict[str, list[Candidate]]:
     """Shortlist explicit people managers from the same company.
 
@@ -392,18 +574,71 @@ def build_candidates(company: list[ParsedEmployee], limit: int = 48) -> dict[str
         if report.rank == 10:
             candidates[report.employee_id] = []
             continue
-        pool = [
-            person for person in company
-            if person.employee_id != report.employee_id
-            and person.rank > report.rank
-            and person.people_manager_cue
-            and not (person.rank == 3 and report.rank >= 2)
-        ]
+        structural_parent_id = ""
+        if report.people_manager_cue:
+            pool, structural_parent_id = management_parent_pool(report, company)
+        else:
+            pool = [
+                person for person in company
+                if person.employee_id != report.employee_id
+                and person.rank > report.rank
+                and person.people_manager_cue
+                and not (person.rank == 3 and report.rank >= 2)
+            ]
         same_department = [person for person in pool if report.department != "Unknown" and person.department == report.department]
-        same_team = [person for person in pool if report.team != "Unknown" and person.team == report.team]
+        same_team = [
+            person for person in pool
+            if report.team != "Unknown"
+            and person.team == report.team
+            and (report.department == "Unknown" or person.department == report.department)
+        ]
         parent_team = report.team.rsplit(" / ", 1)[0] if " / " in report.team else ""
-        same_parent_team = [person for person in pool if parent_team and person.team == parent_team]
-        if same_team:
+        same_parent_team = [
+            person for person in pool
+            if parent_team
+            and person.team == parent_team
+            and (report.department == "Unknown" or person.department == report.department)
+        ]
+        scoped_team_lead = False
+        if report.people_manager_cue:
+            pass
+        elif report.rank < 2:
+            team_leads = [
+                person for person in pool
+                if person.rank_label == "Team Lead / Supervisor"
+                and person.department == report.department
+            ]
+            exact_team_leads = [
+                person for person in team_leads
+                if report.team != "Unknown" and person.team == report.team
+            ]
+            if exact_team_leads:
+                pool = exact_team_leads
+                scoped_team_lead = True
+                if len(pool) == 1:
+                    structural_parent_id = pool[0].employee_id
+            elif team_leads:
+                report_scope = scope_tokens(team_leaf(report.team)) | scope_tokens(report.job_title)
+                lead_scores = [
+                    (
+                        len(report_scope & (
+                            scope_tokens(team_leaf(person.team)) | scope_tokens(person.job_title)
+                        )),
+                        person,
+                    )
+                    for person in team_leads
+                ]
+                lead_scores.sort(key=lambda item: (-item[0], item[1].employee_id))
+                if (
+                    lead_scores[0][0] > 0
+                    and (len(lead_scores) == 1 or lead_scores[0][0] > lead_scores[1][0])
+                ):
+                    pool = [lead_scores[0][1]]
+                    structural_parent_id = pool[0].employee_id
+                    scoped_team_lead = True
+        if report.people_manager_cue or scoped_team_lead:
+            pass
+        elif same_team:
             team_leads = [person for person in same_team if person.rank == 3]
             formal_managers = [person for person in same_team if person.rank >= 4]
             if report.rank < 2 and team_leads:
@@ -436,8 +671,13 @@ def build_candidates(company: list[ParsedEmployee], limit: int = 48) -> dict[str
         ranked: list[Candidate] = []
         for manager in pool:
             features = feature_vector(report, manager)
-            ranked.append(Candidate(manager.employee_id, features, heuristic_score(report, manager, features)))
-        ranked.sort(key=lambda item: (-item.heuristic_score, item.manager_id))
+            ranked.append(Candidate(
+                manager.employee_id,
+                features,
+                heuristic_score(report, manager, features),
+                manager.employee_id == structural_parent_id,
+            ))
+        ranked.sort(key=lambda item: (-int(item.structural_match), -item.heuristic_score, item.manager_id))
         candidates[report.employee_id] = ranked[:limit]
     return candidates
 
@@ -571,6 +811,7 @@ def top_choice_summaries(
             else:
                 matrix = np.asarray([candidate.features for candidate in report_candidates], dtype=np.float64)
                 probabilities = calibrated_probability(model, matrix, platt or (1.0, 0.0))
+                probabilities = apply_structural_confidence(report_candidates, probabilities)
             order = np.argsort(-probabilities)
             best = int(order[0])
             second_probability = float(probabilities[order[1]]) if len(order) > 1 else 0.0
@@ -580,6 +821,9 @@ def top_choice_summaries(
                 and report.role_family == "Quality Assurance"
                 and top_manager.role_family != "Quality Assurance"
             )
+            team_lead_layer_matches = preserves_team_lead_layer(
+                report, top_manager, company
+            )
             summaries.append({
                 "company_id": company_id,
                 "employee_id": report.employee_id,
@@ -588,7 +832,11 @@ def top_choice_summaries(
                 "confidence": float(probabilities[best]),
                 "margin": float(probabilities[best] - second_probability),
                 "candidate_hit": any(candidate.manager_id == report.true_manager_id for candidate in report_candidates),
-                "can_accept": not report.title_missing and qa_scope_matches,
+                "can_accept": (
+                    not report.title_missing
+                    and qa_scope_matches
+                    and team_lead_layer_matches
+                ),
                 "noise_profile": report.noise_profile,
             })
     return summaries
@@ -708,8 +956,15 @@ def evaluate_summaries(
     }
 
 
-def prediction_reasons(report: ParsedEmployee, manager: ParsedEmployee, margin: float) -> list[str]:
+def prediction_reasons(
+    report: ParsedEmployee,
+    manager: ParsedEmployee,
+    margin: float,
+    structural_match: bool = False,
+) -> list[str]:
     reasons: list[str] = []
+    if structural_match:
+        reasons.append("explicit management path")
     if report.department == manager.department and report.department != "Unknown":
         reasons.append("same department")
     if report.team == manager.team and report.team != "Unknown":
@@ -763,6 +1018,7 @@ def export_predictions(
             if report_candidates:
                 matrix = np.asarray([candidate.features for candidate in report_candidates], dtype=np.float64)
                 probabilities = calibrated_probability(model, matrix, platt)
+                probabilities = apply_structural_confidence(report_candidates, probabilities)
                 order = np.argsort(-probabilities)
                 best = int(order[0])
                 top_candidate_id = report_candidates[best].manager_id
@@ -774,13 +1030,21 @@ def export_predictions(
                     and report.role_family == "Quality Assurance"
                     and people_by_id[top_candidate_id].role_family != "Quality Assurance"
                 )
-                if (not report.title_missing and qa_scope_matches
+                team_lead_layer_matches = preserves_team_lead_layer(
+                    report, people_by_id[top_candidate_id], people
+                )
+                if (not report.title_missing and qa_scope_matches and team_lead_layer_matches
                         and confidence >= threshold["probability"]
                         and margin >= threshold["margin"]):
                     predicted_manager_id = top_candidate_id
                     resolved += 1
                     correct += int(predicted_manager_id == report.true_manager_id)
-                    reasons = prediction_reasons(report, people_by_id[predicted_manager_id], margin)
+                    reasons = prediction_reasons(
+                        report,
+                        people_by_id[predicted_manager_id],
+                        margin,
+                        report_candidates[best].structural_match,
+                    )
                     confidence_values.append(confidence)
                     aggregate_confidence.append(confidence)
             employees.append({
@@ -904,7 +1168,7 @@ def main() -> None:
             "unresolvedAllowed": True,
         },
         "featureNames": FEATURE_NAMES,
-        "modelType": "Calibrated logistic pair scorer with deterministic candidate blocking",
+        "modelType": "Hybrid hierarchy rules and calibrated logistic pair scoring",
         "primaryObjective": "Maximize coverage while holding validation precision at or above 97%",
         "limitations": [
             "Synthetic reporting assignments between otherwise identical managers are not always observable when team, title, or department values are missing.",

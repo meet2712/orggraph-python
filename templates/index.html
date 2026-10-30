@@ -270,7 +270,7 @@
       <div class="table-scroll">
         <table class="simple-table">
           <caption class="sr-only">Manager predictions across {{ evaluation.split.testCompanies }} test companies</caption>
-          <thead><tr><th scope="col">Measure</th><th scope="col">Rules baseline</th><th scope="col">Learned model</th></tr></thead>
+          <thead><tr><th scope="col">Measure</th><th scope="col">Rules baseline</th><th scope="col">Hybrid model</th></tr></thead>
           <tbody>
             <tr><th scope="row">Precision · right among accepted</th><td>{{ baseline.precision|percent }}</td><td><strong>{{ model.precision|percent }}</strong></td></tr>
             <tr><th scope="row">Coverage · accepted among possible</th><td>{{ baseline.coverage|percent }}</td><td><strong>{{ model.coverage|percent }}</strong></td></tr>
@@ -281,7 +281,7 @@
           </tbody>
         </table>
       </div>
-      <p class="note">Of {{ model.eligible_edges|count }} possible test reporting lines, the model accepted {{ model.predicted_edges|count }} and got {{ model.correct_edges|count }} right. The simple baseline accepts almost every line but makes more incorrect assignments. The learned model abstains more often to achieve higher precision. Real company data still needs its own evaluation.</p>
+      <p class="note">Of {{ model.eligible_edges|count }} possible test reporting lines, the model accepted {{ model.predicted_edges|count }} and got {{ model.correct_edges|count }} right. The simple baseline accepts almost every line but makes more incorrect assignments. The hybrid hierarchy and scoring model abstains when the parent layer or candidate is unclear. Real company data still needs its own evaluation.</p>
     </section>
     <section class="paper-section">
       <h2>Where it struggles</h2>
@@ -297,7 +297,7 @@
     </section>
     <section class="paper-section">
       <h2>What confidence tells you</h2>
-      <p>Confidence estimates how likely the leading manager candidate is to be right. It is checked against validation data, but it is still an estimate. A high score can be wrong.</p>
+      <p>Confidence combines a validated hierarchy rule for one unambiguous management-path match with calibrated pair scores for other candidates. It is checked against validation data, but a high score can still be wrong.</p>
       <p>On test companies, the calibration gap, averaged by group size, is {{ model.expected_calibration_error|points }} percentage points. A line is only accepted when confidence reaches {{ model.threshold.probability|percent }} and the lead over the next candidate reaches {{ model.threshold.margin|points }} percentage points.</p>
       <details>
         <summary>See confidence groups</summary>
@@ -325,7 +325,7 @@
       <h2>How it works</h2>
       <ol class="steps">
         <li><h3>Generate companies with a known hierarchy</h3><p>The Python generator creates {{ dataset.companies|count }} companies and {{ dataset.employees|count }} people across {{ dataset.industries }} industries, with {{ dataset.minimumCompanySize }}–{{ dataset.maximumCompanySize }} people per company. It adds abbreviations, typos, inconsistent casing, and missing fields. Clean reporting lines are saved separately to check predictions.</p></li>
-        <li><h3>Find plausible managers and score the matches</h3><p>Titles are cleaned up to infer function and seniority. Candidates must be in the same company, more senior, and have an explicit people-management title such as Team Lead, Supervisor, Manager, Director, VP, Head or Chief. Senior, Staff and Principal IC titles are not treated as managers. The model scores each pair using department, role family, team scope, location, and seniority gap. When evidence is missing, weak links stay unresolved.</p></li>
+        <li><h3>Rebuild the hierarchy, then score the matches</h3><p>Titles are cleaned up to infer function and seniority. Explicit leaders follow CEO → C-suite → VP/Head → Director → Senior Manager → Manager → Team Lead/Supervisor; VP is above Director. Title-derived department and executive portfolio are used before noisy team text. A unique parent-layer match gets deterministic hierarchy confidence. Other candidates are scored using department, role family, team scope, location, and seniority gap. Senior, Staff and Principal IC titles are not treated as managers.</p></li>
         <li><h3>Keep a reporting line only when it clears both checks</h3><p>The leading candidate needs at least {{ model.threshold.probability|percent }} confidence and a {{ model.threshold.margin|points }} percentage point lead over the next candidate. Otherwise the manager stays unresolved. Each person has at most one inferred manager. Requiring a more senior manager prevents circular reporting chains.</p></li>
         <li><h3>Test on companies the model has not seen</h3><p>The split uses whole companies: {{ split.trainCompanies }} for training, {{ split.validationCompanies }} for calibration and threshold selection, and {{ split.testCompanies }} for the final test. People from one company never appear in different splits. Predictions are compared with the generated direct manager.</p></li>
       </ol>
