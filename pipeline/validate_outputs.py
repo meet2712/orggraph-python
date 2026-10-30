@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 
 
@@ -36,8 +37,9 @@ def main() -> None:
     evaluation = json.loads((args.output_dir / "evaluation.json").read_text(encoding="utf-8"))
     companies = index["companies"]
     require(len(companies) == evaluation["dataset"]["companies"], "company count mismatch")
-    require(evaluation["model"]["precision"] >= 0.90, "held-out precision is below 90%")
+    require(evaluation["model"]["precision"] >= 0.98, "held-out precision is below 98%")
     require(evaluation["model"]["coverage"] > evaluation["baseline"]["coverage"], "model does not improve coverage")
+    require(evaluation["model"]["candidate_recall"] >= 0.70, "candidate recall is below 70%")
 
     employee_total = 0
     edge_total = 0
@@ -75,7 +77,10 @@ def main() -> None:
         unresolved = sum(not e["predictedManagerId"] and e["inferredLevel"] != "CEO" for e in employees)
         require(unresolved == summary["unresolved"], f"unresolved count mismatch in {summary['id']}")
         eligible = sum(e["inferredLevel"] != "CEO" for e in employees)
-        require(abs(summary["coverage"] - round(resolved / max(eligible, 1), 4)) < 0.00001,
+        expected_coverage = float(Decimal(str(resolved / max(eligible, 1))).quantize(
+            Decimal("0.0001"), rounding=ROUND_HALF_UP
+        ))
+        require(abs(summary["coverage"] - expected_coverage) < 0.00001,
                 f"company coverage mismatch in {summary['id']}")
         employee_total += len(employees)
         edge_total += resolved

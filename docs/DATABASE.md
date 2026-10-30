@@ -77,8 +77,8 @@ person from the operational counts. The loader rejects mismatched counts or cove
 - Startup validation checks reporting cycles and seniority before publishing
   the imported snapshot. A manager must be more senior than the report.
 
-The regenerated local source contains 500 companies, 88,367 employee records,
-58,672 accepted reporting lines, and 29,204 unresolved decisions. The source
+The regenerated local source contains 500 companies, 86,982 employee records,
+44,498 accepted reporting lines, and 41,991 unresolved decisions. The source
 requirements are checked separately from model quality: satisfying a foreign
 key does not prove a reporting line is correct.
 

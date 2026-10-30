@@ -9,7 +9,7 @@ plausible, the person stays unresolved.
 [Browse the database and run SQL](https://meet2712.github.io/orggraph-python/data.html) ·
 [Database ER diagram](https://meet2712.github.io/orggraph-python/schema.html)
 
-The dataset is generated: 500 companies, 88,367 employees and ten industries.
+The dataset is generated: 500 companies, 86,982 employees and ten industries.
 Every company has 100–250 employees. Names, emails and reporting lines are made
 up; the clean hierarchy is kept separately so the predictions can be measured.
 
@@ -74,19 +74,26 @@ team values. Some observed team names contain a hierarchy such as
 `Engineering / Platform / Core Services`. The clean manager IDs and canonical
 fields stay in a separate answer key.
 
-The pipeline normalizes titles and infers function and seniority. It considers
-more-senior management candidates in the same company, then scores each pair
-with a small logistic model. Department, team scope, seniority gap, location
-and missing-field signals contribute to the score. Titles such as Product
-Manager and Account Manager are treated as individual contributor roles.
+The pipeline normalizes titles and infers function and seniority. A generated
+delivery team follows a visible chain such as QA Manager → Lead QA Engineer →
+Senior QA Engineer → QA Engineer. Manager and employee titles are aligned with
+their team, so QA roles stay in the Quality branch rather than being placed
+under a software team.
+
+Formal managers are considered within the same company. A senior or lead IC is
+considered only when the observed team scope matches; without that evidence the
+relationship stays unresolved. A small logistic model scores the remaining
+pairs. Department, team scope, role family, seniority gap, location and
+missing-field signals contribute to the score. Titles such as Product Manager
+and Account Manager are still treated as individual contributor roles.
 
 Training uses generated manager labels. Calibration and threshold selection
 use separate validation companies. At scoring time, the model uses only the
 messy observed fields; it cannot read the answer key as an input feature.
 
-A line needs at least 45% calibrated confidence and a 10 percentage-point lead
+A line needs at least 80% calibrated confidence and a 10 percentage-point lead
 over the next candidate. Both checks must pass. These cutoffs were chosen to
-reach 95% validation precision with at least 50 accepted examples. If no pair
+reach 98% validation precision with at least 50 accepted examples. If no pair
 of cutoffs meets that target, the pipeline accepts no lines.
 
 A person has at most one accepted manager. Managers must be more senior, which
@@ -100,15 +107,15 @@ final test. All employees from a company stay in the same split.
 
 | Method, on the 75 test companies | Precision | Coverage | Recall | F1 |
 |---|---:|---:|---:|---:|
-| Rules baseline | 92.00% | 23.10% | 21.25% | 34.53% |
-| Learned pair scores | 95.43% | 67.71% | 64.61% | 77.06% |
+| Rules baseline | 82.29% | 29.02% | 23.88% | 37.01% |
+| Learned pair scores | 99.24% | 50.30% | 49.92% | 66.43% |
 
 Precision measures how many accepted lines are correct. Coverage measures how
 many employees with a true manager received an accepted prediction. Recall
 measures how many true reporting lines were recovered correctly.
 
-Across all 500 companies, the published run has 58,672 accepted lines, 29,204
-unresolved decisions and 491 people identified as company roots from their
+Across all 500 companies, the published run has 44,498 accepted lines, 41,991
+unresolved decisions and 493 people identified as company roots from their
 observed titles. These operational counts are kept separate from the test
 metrics above.
 
@@ -181,10 +188,13 @@ python -m unittest discover -s tests -p 'test_*.py'
 python -m unittest discover -s pipeline -p 'test_*.py'
 python pipeline/validate_dataset.py --data-dir data
 python pipeline/validate_outputs.py --output-dir public/data
+python pipeline/validate_hierarchy.py --data-dir data --output-dir public/data --sample-size 75
 ```
 
 The checks cover relational integrity, safe database replacement, read-only
-connections, decision counts and inference thresholds. A reproducibility test
+connections, decision counts and inference thresholds. The hierarchy audit
+uses the 75 held-out companies to verify senior/lead layers and QA ownership.
+A reproducibility test
 regenerates the input CSVs and compares them with the committed files.
 
 To replace the generated inputs and fit a new model:

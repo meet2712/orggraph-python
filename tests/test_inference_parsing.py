@@ -3,7 +3,10 @@
 import unittest
 from dataclasses import replace
 
-from pipeline.train_and_infer import ParsedEmployee, build_candidates, infer_department, infer_rank, prediction_reasons
+from pipeline.train_and_infer import (
+    FEATURE_NAMES, ParsedEmployee, build_candidates, infer_department, infer_rank,
+    infer_role_family, prediction_reasons,
+)
 
 
 def person(employee_id: str, rank: int) -> ParsedEmployee:
@@ -18,6 +21,7 @@ def person(employee_id: str, rank: int) -> ParsedEmployee:
         location="Sydney, AU",
         department="Engineering",
         department_confidence=0.9,
+        role_family="Software Engineering",
         rank=rank,
         rank_label="Example level",
         title_missing=False,
@@ -69,10 +73,26 @@ class InferenceParsingTests(unittest.TestCase):
             with self.subTest(title=title):
                 self.assertEqual(infer_department(title, raw_department)[0], expected)
 
-    def test_senior_individual_contributors_are_not_manager_candidates(self) -> None:
+    def test_same_team_senior_can_be_a_technical_manager_candidate(self) -> None:
         people = [person("report", 0), person("senior_ic", 2), person("manager", 4)]
         candidate_ids = {candidate.manager_id for candidate in build_candidates(people)["report"]}
+        self.assertEqual(candidate_ids, {"senior_ic", "manager"})
+
+    def test_senior_from_another_function_is_not_a_manager_candidate(self) -> None:
+        report = person("report", 0)
+        unrelated = replace(
+            person("senior_ic", 2), department="Sales", raw_department="Sales",
+            role_family="Sales",
+        )
+        candidate_ids = {candidate.manager_id for candidate in build_candidates([
+            report, unrelated, person("manager", 4),
+        ])["report"]}
         self.assertEqual(candidate_ids, {"manager"})
+
+    def test_qa_titles_share_a_role_family(self) -> None:
+        self.assertEqual(infer_role_family("Junior QA Engineer"), "Quality Assurance")
+        self.assertEqual(infer_role_family("Senior QA Engineer"), "Quality Assurance")
+        self.assertEqual(infer_role_family("QA Manager"), "Quality Assurance")
 
     def test_parent_team_scope_survives_a_wrong_department(self) -> None:
         report = replace(
@@ -86,7 +106,8 @@ class InferenceParsingTests(unittest.TestCase):
         )
         candidates = build_candidates([report, director])["report"]
         self.assertEqual([candidate.manager_id for candidate in candidates], ["director"])
-        self.assertEqual(candidates[0].features[-1], 1.0)
+        parent_team = FEATURE_NAMES.index("parent_team_match")
+        self.assertEqual(candidates[0].features[parent_team], 1.0)
 
 
 if __name__ == "__main__":

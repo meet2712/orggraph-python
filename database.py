@@ -317,9 +317,9 @@ def check_loaded_snapshot(connection, run_id, company_count, employee_count):
         GROUP BY m.run_id, m.company_id
         HAVING sum(p.decision = 'accepted') <> m.resolved_count
             OR sum(p.decision = 'unresolved') <> m.unresolved_count
-            OR abs(m.coverage - round(
+            OR abs(m.coverage - (
                 1.0 * sum(p.decision = 'accepted') /
-                max(sum(p.decision <> 'company_root'), 1), 4)) > 0.00001
+                max(sum(p.decision <> 'company_root'), 1))) > 0.000051
     """).fetchone()
     if mismatched_headcount or mismatched_summary:
         raise ValueError("Company counts do not match the source summaries")

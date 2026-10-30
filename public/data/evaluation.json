@@ -1,7 +1,7 @@
 {
   "dataset": {
     "companies": 500,
-    "employees": 88367,
+    "employees": 86982,
     "industries": 10,
     "minimumCompanySize": 100,
     "maximumCompanySize": 250
@@ -13,274 +13,274 @@
     "unit": "company"
   },
   "baseline": {
-    "eligible_edges": 12440,
-    "predicted_edges": 2874,
-    "correct_edges": 2644,
-    "unresolved_edges": 9566,
-    "precision": 0.92,
-    "recall": 0.2125,
-    "coverage": 0.231,
-    "f1": 0.3453,
-    "candidate_recall": 0.9923,
-    "brier_score_top_choice": 0.2005,
-    "expected_calibration_error": 0.152,
+    "eligible_edges": 12606,
+    "predicted_edges": 3658,
+    "correct_edges": 3010,
+    "unresolved_edges": 8948,
+    "precision": 0.8229,
+    "recall": 0.2388,
+    "coverage": 0.2902,
+    "f1": 0.3701,
+    "candidate_recall": 0.7623,
+    "brier_score_top_choice": 0.1974,
+    "expected_calibration_error": 0.1862,
     "calibration_bins": [
       {
         "low": 0.0,
         "high": 0.1,
-        "confidence": 0.0602,
-        "accuracy": 0.25,
-        "count": 8
+        "confidence": 0.0,
+        "accuracy": 0.0,
+        "count": 1341
       },
       {
         "low": 0.1,
         "high": 0.2,
         "confidence": 0.1227,
         "accuracy": 0.0,
-        "count": 2
+        "count": 3
       },
       {
         "low": 0.2,
         "high": 0.3,
-        "confidence": 0.2339,
+        "confidence": 0.2236,
         "accuracy": 0.0,
-        "count": 5
+        "count": 9
       },
       {
         "low": 0.3,
         "high": 0.4,
-        "confidence": 0.3681,
-        "accuracy": 0.2013,
-        "count": 159
-      },
-      {
-        "low": 0.4,
-        "high": 0.5,
-        "confidence": 0.4382,
-        "accuracy": 0.2279,
-        "count": 215
+        "confidence": 0.3693,
+        "accuracy": 0.8182,
+        "count": 11
       },
       {
         "low": 0.5,
         "high": 0.6,
-        "confidence": 0.5558,
-        "accuracy": 0.4955,
-        "count": 882
+        "confidence": 0.5688,
+        "accuracy": 0.7447,
+        "count": 47
       },
       {
         "low": 0.6,
         "high": 0.7,
-        "confidence": 0.6242,
-        "accuracy": 0.3895,
-        "count": 706
+        "confidence": 0.6307,
+        "accuracy": 0.8947,
+        "count": 19
       },
       {
         "low": 0.7,
         "high": 0.8,
-        "confidence": 0.7634,
-        "accuracy": 0.7363,
-        "count": 1638
+        "confidence": 0.7663,
+        "accuracy": 0.7606,
+        "count": 401
       },
       {
         "low": 0.8,
         "high": 0.9,
-        "confidence": 0.8711,
-        "accuracy": 0.7301,
-        "count": 1308
+        "confidence": 0.8753,
+        "accuracy": 0.884,
+        "count": 543
       },
       {
         "low": 0.9,
         "high": 1.0,
-        "confidence": 0.9812,
-        "accuracy": 0.7991,
-        "count": 7517
+        "confidence": 0.995,
+        "accuracy": 0.7683,
+        "count": 10232
       }
     ],
     "by_noise_type": {
       "abbreviation": {
-        "population": 1911,
-        "precision": 0.9724,
-        "coverage": 0.2465
+        "population": 1557,
+        "precision": 0.8843,
+        "coverage": 0.4053
       },
       "case": {
-        "population": 684,
-        "precision": 0.9458,
-        "coverage": 0.2427
+        "population": 672,
+        "precision": 0.8073,
+        "coverage": 0.2857
       },
       "clean": {
-        "population": 6951,
-        "precision": 0.9004,
-        "coverage": 0.221
+        "population": 7324,
+        "precision": 0.802,
+        "coverage": 0.2717
       },
       "missing_title": {
-        "population": 163,
-        "precision": 0.6333,
-        "coverage": 0.184
+        "population": 175,
+        "precision": 0.0,
+        "coverage": 0.0
       },
       "punctuation": {
-        "population": 1331,
-        "precision": 0.9309,
-        "coverage": 0.2284
+        "population": 1386,
+        "precision": 0.8282,
+        "coverage": 0.3066
       },
       "regional_suffix": {
-        "population": 771,
-        "precision": 0.9747,
-        "coverage": 0.2049
+        "population": 787,
+        "precision": 0.8687,
+        "coverage": 0.2516
       },
       "removed_connector": {
-        "population": 131,
+        "population": 129,
         "precision": 1.0,
-        "coverage": 0.9847
+        "coverage": 0.9845
       },
       "spacing": {
-        "population": 1622,
-        "precision": 0.9184,
-        "coverage": 0.2115
+        "population": 1572,
+        "precision": 0.8182,
+        "coverage": 0.2869
       },
       "typo": {
-        "population": 111,
-        "precision": 1.0,
-        "coverage": 0.4595
+        "population": 108,
+        "precision": 0.9296,
+        "coverage": 0.6574
       }
     },
     "threshold": {
       "probability": 0.45,
-      "margin": 0.425
+      "margin": 0.025
     }
   },
   "model": {
-    "eligible_edges": 12440,
-    "predicted_edges": 8423,
-    "correct_edges": 8038,
-    "unresolved_edges": 4017,
-    "precision": 0.9543,
-    "recall": 0.6461,
-    "coverage": 0.6771,
-    "f1": 0.7706,
-    "candidate_recall": 0.9923,
-    "brier_score_top_choice": 0.1516,
-    "expected_calibration_error": 0.0833,
+    "eligible_edges": 12606,
+    "predicted_edges": 6341,
+    "correct_edges": 6293,
+    "unresolved_edges": 6265,
+    "precision": 0.9924,
+    "recall": 0.4992,
+    "coverage": 0.503,
+    "f1": 0.6643,
+    "candidate_recall": 0.7623,
+    "brier_score_top_choice": 0.0646,
+    "expected_calibration_error": 0.0543,
     "calibration_bins": [
+      {
+        "low": 0.0,
+        "high": 0.1,
+        "confidence": 0.0108,
+        "accuracy": 0.0018,
+        "count": 1641
+      },
       {
         "low": 0.1,
         "high": 0.2,
-        "confidence": 0.1815,
-        "accuracy": 0.0,
-        "count": 2
+        "confidence": 0.1698,
+        "accuracy": 0.0021,
+        "count": 485
       },
       {
         "low": 0.2,
         "high": 0.3,
-        "confidence": 0.2841,
-        "accuracy": 0.5128,
-        "count": 117
+        "confidence": 0.249,
+        "accuracy": 0.4528,
+        "count": 53
       },
       {
         "low": 0.3,
         "high": 0.4,
-        "confidence": 0.3587,
-        "accuracy": 0.5788,
-        "count": 406
+        "confidence": 0.3192,
+        "accuracy": 1.0,
+        "count": 116
       },
       {
         "low": 0.4,
         "high": 0.5,
-        "confidence": 0.4505,
-        "accuracy": 0.6034,
-        "count": 1102
+        "confidence": 0.4555,
+        "accuracy": 0.2727,
+        "count": 22
       },
       {
         "low": 0.5,
         "high": 0.6,
-        "confidence": 0.5454,
-        "accuracy": 0.758,
-        "count": 942
+        "confidence": 0.5532,
+        "accuracy": 0.2132,
+        "count": 136
       },
       {
         "low": 0.6,
         "high": 0.7,
-        "confidence": 0.641,
-        "accuracy": 0.7732,
-        "count": 1151
+        "confidence": 0.6565,
+        "accuracy": 0.5697,
+        "count": 244
       },
       {
         "low": 0.7,
         "high": 0.8,
-        "confidence": 0.7496,
-        "accuracy": 0.6641,
-        "count": 3132
+        "confidence": 0.745,
+        "accuracy": 0.8331,
+        "count": 3409
       },
       {
         "low": 0.8,
         "high": 0.9,
-        "confidence": 0.8561,
-        "accuracy": 0.9,
-        "count": 1380
+        "confidence": 0.866,
+        "accuracy": 0.9942,
+        "count": 695
       },
       {
         "low": 0.9,
         "high": 1.0,
-        "confidence": 0.9478,
-        "accuracy": 0.9646,
-        "count": 4208
+        "confidence": 0.9799,
+        "accuracy": 0.9866,
+        "count": 5805
       }
     ],
     "by_noise_type": {
       "abbreviation": {
-        "population": 1911,
-        "precision": 0.9556,
-        "coverage": 0.6839
+        "population": 1557,
+        "precision": 0.9937,
+        "coverage": 0.5061
       },
       "case": {
-        "population": 684,
-        "precision": 0.9641,
-        "coverage": 0.6915
+        "population": 672,
+        "precision": 0.9855,
+        "coverage": 0.5134
       },
       "clean": {
-        "population": 6951,
-        "precision": 0.9578,
-        "coverage": 0.6717
+        "population": 7324,
+        "precision": 0.993,
+        "coverage": 0.5048
       },
       "missing_title": {
-        "population": 163,
-        "precision": 0.8411,
-        "coverage": 0.6564
+        "population": 175,
+        "precision": 0.0,
+        "coverage": 0.0
       },
       "punctuation": {
-        "population": 1331,
-        "precision": 0.9464,
-        "coverage": 0.6732
+        "population": 1386,
+        "precision": 0.993,
+        "coverage": 0.5159
       },
       "regional_suffix": {
-        "population": 771,
-        "precision": 0.9462,
-        "coverage": 0.6265
+        "population": 787,
+        "precision": 0.9877,
+        "coverage": 0.5146
       },
       "removed_connector": {
-        "population": 131,
-        "precision": 0.9924,
-        "coverage": 1.0
+        "population": 129,
+        "precision": 1.0,
+        "coverage": 0.9845
       },
       "spacing": {
-        "population": 1622,
-        "precision": 0.9559,
-        "coverage": 0.685
+        "population": 1572,
+        "precision": 0.9939,
+        "coverage": 0.5178
       },
       "typo": {
-        "population": 111,
-        "precision": 0.987,
-        "coverage": 0.6937
+        "population": 108,
+        "precision": 0.9697,
+        "coverage": 0.3056
       }
     },
     "threshold": {
-      "probability": 0.45,
+      "probability": 0.8,
       "margin": 0.1
     }
   },
   "candidateRecall": {
-    "train": 0.9842,
-    "validation": 0.9846,
-    "test": 0.9923
+    "train": 0.777,
+    "validation": 0.7622,
+    "test": 0.7623
   },
   "structuralChecks": {
     "oneManagerPerResolvedEmployee": true,
@@ -306,10 +306,12 @@
     "report_rank_scaled",
     "same_team",
     "report_team_missing",
-    "parent_team_match"
+    "parent_team_match",
+    "same_role_family",
+    "candidate_is_technical_lead"
   ],
   "modelType": "Calibrated logistic pair scorer with deterministic candidate blocking",
-  "primaryObjective": "Maximize coverage while holding validation precision at or above 95%",
+  "primaryObjective": "Maximize coverage while holding validation precision at or above 98%",
   "limitations": [
     "Synthetic reporting assignments between otherwise identical managers are not always observable when team, title, or department values are missing.",
     "The system intentionally abstains when the best candidate is not clearly separated from alternatives.",

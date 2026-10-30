@@ -15,6 +15,7 @@ import math
 import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 
 import numpy as np
@@ -101,6 +102,8 @@ FEATURE_NAMES = [
     "same_team",
     "report_team_missing",
     "parent_team_match",
+    "same_role_family",
+    "candidate_is_technical_lead",
 ]
 
 
@@ -116,6 +119,7 @@ class ParsedEmployee:
     location: str
     department: str
     department_confidence: float
+    role_family: str
     rank: int
     rank_label: str
     title_missing: bool
@@ -157,6 +161,34 @@ def normalize_text(value: str) -> str:
     text = str(value or "").lower().replace("&", " and ")
     text = re.sub(r"[^a-z0-9+#/&]+", " ", text)
     return f" {' '.join(text.split())} "
+
+
+def infer_role_family(title: str) -> str:
+    """Reduce a title to the discipline used for team-lead matching."""
+    text = normalize_text(title)
+    families = [
+        ("Quality Assurance", [" qa ", " quality assurance ", " test engineer "]),
+        ("Frontend", [" frontend ", " front end ", " web developer "]),
+        ("Backend", [" backend ", " back end "]),
+        ("DevOps", [" devops ", " developer experience ", " cloud administrator "]),
+        ("Data Engineering", [" data engineer ", " data platform "]),
+        ("Data Science", [" data scientist ", " machine learning ", " ml "]),
+        ("Analytics", [" analytics ", " analyst ", " business intelligence ", " bi "]),
+        ("Security", [" security ", " securty ", " grc ", " incident response "]),
+        ("Support", [" support ", " service desk "]),
+        ("Onboarding", [" onboarding ", " implementation "]),
+        ("Design", [" designer ", " design ", " ux ", " researcher "]),
+        ("Sales", [" sales ", " account ", " business development ", " sdr ", " bdr "]),
+        ("Marketing", [" marketing ", " mktg ", " growth ", " content ", " demand generation "]),
+        ("Finance", [" finance ", " financial ", " fp&a ", " accounting ", " accountant ", " payroll "]),
+        ("People", [" people ", " human resources ", " hr ", " recruiter ", " talent "]),
+        ("Legal", [" legal ", " counsel ", " paralegal ", " compliance ", " contracts "]),
+        ("Product", [" product "]),
+        ("Operations", [" operations ", " ops ", " program ", " project coordinator "]),
+        ("IT", [" information technology ", " info tech ", " infrastructure ", " systems administrator ", " network engineer "]),
+        ("Software Engineering", [" software ", " engineer ", " engineering ", " developer "]),
+    ]
+    return next((family for family, terms in families if any(term in text for term in terms)), "Unknown")
 
 
 def infer_department(title: str, raw_department: str, raw_team: str = "") -> tuple[str, float, bool]:
@@ -266,6 +298,7 @@ def parse_employees(messy: pd.DataFrame, truth: pd.DataFrame) -> list[ParsedEmpl
                 location=row.location,
                 department=department,
                 department_confidence=department_confidence,
+                role_family=infer_role_family(row.job_title),
                 rank=rank,
                 rank_label=rank_label,
                 title_missing=not bool(str(row.job_title).strip()),
@@ -305,6 +338,8 @@ def feature_vector(report: ParsedEmployee, manager: ParsedEmployee) -> tuple[flo
         float(same_team),
         float(report.team_missing),
         float(bool(parent_team) and parent_team == manager.team),
+        float(report.role_family != "Unknown" and report.role_family == manager.role_family),
+        float(2 <= manager.rank < 4),
     )
 
 
@@ -315,6 +350,7 @@ def heuristic_score(report: ParsedEmployee, manager: ParsedEmployee, features: t
     score += 0.9 * features[4] + 0.8 * features[5] + 0.35 * features[11]
     score += 5.0 * features[14]
     score += 4.0 * features[16]
+    score += 2.4 * features[17] + 0.5 * features[18]
     score += 0.25 * features[9] + 0.2 * features[10]
     if manager.rank == 8 and report.rank >= 6:
         score += 4.0
@@ -332,21 +368,56 @@ def build_candidates(company: list[ParsedEmployee], limit: int = 48) -> dict[str
         if report.rank == 8:
             candidates[report.employee_id] = []
             continue
-        # Senior individual contributors are not assumed to manage people.
-        # A missing or ambiguous manager title may leave a report unresolved.
+        # Formal managers are always eligible. A senior or lead IC is eligible
+        # only inside the same inferred function, supporting team-lead chains
+        # without treating every senior title in the company as a manager.
         pool = [
             person for person in company
             if person.employee_id != report.employee_id
             and person.rank > report.rank
-            and person.rank >= 4
+            and (
+                person.rank >= 4
+                or (
+                    report.rank < 3
+                    and person.rank >= 2
+                    and report.team != "Unknown"
+                    and person.team == report.team
+                    and (
+                        report.department == "Unknown"
+                        or person.department == "Unknown"
+                        or person.department == report.department
+                    )
+                )
+            )
         ]
         same_department = [person for person in pool if report.department != "Unknown" and person.department == report.department]
         same_team = [person for person in pool if report.team != "Unknown" and person.team == report.team]
         parent_team = report.team.rsplit(" / ", 1)[0] if " / " in report.team else ""
         same_parent_team = [person for person in pool if parent_team and person.team == parent_team]
-        if same_team or same_parent_team or same_department:
-            preferred = same_team + same_parent_team + same_department
+        if same_team or same_parent_team:
+            preferred = same_team + same_parent_team
             pool = list({person.employee_id: person for person in preferred}.values())
+            if report.rank >= 4:
+                preferred_ids = {person.employee_id for person in pool}
+                pool += [person for person in company if person.rank == 8 and person.employee_id not in preferred_ids]
+        elif report.rank == 3 and report.role_family == "Quality Assurance":
+            # A QA lead can still identify a QA Manager when the team field is
+            # missing. Prefer the same location when a company has several.
+            qa_managers = [
+                person for person in pool
+                if person.rank >= 4 and person.role_family == "Quality Assurance"
+            ]
+            local_qa_managers = [
+                person for person in qa_managers
+                if bool(report.location) and person.location == report.location
+            ]
+            pool = local_qa_managers or qa_managers
+        elif report.rank < 4:
+            # Without observed team scope, selecting one of several department
+            # managers would be a guess. Keep the relationship unresolved.
+            pool = []
+        elif same_department:
+            pool = list({person.employee_id: person for person in same_department}.values())
             preferred_ids = {person.employee_id for person in pool}
             pool += [person for person in company if person.rank == 8 and person.employee_id not in preferred_ids]
         elif report.rank >= 6:
@@ -363,6 +434,11 @@ def build_candidates(company: list[ParsedEmployee], limit: int = 48) -> dict[str
 def sigmoid(values: np.ndarray) -> np.ndarray:
     values = np.clip(values, -30.0, 30.0)
     return 1.0 / (1.0 + np.exp(-values))
+
+
+def rounded_metric(value: float) -> float:
+    """Match SQLite and UI half-up rounding for stored four-place metrics."""
+    return float(Decimal(str(value)).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP))
 
 
 def fit_logistic(matrix: np.ndarray, labels: np.ndarray, steps: int = 180) -> LogisticModel:
@@ -460,6 +536,7 @@ def top_choice_summaries(
     summaries: list[dict[str, object]] = []
     for company_id in sorted(company_ids):
         company = company_groups[company_id]
+        people_by_id = {person.employee_id: person for person in company}
         candidates = build_candidates(company)
         for report in company:
             if not report.true_manager_id:
@@ -486,6 +563,12 @@ def top_choice_summaries(
             order = np.argsort(-probabilities)
             best = int(order[0])
             second_probability = float(probabilities[order[1]]) if len(order) > 1 else 0.0
+            top_manager = people_by_id[report_candidates[best].manager_id]
+            qa_scope_matches = not (
+                report.rank < 4
+                and report.role_family == "Quality Assurance"
+                and top_manager.role_family != "Quality Assurance"
+            )
             summaries.append({
                 "company_id": company_id,
                 "employee_id": report.employee_id,
@@ -494,20 +577,26 @@ def top_choice_summaries(
                 "confidence": float(probabilities[best]),
                 "margin": float(probabilities[best] - second_probability),
                 "candidate_hit": any(candidate.manager_id == report.true_manager_id for candidate in report_candidates),
+                "can_accept": not report.title_missing and qa_scope_matches,
                 "noise_profile": report.noise_profile,
             })
     return summaries
 
 
-def tune_threshold(summaries: list[dict[str, object]], target_precision: float = 0.90) -> dict[str, float]:
+def tune_threshold(
+    summaries: list[dict[str, object]],
+    target_precision: float = 0.90,
+    minimum_margin: float = 0.10,
+) -> dict[str, float]:
     """Accept as many links as possible without lowering the precision target."""
     total = len(summaries)
     candidates: list[dict[str, float]] = []
     for probability_threshold in np.arange(0.45, 0.961, 0.025):
-        for margin_threshold in np.arange(0.0, 0.951, 0.025):
+        for margin_threshold in np.arange(minimum_margin, 0.951, 0.025):
             selected = [
                 row for row in summaries
                 if row["top"]
+                and bool(row.get("can_accept", True))
                 and float(row["confidence"]) >= probability_threshold
                 and float(row["margin"]) >= margin_threshold
             ]
@@ -544,6 +633,7 @@ def evaluate_summaries(
     selected = [
         row for row in summaries
         if row["top"]
+        and bool(row.get("can_accept", True))
         and float(row["confidence"]) >= threshold["probability"]
         and float(row["margin"]) >= threshold["margin"]
     ]
@@ -615,12 +705,16 @@ def prediction_reasons(report: ParsedEmployee, manager: ParsedEmployee, margin: 
         reasons.append("same team")
     if " / " in report.team and report.team.rsplit(" / ", 1)[0] == manager.team:
         reasons.append("parent team")
+    if report.role_family != "Unknown" and report.role_family == manager.role_family:
+        reasons.append("matching role family")
     rank_gap = manager.rank - report.rank
     reasons.append("one level above" if rank_gap == 1 else "higher inferred seniority")
     if report.location and report.location == manager.location:
         reasons.append("same location")
     if manager.rank >= 4:
         reasons.append("leadership title")
+    elif manager.rank >= 2:
+        reasons.append("technical team lead")
     if margin >= 0.15:
         reasons.append("clear candidate margin")
     return reasons[:4]
@@ -664,7 +758,14 @@ def export_predictions(
                 confidence = float(probabilities[best])
                 second = float(probabilities[order[1]]) if len(order) > 1 else 0.0
                 margin = confidence - second
-                if confidence >= threshold["probability"] and margin >= threshold["margin"]:
+                qa_scope_matches = not (
+                    report.rank < 4
+                    and report.role_family == "Quality Assurance"
+                    and people_by_id[top_candidate_id].role_family != "Quality Assurance"
+                )
+                if (not report.title_missing and qa_scope_matches
+                        and confidence >= threshold["probability"]
+                        and margin >= threshold["margin"]):
                     predicted_manager_id = top_candidate_id
                     resolved += 1
                     correct += int(predicted_manager_id == report.true_manager_id)
@@ -705,9 +806,9 @@ def export_predictions(
             "summary": {
                 "resolved": resolved,
                 "unresolved": eligible - resolved,
-                "coverage": round(resolved / eligible, 4),
-                "precision": round(correct / resolved, 4) if resolved else 0.0,
-                "averageConfidence": round(float(np.mean(confidence_values)), 4) if confidence_values else 0.0,
+                "coverage": rounded_metric(resolved / eligible),
+                "precision": rounded_metric(correct / resolved) if resolved else 0.0,
+                "averageConfidence": rounded_metric(float(np.mean(confidence_values))) if confidence_values else 0.0,
             },
             "employees": employees,
         }
@@ -721,7 +822,7 @@ def export_predictions(
         "summary": {
             "companyCount": len(index_rows),
             "employeeCount": int(companies["employee_count"].sum()),
-            "averageResolvedConfidence": round(float(np.mean(aggregate_confidence)), 4) if aggregate_confidence else 0.0,
+            "averageResolvedConfidence": rounded_metric(float(np.mean(aggregate_confidence))) if aggregate_confidence else 0.0,
         },
     }
     (output_dir / "index.json").write_text(json.dumps(index_payload, separators=(",", ":")), encoding="utf-8")
@@ -753,8 +854,10 @@ def main() -> None:
     validation_model_summaries = top_choice_summaries(company_groups, validation_ids, model, platt)
     validation_baseline_summaries = top_choice_summaries(company_groups, validation_ids, None, None)
     # Favor precision: a wrong reporting line is costlier than an unresolved one.
-    model_threshold = tune_threshold(validation_model_summaries, target_precision=0.95)
-    baseline_threshold = tune_threshold(validation_baseline_summaries)
+    model_threshold = tune_threshold(validation_model_summaries, target_precision=0.98)
+    baseline_threshold = tune_threshold(
+        validation_baseline_summaries, target_precision=0.80, minimum_margin=0.0
+    )
 
     test_model_summaries = top_choice_summaries(company_groups, test_ids, model, platt)
     test_baseline_summaries = top_choice_summaries(company_groups, test_ids, None, None)
@@ -791,7 +894,7 @@ def main() -> None:
         },
         "featureNames": FEATURE_NAMES,
         "modelType": "Calibrated logistic pair scorer with deterministic candidate blocking",
-        "primaryObjective": "Maximize coverage while holding validation precision at or above 95%",
+        "primaryObjective": "Maximize coverage while holding validation precision at or above 98%",
         "limitations": [
             "Synthetic reporting assignments between otherwise identical managers are not always observable when team, title, or department values are missing.",
             "The system intentionally abstains when the best candidate is not clearly separated from alternatives.",
