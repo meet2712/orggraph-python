@@ -1640,8 +1640,7 @@ input[type="checkbox"] {
 .schema-page code { overflow-wrap: anywhere; }
 
 /* Keep the combined schema diagram readable at its actual size. */
-.erd-viewport:has(.schema-diagram) { max-height: 78dvh; }
-.schema-diagram { display: block; width: var(--diagram-width); max-width: none; height: auto; border: 0; }
+.schema-diagram { display: block; width: 100%; max-width: 100%; height: auto; border: 0; }
 .schema-diagram-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin: 18px 0 10px; }
 .schema-diagram-controls label { display: grid; gap: 5px; font-size: 12px; min-width: 0; }
 .schema-diagram-controls select { max-width: 100%; min-width: 0; padding: 8px; border: 1px solid var(--line); border-radius: 4px; background: white; color: var(--ink); }

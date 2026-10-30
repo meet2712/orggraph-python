@@ -24,7 +24,7 @@
     <div class="erd-viewport" id="database-diagram" tabindex="0" role="region" aria-label="Tables, views and their connections">
       <object id="schema-svg" class="schema-diagram" type="image/svg+xml" data="/database-erd.svg?v=tables-and-views"
               width="{{ schema.diagram.width }}" height="{{ schema.diagram.height }}"
-              style="aspect-ratio: {{ schema.diagram.width }} / {{ schema.diagram.height }}; --diagram-width: {{ schema.diagram.width }}px"
+              style="aspect-ratio: {{ schema.diagram.width }} / {{ schema.diagram.height }}"
               aria-label="Two raw tables and thirteen SQL views, all columns and direct dependencies">
         <a href="/database-erd.svg">Open the tables and views diagram</a>
       </object>
@@ -34,53 +34,5 @@
         {% for view in schema.views %}<tr><th scope="row"><code>{{ view.name }}</code></th><td>{% for input in view.reads %}<code>{{ input }}</code>{{ ', ' if not loop.last else '' }}{% else %}Fixed thresholds{% endfor %}</td><td>{{ view.grain }}</td></tr>{% endfor %}
       </tbody></table></div>
     </details>
-  </section>
-  <section class="paper-section">
-    <h2>Check one reporting decision</h2>
-    <p><code>employee_reporting_audit</code> joins an employee's raw fields to their inferred features, accepted manager, leading candidate, scores and decision reason. The answer key is kept in a separate CSV and is not part of this database.</p>
-    <pre class="schema-query">SELECT full_name, inferred_manager, leading_candidate,
-       confidence, margin, decision_reason
-FROM employee_reporting_audit
-WHERE company_id = 'cmp_0004'
-  AND employee_id IN ('emp_0000542', 'emp_0000543')
-ORDER BY employee_id;</pre>
-    <p>Open the SQL editor and select “Two manager decisions” to try this on the actual records.</p>
-  </section>
-  <section class="paper-section">
-    <h2>Company page SQL</h2>
-    <p>The app uses this company-scoped query to calculate reporting lines from the same two source tables. Its <code>:company_id</code> parameter limits work to the selected company.</p>
-    <details><summary>Read the company inference query</summary><pre class="schema-query"><code>{{ schema.company_query }}</code></pre></details>
-  </section>
-  <section class="paper-section">
-    <h2>Tables and columns</h2>
-    <p>Each table states what one row represents. Expand it to see every column, its type and its key membership.</p>
-    <div class="schema-tables">
-      {% for table in schema.tables %}
-      <details class="schema-entity">
-        <summary><span><code>{{ table.name }}</code><span class="schema-grain">{{ table.grain }}</span></span><span class="muted">{{ table.columns|length }} columns</span></summary>
-        <div class="table-scroll"><table class="simple-table"><thead><tr><th scope="col">Column</th><th scope="col">Type</th><th scope="col">Key</th><th scope="col">Nullable</th></tr></thead><tbody>
-          {% for column in table.columns %}<tr><th scope="row"><code>{{ column.name }}</code></th><td>{{ column.type }}</td><td>{{ 'PK' if column.pk else '' }}{{ ', ' if column.pk and column.fk else '' }}{{ 'FK' if column.fk else '' }}{{ '—' if not column.pk and not column.fk else '' }}</td><td>{{ 'No' if column.required else 'Yes' }}</td></tr>{% endfor %}
-        </tbody></table></div>
-      </details>
-      {% endfor %}
-    </div>
-  </section>
-  <section class="paper-section" id="local-database">
-    <h2>Open the database locally</h2>
-    <p>Download the same checked SQLite snapshot used by the portal. Extract the <code>.gz</code> file, then open the resulting <code>.sqlite</code> file in your SQLite client. Choose read-only mode to explore it without changing your copy.</p>
-    <p><a href="/database/snapshot.sqlite.gz" download="orggraph.sqlite.gz">Download database snapshot (.sqlite.gz)</a></p>
-    <p class="muted">This is a local copy of the hosted data, not a live server connection. It needs no database username or password; local changes do not affect the website. Download it again to get a newer published snapshot.</p>
-  </section>
-  <section class="paper-section">
-    <h2>Keys and relationships</h2>
-    <p>One company can have many employees. The employee's company key refers to the company row; manager choices are calculated in views, so there is no stored manager foreign key.</p>
-    <div class="table-scroll"><table class="simple-table"><thead><tr><th scope="col">Dependent key</th><th scope="col">References</th><th scope="col">Dependents per referenced row</th><th scope="col">Foreign key</th></tr></thead><tbody>
-      {% for relation in schema.relationships %}<tr><td><code>{{ relation.child }} ({{ relation.child_columns|join(', ') }})</code></td><td><code>{{ relation.parent }} ({{ relation.parent_columns|join(', ') }})</code></td><td>{{ relation.cardinality }}</td><td>{{ 'Optional' if relation.optional else 'Required' }}</td></tr>{% endfor %}
-    </tbody></table></div>
-  </section>
-  <section class="paper-section">
-    <h2>What the database checks before serving</h2>
-    <p>A newly inserted employee appears in the feature, prediction and audit views on the next query. Headcount, size band and coverage update with the same source change. Checks cover keys, accepted lines, decision counts, self-management, cross-company links, seniority and cycles.</p>
-    <p>The published site is a fixed export of the database at deployment time. Local employee edits remain local until a new snapshot is built and deployed.</p>
   </section>
 </main>
