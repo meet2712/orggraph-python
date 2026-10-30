@@ -1,18 +1,39 @@
-erDiagram
-    companies {
-        TEXT company_id PK
-        TEXT company_name
-        TEXT industry
-        TEXT headquarters
-    }
-    employees {
-        TEXT company_id PK,FK
-        TEXT employee_id PK
-        TEXT full_name
-        TEXT job_title
-        TEXT raw_department
-        TEXT raw_team
-        TEXT location
-        TEXT work_email
-    }
-    companies ||--o{ employees : company_id
+flowchart TB
+    companies["companies<br/>TABLE<br/>company_id : TEXT<br/>company_name : TEXT<br/>industry : TEXT<br/>headquarters : TEXT"]
+    employees["employees<br/>TABLE<br/>company_id : TEXT<br/>employee_id : TEXT<br/>full_name : TEXT<br/>job_title : TEXT<br/>raw_department : TEXT<br/>raw_team : TEXT<br/>location : TEXT<br/>work_email : TEXT"]
+    inference_settings["inference_settings<br/>VIEW<br/>score_threshold : derived<br/>margin_threshold : derived"]
+    company_profiles["company_profiles<br/>VIEW<br/>company_id : TEXT<br/>company_name : TEXT<br/>industry : TEXT<br/>size_band : derived<br/>employee_count : derived<br/>headquarters : TEXT"]
+    employee_text["employee_text<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>location : TEXT<br/>title_text : derived<br/>team_path : derived<br/>department_text : derived"]
+    employee_classification["employee_classification<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>location : TEXT<br/>team_path : derived<br/>inferred_level : derived<br/>inferred_department : derived"]
+    employee_features["employee_features<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>inferred_department : derived<br/>inferred_level : derived<br/>inferred_rank : derived"]
+    manager_candidates["manager_candidates<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>candidate_id : TEXT<br/>report_rank : derived<br/>candidate_rank : derived<br/>report_level : derived<br/>candidate_level : derived<br/>report_department : derived<br/>candidate_department : derived<br/>candidate_team : derived<br/>team_relation : derived<br/>same_location : derived"]
+    candidate_scores["candidate_scores<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>candidate_id : TEXT<br/>candidate_rank : derived<br/>candidate_team : derived<br/>evidence_score : derived"]
+    employee_top_candidates["employee_top_candidates<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>best_candidate_id : derived<br/>best_score : derived<br/>second_score : derived"]
+    reporting_predictions["reporting_predictions<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>accepted_manager_id : derived<br/>best_candidate_id : derived<br/>confidence : derived<br/>margin : derived<br/>decision : derived"]
+    prediction_reasons["prediction_reasons<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>reason : derived"]
+    company_metrics["company_metrics<br/>VIEW<br/>company_id : TEXT<br/>resolved_count : derived<br/>unresolved_count : derived<br/>coverage : derived<br/>average_confidence : derived"]
+    dataset_metrics["dataset_metrics<br/>VIEW<br/>company_count : derived<br/>employee_count : derived<br/>accepted_count : derived<br/>unresolved_count : derived<br/>average_resolved_confidence : derived"]
+    employee_reporting_audit["employee_reporting_audit<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>full_name : TEXT<br/>job_title : TEXT<br/>raw_department : TEXT<br/>raw_team : TEXT<br/>location : TEXT<br/>inferred_department : derived<br/>inferred_level : derived<br/>accepted_manager_id : derived<br/>inferred_manager : TEXT<br/>best_candidate_id : derived<br/>leading_candidate : TEXT<br/>confidence : derived<br/>margin : derived<br/>decision : derived<br/>score_threshold : derived<br/>margin_threshold : derived<br/>decision_reason : derived"]
+    companies -->|company_id FK| employees
+    companies -.-> company_profiles
+    employees -.-> company_profiles
+    employees -.-> employee_text
+    employee_text -.-> employee_classification
+    employee_classification -.-> employee_features
+    employee_classification -.-> manager_candidates
+    employee_features -.-> manager_candidates
+    manager_candidates -.-> candidate_scores
+    employees -.-> employee_top_candidates
+    candidate_scores -.-> employee_top_candidates
+    employees -.-> reporting_predictions
+    employee_features -.-> reporting_predictions
+    employee_top_candidates -.-> reporting_predictions
+    inference_settings -.-> reporting_predictions
+    reporting_predictions -.-> prediction_reasons
+    inference_settings -.-> prediction_reasons
+    reporting_predictions -.-> company_metrics
+    reporting_predictions -.-> dataset_metrics
+    reporting_predictions -.-> employee_reporting_audit
+    employees -.-> employee_reporting_audit
+    employee_features -.-> employee_reporting_audit
+    inference_settings -.-> employee_reporting_audit

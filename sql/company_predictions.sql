@@ -17,8 +17,9 @@ pairs AS MATERIALIZED (
            CASE WHEN r.team_path = c.team_path
                      AND r.team_path NOT IN ('','n/a','unknown','-')
                      THEN 'same_team'
-                WHEN r.team_path <> '' AND c.team_path <> ''
-                     AND r.team_path LIKE c.team_path || '/%'
+                WHEN r.team_path NOT IN ('','n/a','unknown','-')
+                     AND c.team_path NOT IN ('','n/a','unknown','-')
+                     AND substr(r.team_path, 1, length(c.team_path) + 1) = c.team_path || '/'
                      THEN 'parent_team'
                 ELSE 'other' END AS team_relation,
            CASE WHEN r.location <> '' AND r.location = c.location THEN 1 ELSE 0 END
@@ -33,8 +34,8 @@ pairs AS MATERIALIZED (
           OR (r.inferred_level = 'Team Lead / Supervisor' AND c.inferred_rank >= 4)
           OR (r.inferred_rank >= 4 AND c.inferred_rank > r.inferred_rank)
       )
-      AND (r.team_path = c.team_path
-           OR r.team_path LIKE c.team_path || '/%'
+      AND ((r.team_path = c.team_path AND r.team_path NOT IN ('','n/a','unknown','-'))
+           OR (c.team_path NOT IN ('','n/a','unknown','-') AND substr(r.team_path, 1, length(c.team_path) + 1) = c.team_path || '/')
            OR c.inferred_level = 'CEO')
 ),
 scored AS MATERIALIZED (

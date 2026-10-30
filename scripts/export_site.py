@@ -80,6 +80,7 @@ def export_site(base_path: str = "") -> None:
                 if base_path:
                     html = html.replace('href="/', f'href="{base_path}/')
                     html = html.replace('src="/', f'src="{base_path}/')
+                    html = html.replace('data="/', f'data="{base_path}/')
                 target.write_text("\n".join(line.strip() for line in html.splitlines() if line.strip()), encoding="utf-8")
 
         public = ROOT / "public"

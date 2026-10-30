@@ -385,3 +385,23 @@ if (records && dialog) {
     }
   });
 }
+
+const schemaSvg = document.querySelector("#schema-svg");
+if (schemaSvg) {
+  const focus = document.querySelector("#schema-focus");
+  const fit = document.querySelector("#schema-fit");
+  const actual = document.querySelector("#schema-actual");
+  function highlightSchema() {
+    const drawing = schemaSvg.contentDocument;
+    if (drawing?.defaultView?.selectObject) drawing.defaultView.selectObject(focus.value || null);
+  }
+  focus.addEventListener("change", highlightSchema);
+  schemaSvg.addEventListener("load", highlightSchema);
+  for (const button of [fit, actual]) {
+    button.addEventListener("click", () => {
+      schemaSvg.classList.toggle("is-actual", button === actual);
+      fit.setAttribute("aria-pressed", String(button === fit));
+      actual.setAttribute("aria-pressed", String(button === actual));
+    });
+  }
+}

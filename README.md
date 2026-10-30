@@ -17,6 +17,11 @@ The generated answer key is [`data/employees_ground_truth.csv`](data/employees_g
 
 [Database notes](docs/DATABASE.md) explain each table and view. [Hierarchy policy](docs/HIERARCHY.md) explains the title ladder and individual-contributor safeguards.
 
+The database diagram shows the two source tables and all 13 views together,
+including every column. A solid line marks the company foreign key; dashed
+arrows show which table or view supplies each view. Select a card to follow its
+connections. The raw CSVs stay unchanged; matching happens in SQL.
+
 ## How inference works
 
 1. Normalize a messy title and infer a function and seniority level.

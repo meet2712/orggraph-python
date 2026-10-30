@@ -33,6 +33,16 @@ There is no `run_id` in the live views. The former value `live` was only a fixed
 
 The SQL in [`schema.sql`](../schema.sql) defines all 13 views. The [schema page](../templates/schema.html) exposes their complete definitions. The Flask page uses [`sql/company_predictions.sql`](../sql/company_predictions.sql), a company-scoped form of the same inference logic so it does not evaluate all 500 companies for one page. Candidate ranking is entirely in SQL. Adding an employee recalculates that employee's match and can change another employee's top candidate. A match is accepted only when the score reaches `inference_settings.score_threshold` **and** its lead over the next candidate reaches `inference_settings.margin_threshold`. The score is an interpretable heuristic, not a calibrated probability.
 
+The combined diagram includes both tables and every view, with all columns.
+Solid lines are foreign keys. Dashed arrows are direct SQL inputs; they are not
+database constraints. Select a card to highlight the objects it reads and the
+objects that read it. The dependency list is built from the saved view SQL.
+
+Team paths are compared as literal text. A `%` or `_` in a team name is not a
+wildcard, and blank or missing-team labels do not create a same-team match.
+These rules apply to both the public views and the company-scoped query.
+They do not edit the original job title, team or department.
+
 A quick check in PyCharm:
 
 ```sql
