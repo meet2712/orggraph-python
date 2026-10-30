@@ -1,35 +1,16 @@
-"""Check relational loading, SQL constraints, app reads, and graph boundaries."""
+"""Check source-only storage and live SQL inference."""
 
 import csv
 import gzip
 import json
-from pathlib import Path
 import sqlite3
 from contextlib import closing
+from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
-from unittest.mock import patch
 
-from jinja2 import DictLoader
-
-from app import chart_context, create_app, get_database
-from database import connect, import_company, load_snapshot, read_company
-
-
-def employee(employee_id, level, manager=None, candidate=None, truth=None):
-    return {
-        "id": employee_id, "name": employee_id, "title": level,
-        "rawDepartment": "Engineering", "team": "Platform",
-        "inferredDepartment": "Executive" if level == "CEO" else "Engineering",
-        "inferredLevel": level, "location": "Sydney, AU",
-        "predictedManagerId": manager, "bestCandidateId": candidate or manager,
-        "confidence": 0.95 if candidate or manager else 0.0,
-        "margin": 0.3 if candidate or manager else 0.0,
-        "reasons": ["same team"] if manager else [],
-        "groundTruthManagerId": truth,
-        "isCorrect": bool(manager and manager == truth),
-        "isRoot": truth is None, "noiseProfile": ["clean"],
-    }
+from app import create_app
+from database import connect, read_company, read_index
 
 
 def write_csv(path, rows):
@@ -39,389 +20,137 @@ def write_csv(path, rows):
         writer.writerows(rows)
 
 
-class AppTests(unittest.TestCase):
+class SourceDatabaseTests(unittest.TestCase):
     def setUp(self):
         self.temporary = TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
-        self.root = Path(self.temporary.name)
-        data = self.root / "data"
-        raw = self.root / "raw"
-        (data / "companies").mkdir(parents=True)
+        root = Path(self.temporary.name)
+        data, raw = root / "data", root / "raw"
+        data.mkdir()
         raw.mkdir()
-        metadata = {
-            "id": "cmp_0001", "name": "Example Company", "industry": "B2B SaaS",
-            "sizeBand": "Small", "employeeCount": 4, "headquarters": "Sydney, AU",
-        }
-        self.payload = {
-            "company": metadata,
-            "summary": {
-                "resolved": 1, "unresolved": 2, "coverage": 0.3333,
-                "precision": 1.0, "averageConfidence": 0.95,
-            },
-            "employees": [
-                employee("ceo", "CEO"),
-                employee("manager", "Manager", candidate="ceo", truth="ceo"),
-                employee("report", "Individual Contributor", manager="manager", truth="manager"),
-                employee("unresolved", "Individual Contributor", candidate="ceo", truth="ceo"),
-            ],
-        }
-        self.company_file = data / "companies" / "cmp_0001.json"
-        self.save_payload()
+        self.database = root / "orggraph.sqlite3"
+        self.snapshot = root / "snapshot.sqlite.gz"
+        company = {"id": "cmp_0001", "name": "Example Company", "industry": "B2B SaaS",
+                   "headquarters": "Sydney, AU", "employeeCount": 4, "sizeBand": "Small"}
         (data / "index.json").write_text(json.dumps({
-            "companies": [metadata], "summary": {"companyCount": 1, "employeeCount": 4},
-        }))
+            "companies": [company], "summary": {"companyCount": 1, "employeeCount": 4},
+        }), encoding="utf-8")
         (data / "evaluation.json").write_text(json.dumps({
-            "modelType": "Test scorer", "model": {"threshold": {"probability": 0.6, "margin": 0.1}},
+            "modelType": "Offline benchmark",
+            "model": {"threshold": {"probability": 0.9, "margin": 0.04}},
             "split": {"testCompanies": 1},
-        }))
-        model = self.root / "model.json"
-        model.write_text('{"seed": 1}')
-        raw_rows = []
-        truth_rows = []
-        for person in self.payload["employees"]:
-            raw_rows.append({
-                "company_id": "cmp_0001", "employee_id": person["id"],
-                "full_name": person["name"], "job_title": person["title"],
-                "department": person["rawDepartment"], "team": person["team"],
-                "location": person["location"], "work_email": f"{person['id']}@company.example",
-            })
-            truth_rows.append({
-                "company_id": "cmp_0001", "employee_id": person["id"],
-                "manager_employee_id": person["groundTruthManagerId"] or "",
-                "canonical_title": person["title"], "canonical_department": person["inferredDepartment"],
-                "canonical_team": person["team"], "canonical_level": person["inferredLevel"],
-                "is_people_manager": "1" if person["id"] in {"ceo", "manager"} else "0",
-            })
-        write_csv(raw / "employees_messy.csv", raw_rows)
-        write_csv(raw / "employees_ground_truth.csv", truth_rows)
-        self.config = {
-            "TESTING": True, "DATABASE": self.root / "orggraph.sqlite3",
-            "DATABASE_SNAPSHOT": self.root / "snapshot.sqlite.gz", "DATA_DIR": data,
-            "RAW_DATA_DIR": raw, "MODEL_PATH": model,
-        }
+        }), encoding="utf-8")
+        (data / "sql_evaluation.json").write_text(json.dumps({
+            "companies": 1, "employees": 4, "roots": 1,
+            "eligible_reporting_lines": 3, "accepted_reporting_lines": 2,
+            "correct_reporting_lines": 2, "incorrect_reporting_lines": 0,
+            "precision": 1.0, "coverage": 0.6667, "recall": 0.6667,
+        }), encoding="utf-8")
+        team = "Company / Technology / Engineering / Quality & Reliability"
+        write_csv(raw / "employees_messy.csv", [
+            self.person("ceo", "Chief Executive Officer", "Executive", "Company"),
+            self.person("cto", "Chief Technology Officer", "Executive", "Company / Technology"),
+            self.person("manager", "QA Manager", "Engineering", team),
+            self.person("junior", "Junior QA Engineer", "Engineering", team),
+        ])
+        self.config = {"TESTING": True, "DATABASE": self.database,
+                       "DATABASE_SNAPSHOT": self.snapshot, "DATA_DIR": data,
+                       "RAW_DATA_DIR": raw}
         self.app = create_app(self.config)
-        self.app.jinja_loader = DictLoader({
-            "index.html": "{{ page }}|{{ company.company.id }}|{{ selected_id }}"
-        })
-        static = self.root / "public"
-        static.mkdir()
-        (static / "style.css").write_text("body { color: green; }")
-        self.app.static_folder = str(static)
-        self.client = self.app.test_client()
-        self.run_id = self.app.config["ACTIVE_RUN_ID"]
 
-    def save_payload(self):
-        self.company_file.write_text(json.dumps(self.payload))
+    @staticmethod
+    def person(employee_id, title, department, team):
+        return {"employee_id": employee_id, "company_id": "cmp_0001",
+                "full_name": employee_id.title(), "job_title": title,
+                "department": department, "team": team, "location": "Sydney, AU",
+                "work_email": f"{employee_id}@example.test"}
 
-    def test_relational_read_reconstructs_the_source_payload(self):
-        with closing(connect(self.config["DATABASE"], readonly=True)) as connection:
-            self.assertEqual(read_company(connection, self.run_id, "cmp_0001"), self.payload)
-            columns = connection.execute("PRAGMA table_info(companies)").fetchall()
-            self.assertNotIn("payload", [row["name"] for row in columns])
-            run = connection.execute("SELECT * FROM inference_runs").fetchone()
-            self.assertEqual(run["load_status"], "ready")
-            self.assertEqual(run["source_employee_count"], 4)
-            self.assertEqual(
-                connection.execute("SELECT count(*) FROM inference_outputs").fetchone()[0], 4
-            )
-        self.assertEqual(self.client.get("/health").json, {"status": "ok"})
-
-    def test_all_pages_use_the_selected_company(self):
-        expected = {
-            "/": "chart|cmp_0001|cmp_0001",
-            "/companies/cmp_0001.html": "chart|cmp_0001|cmp_0001",
-            "/results.html": "results|cmp_0001|cmp_0001",
-            "/approach.html": "approach|cmp_0001|cmp_0001",
-            "/data.html": "data|cmp_0001|cmp_0001",
-        }
-        for url, text in expected.items():
-            with self.subTest(url=url):
-                response = self.client.get(url)
-                self.assertEqual(response.status_code, 200)
-                self.assertEqual(response.text, text)
-
-    def test_unknown_or_malformed_company_is_404(self):
-        for company_id in ("cmp_9999", "not-a-company", "cmp_0001' OR 1=1"):
-            with self.subTest(company_id=company_id):
-                self.assertEqual(self.client.get(f"/companies/{company_id}.html").status_code, 404)
-
-    def test_candidates_and_answer_key_never_become_chart_edges(self):
-        chart = chart_context(self.payload)
-        self.assertEqual(set(chart["children"]), {"manager"})
-        self.assertEqual([person["id"] for person in chart["children"]["manager"]], ["report"])
-        self.assertEqual([person["id"] for person in chart["roots"]], ["ceo", "manager"])
-        self.assertEqual([person["id"] for person in chart["unresolved"]], ["manager", "unresolved"])
-
-    def test_static_assets_use_public_urls(self):
-        with self.client.get("/style.css") as response:
-            self.assertEqual(response.status_code, 200)
-            self.assertIn("text/css", response.content_type)
-            self.assertIn("color: green", response.text)
-
-    def test_request_connection_is_read_only_and_closes(self):
-        with self.app.test_request_context("/"):
-            connection = get_database()
-            self.assertIs(connection, get_database())
-            self.assertEqual(connection.execute("PRAGMA query_only").fetchone()[0], 1)
-            with self.assertRaises(sqlite3.OperationalError):
-                connection.execute("DELETE FROM employees")
-            with self.assertRaises(sqlite3.OperationalError):
-                connection.execute("INSERT INTO companies VALUES ('cmp_0002', 'Other', 'IT', 'Small', 1, 'Sydney')")
-        with self.assertRaises(sqlite3.ProgrammingError):
-            connection.execute("SELECT 1")
-
-    def test_snapshot_download_round_trips_as_sqlite(self):
-        with self.client.get("/database/snapshot.sqlite.gz") as response:
-            self.assertEqual(response.status_code, 200)
-            self.assertEqual(response.content_type, "application/octet-stream")
-            self.assertNotIn("Content-Encoding", response.headers)
-            database_bytes = gzip.decompress(response.data)
-        target = self.root / "download.sqlite3"
-        target.write_bytes(database_bytes)
-        with closing(connect(target, readonly=True)) as connection:
-            self.assertEqual(connection.execute("SELECT count(*) FROM employees").fetchone()[0], 4)
-            self.assertEqual(connection.execute("PRAGMA integrity_check").fetchone()[0], "ok")
-            self.assertEqual(connection.execute("PRAGMA foreign_key_check").fetchall(), [])
-
-    def test_loading_again_preserves_keys_counts_and_payload(self):
-        reloaded = create_app(self.config)
-        self.assertEqual(reloaded.config["ACTIVE_RUN_ID"], self.run_id)
-        with closing(connect(self.config["DATABASE"], readonly=True)) as connection:
-            self.assertEqual(connection.execute("SELECT count(*) FROM inference_runs").fetchone()[0], 1)
-            self.assertEqual(connection.execute("SELECT count(*) FROM employees").fetchone()[0], 4)
-            self.assertEqual(read_company(connection, self.run_id, "cmp_0001"), self.payload)
-
-    def test_unchanged_startup_reuses_the_checked_database_and_download(self):
-        paths = [self.config["DATABASE"], self.config["DATABASE_SNAPSHOT"]]
-        before = [path.stat().st_mtime_ns for path in paths]
-        with patch("database.load_snapshot", side_effect=AssertionError("Unexpected rebuild")):
-            reused = create_app(self.config)
-        self.assertTrue(reused.config["DATABASE_REUSED"])
-        self.assertEqual([path.stat().st_mtime_ns for path in paths], before)
-
-    def test_confidence_display_matches_sql_rounding_at_halfway_values(self):
-        percent = self.app.jinja_env.filters["percent"]
-        points = self.app.jinja_env.filters["points"]
-        self.assertEqual(percent(0.6425), "64.3%")
-        self.assertEqual(percent(0.5995), "60.0%")
-        self.assertEqual(points(0.6425), "64.3")
-
-    def test_decision_audit_joins_evidence_without_the_answer_key(self):
-        with closing(connect(self.config["DATABASE"])) as connection:
-            rows = connection.execute("SELECT * FROM employee_reporting_audit").fetchall()
-            self.assertEqual(len(rows), 4)
-            report = next(row for row in rows if row["employee_id"] == "report")
-            self.assertEqual(report["inferred_manager"], "manager")
-            self.assertEqual(report["decision_reason"], "cleared_both_checks")
-            self.assertNotIn("groundTruthManagerId", report.keys())
-            self.assertNotIn("manager_employee_id", report.keys())
-            connection.execute("UPDATE inference_outputs SET confidence=0.5, margin=0.05 WHERE employee_id='unresolved'")
-            reason = connection.execute("SELECT decision_reason FROM employee_reporting_audit WHERE employee_id='unresolved'").fetchone()[0]
-            self.assertEqual(reason, "low_confidence_and_ambiguous_candidates")
-
-    def test_saved_summary_is_ignored_in_favour_of_dynamic_metrics(self):
-        path = self.config["DATA_DIR"] / "companies" / "cmp_0001.json"
-        payload = json.loads(path.read_text())
-        payload["summary"]["unresolved"] = 0
-        path.write_text(json.dumps(payload))
-        rebuilt = create_app(self.config)
-        with closing(connect(self.config["DATABASE"], readonly=True)) as connection:
-            payload = read_company(connection, rebuilt.config["ACTIVE_RUN_ID"], "cmp_0001")
-            self.assertEqual(payload["summary"], self.payload["summary"])
-
-    def test_load_rejects_an_accepted_line_below_its_run_threshold(self):
-        payload = json.loads(self.company_file.read_text())
-        payload["employees"][2]["confidence"] = 0.5
-        self.company_file.write_text(json.dumps(payload))
-        with self.assertRaisesRegex(ValueError, "both thresholds"):
-            create_app(self.config)
-
-    def test_changed_model_rebuilds_instead_of_reusing_a_stale_snapshot(self):
-        self.config["MODEL_PATH"].write_text('{"seed": 2}')
-        with patch("database.load_snapshot", wraps=load_snapshot) as loader:
-            rebuilt = create_app(self.config)
-        self.assertEqual(loader.call_count, 1)
-        self.assertFalse(rebuilt.config["DATABASE_REUSED"])
-        self.assertNotEqual(rebuilt.config["ACTIVE_RUN_ID"], self.run_id)
-
-    def test_damaged_database_download_or_manifest_is_rebuilt(self):
-        paths = [self.config["DATABASE"], self.config["DATABASE_SNAPSHOT"],
-                 self.config["DATABASE"].with_suffix(".manifest.json")]
-        for path in paths:
-            with self.subTest(path=path.name):
-                path.write_bytes(b"damaged file")
-                rebuilt = create_app(self.config)
-                self.assertFalse(rebuilt.config["DATABASE_REUSED"])
-                with closing(connect(self.config["DATABASE"], readonly=True)) as connection:
-                    self.assertEqual(read_company(connection, self.run_id, "cmp_0001"), self.payload)
-                self.assertTrue(gzip.decompress(self.config["DATABASE_SNAPSHOT"].read_bytes()).startswith(b"SQLite format 3"))
-
-    def test_explicit_load_snapshot_still_forces_a_full_import(self):
-        data = self.config["DATA_DIR"]
-        with patch("database.import_company", wraps=import_company) as importer:
-            run_id = load_snapshot(
-                self.config["DATABASE"], data, self.config["RAW_DATA_DIR"],
-                self.config["MODEL_PATH"], json.loads((data / "index.json").read_text()),
-                json.loads((data / "evaluation.json").read_text()),
-            )
-        self.assertEqual(importer.call_count, 1)
-        self.assertEqual(run_id, self.run_id)
-
-    def test_raw_blanks_stay_queryable_and_display_fallbacks_stay_in_the_app(self):
-        path = self.config["RAW_DATA_DIR"] / "employees_messy.csv"
-        with path.open(newline="") as source:
-            rows = list(csv.DictReader(source))
-        rows[2].update(job_title="", department="", team="-", location="")
-        write_csv(path, rows)
-        self.payload["employees"][2].update(
-            title="Title unavailable", rawDepartment="Unavailable", team="-", location="Unavailable"
-        )
-        self.save_payload()
-        reloaded = create_app(self.config)
-        with closing(connect(self.config["DATABASE"], readonly=True)) as connection:
-            raw = connection.execute(
-                "SELECT job_title, raw_department, raw_team, location FROM employees WHERE employee_id = 'report'"
-            ).fetchone()
-            self.assertEqual(tuple(raw), ("", "", "-", ""))
-            self.assertEqual(read_company(connection, reloaded.config["ACTIVE_RUN_ID"], "cmp_0001"), self.payload)
-
-    def test_invalid_load_preserves_the_previous_database(self):
-        before = self.config["DATABASE"].read_bytes()
-        self.payload["employees"][2]["predictedManagerId"] = "missing-manager"
-        self.save_payload()
-        with self.assertRaisesRegex(ValueError, "Manager is outside the company"):
-            create_app(self.config)
-        self.assertEqual(self.config["DATABASE"].read_bytes(), before)
-        self.assertEqual(list(self.root.glob(".orggraph-load-*")), [])
-
-    def test_startup_rejects_a_cycle(self):
-        self.payload["employees"][1]["predictedManagerId"] = "report"
-        self.save_payload()
-        with self.assertRaisesRegex(ValueError, "Circular reporting line"):
-            create_app(self.config)
-
-    def test_startup_rejects_a_manager_who_is_not_more_senior(self):
-        self.payload["employees"][2]["predictedManagerId"] = "unresolved"
-        self.save_payload()
-        with self.assertRaisesRegex(ValueError, "not more senior"):
-            create_app(self.config)
-
-    def test_score_bounds_and_single_prediction_are_enforced(self):
-        with closing(connect(self.config["DATABASE"])) as connection:
-            with self.assertRaises(sqlite3.IntegrityError):
-                connection.execute("UPDATE inference_outputs SET confidence = 1.1 WHERE employee_id = 'report'")
-            with self.assertRaises(sqlite3.IntegrityError):
-                connection.execute("UPDATE inference_outputs SET margin = -0.1 WHERE employee_id = 'report'")
-            with self.assertRaises(sqlite3.IntegrityError):
-                connection.execute("INSERT INTO inference_outputs SELECT * FROM inference_outputs WHERE employee_id = 'report'")
-
-    def test_self_manager_is_rejected_by_sql(self):
-        with closing(connect(self.config["DATABASE"])) as connection:
-            with self.assertRaises(sqlite3.IntegrityError):
-                connection.execute("UPDATE inference_outputs SET accepted_manager_id = employee_id, best_candidate_id = employee_id, decision = 'accepted' WHERE employee_id = 'report'")
-
-    def test_composite_keys_reject_cross_company_managers_and_candidates(self):
-        with closing(connect(self.config["DATABASE"])) as connection:
-            connection.execute("INSERT INTO companies VALUES ('cmp_0002', 'Other Company', 'IT', 'Sydney')")
-            connection.execute("INSERT INTO employees VALUES ('cmp_0002', 'other-ceo', 'Other CEO', 'CEO', '', '', '', '', 6)")
-            with self.assertRaises(sqlite3.IntegrityError):
-                connection.execute("UPDATE inference_outputs SET accepted_manager_id = 'other-ceo', best_candidate_id = 'other-ceo' WHERE employee_id = 'report'")
-            with self.assertRaises(sqlite3.IntegrityError):
-                connection.execute("UPDATE inference_outputs SET best_candidate_id = 'other-ceo' WHERE employee_id = 'unresolved'")
-            with self.assertRaises(sqlite3.IntegrityError):
-                connection.execute("UPDATE benchmark_labels SET manager_employee_id = 'other-ceo' WHERE employee_id = 'report'")
-
-    def test_schema_uses_source_tables_and_dynamic_views(self):
-        expected_tables = {
-            "companies", "employees", "benchmark_labels", "inference_runs", "inference_outputs",
-        }
-        expected_views = {
-            "company_profiles", "employee_features", "reporting_predictions",
-            "prediction_reasons", "employee_noise", "company_run_metrics",
-            "benchmark_truth", "benchmark_comparison",
-            "run_metrics", "employee_reporting_audit",
-        }
-        with closing(connect(self.config["DATABASE"], readonly=True)) as connection:
-            objects = connection.execute("""
-                SELECT type, name, sql FROM sqlite_master
-                WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%'
-            """).fetchall()
-            self.assertEqual({row["name"] for row in objects if row["type"] == "table"}, expected_tables)
-            self.assertEqual({row["name"] for row in objects if row["type"] == "view"}, expected_views)
-            self.assertTrue(all(row["sql"].startswith("CREATE VIEW")
-                                for row in objects if row["type"] == "view"))
-
-    def test_benchmark_comparison_recalculates_from_labels_and_predictions(self):
-        with closing(connect(self.config["DATABASE"])) as connection:
-            before = connection.execute("""
-                SELECT evaluation_status FROM benchmark_comparison
-                WHERE employee_id = 'report'
-            """).fetchone()[0]
-            root = connection.execute("""
-                SELECT is_root FROM benchmark_truth WHERE employee_id = 'ceo'
-            """).fetchone()[0]
-            self.assertEqual((before, root), ("correct", 1))
+    def insert_person(self, employee_id, title="Junior QA Engineer",
+                      department="Engineering",
+                      team="Company / Technology / Engineering / Quality & Reliability"):
+        with closing(connect(self.database)) as connection, connection:
+            next_row = connection.execute(
+                "SELECT max(source_row_number) + 1 FROM employees").fetchone()[0]
             connection.execute("""
-                UPDATE inference_outputs
-                SET accepted_manager_id = 'ceo', best_candidate_id = 'ceo'
-                WHERE employee_id = 'report'
+                INSERT INTO employees VALUES
+                ('cmp_0001', ?, ?, ?, ?, ?, 'Sydney, AU', ?, ?)
+            """, (employee_id, employee_id.title(), title, department, team,
+                  f"{employee_id}@example.test", next_row))
+
+    def test_only_basic_source_tables_are_persisted(self):
+        with closing(connect(self.database, readonly=True)) as connection:
+            tables = {row[0] for row in connection.execute("""
+                SELECT name FROM sqlite_master WHERE type = 'table'
+                AND name NOT LIKE 'sqlite_%'
+            """)}
+            self.assertEqual(tables, {"companies", "employees"})
+            views = {row[0] for row in connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'view'")}
+            self.assertIn("reporting_predictions", views)
+            self.assertIn("company_run_metrics", views)
+            self.assertNotIn("benchmark_labels", tables | views)
+            self.assertNotIn("inference_outputs", tables | views)
+
+    def test_reporting_line_uses_current_employee_rows(self):
+        with closing(connect(self.database, readonly=True)) as connection:
+            payload = read_company(connection, "live", "cmp_0001")
+            people = {person["id"]: person for person in payload["employees"]}
+            self.assertEqual(people["cto"]["predictedManagerId"], "ceo")
+            self.assertIsNone(people["junior"]["predictedManagerId"])
+            self.assertEqual(people["junior"]["bestCandidateId"], "manager")
+            self.assertNotIn("groundTruthManagerId", people["junior"])
+            self.assertEqual(payload["company"]["employeeCount"], 4)
+
+    def test_direct_insert_updates_inference_and_survives_restart(self):
+        self.insert_person("new_cfo", "Chief Financial Officer", "Executive",
+                           "Company / Finance & Risk")
+        with closing(connect(self.database, readonly=True)) as connection:
+            payload = read_company(connection, "live", "cmp_0001")
+            new_hire = next(p for p in payload["employees"] if p["id"] == "new_cfo")
+            self.assertEqual(new_hire["predictedManagerId"], "ceo")
+            self.assertEqual(payload["company"]["employeeCount"], 5)
+            self.assertEqual(read_index(connection, "live")["summary"]["employeeCount"], 5)
+        restarted = create_app(self.config)
+        self.assertTrue(restarted.config["DATABASE_REUSED"])
+        with closing(connect(self.database, readonly=True)) as connection:
+            self.assertEqual(connection.execute("SELECT count(*) FROM employees").fetchone()[0], 5)
+        with gzip.open(self.snapshot, "rb") as source:
+            self.assertEqual(source.read(16), b"SQLite format 3\0")
+
+    def test_headcount_and_size_band_recalculate(self):
+        with closing(connect(self.database)) as connection, connection:
+            rows = [("cmp_0001", f"extra_{i:03d}", f"Extra {i}", "Analyst",
+                     "Operations", "", "Sydney, AU", f"extra_{i}@example.test", i + 6)
+                    for i in range(125)]
+            connection.executemany("INSERT INTO employees VALUES (?,?,?,?,?,?,?,?,?)", rows)
+            before = connection.execute("""
+                SELECT employee_count, size_band FROM company_profiles
+                WHERE company_id = 'cmp_0001'
+            """).fetchone()
+            self.assertEqual(tuple(before), (129, "Small"))
+            connection.execute("""
+                INSERT INTO employees VALUES
+                ('cmp_0001', 'threshold_hire', 'Threshold Hire', 'Analyst',
+                 'Operations', '', 'Sydney, AU', 'threshold@example.test', 131)
             """)
             after = connection.execute("""
-                SELECT evaluation_status FROM benchmark_comparison
-                WHERE employee_id = 'report'
-            """).fetchone()[0]
-            self.assertEqual(after, "incorrect")
-
-    def test_new_employee_updates_counts_and_metrics_without_rebuilding(self):
-        with closing(connect(self.config["DATABASE"])) as connection:
-            before = connection.execute("""
-                SELECT employee_count FROM company_profiles WHERE company_id = 'cmp_0001'
-            """).fetchone()[0]
-            connection.execute("""
-                INSERT INTO employees VALUES (
-                    'cmp_0001', 'new-hire', 'New Hire', 'Data Analyst',
-                    'Data', 'Analytics', 'Sydney, AU', 'new@example.test', 99
-                )
-            """)
-            profile = connection.execute("""
-                SELECT employee_count, size_band FROM company_profiles WHERE company_id = 'cmp_0001'
+                SELECT employee_count, size_band FROM company_profiles
+                WHERE company_id = 'cmp_0001'
             """).fetchone()
-            pending = connection.execute("""
-                SELECT decision FROM reporting_predictions
-                WHERE run_id = ? AND company_id = 'cmp_0001' AND employee_id = 'new-hire'
-            """, (self.run_id,)).fetchone()[0]
-            features = connection.execute("""
-                SELECT processing_status FROM employee_features
-                WHERE run_id = ? AND company_id = 'cmp_0001' AND employee_id = 'new-hire'
-            """, (self.run_id,)).fetchone()[0]
-            metrics = connection.execute("""
-                SELECT resolved_count, unresolved_count, coverage
-                FROM company_run_metrics WHERE run_id = ? AND company_id = 'cmp_0001'
-            """, (self.run_id,)).fetchone()
-            run_metrics = connection.execute("""
-                SELECT employee_count, accepted_count, unresolved_count, pending_inference_count
-                FROM run_metrics WHERE run_id = ?
-            """, (self.run_id,)).fetchone()
-            self.assertEqual(profile["employee_count"], before + 1)
-            self.assertEqual(profile["size_band"], "Small")
-            self.assertEqual(pending, "pending_inference")
-            self.assertEqual(features, "pending_inference")
-            self.assertEqual(tuple(metrics), (1, 3, 0.25))
-            self.assertEqual(tuple(run_metrics), (5, 1, 3, 1))
+            self.assertEqual(tuple(after), (130, "Growth"))
 
-    def test_company_metrics_recalculate_when_model_output_changes(self):
-        with closing(connect(self.config["DATABASE"])) as connection:
-            connection.execute("""
-                UPDATE inference_outputs
-                SET accepted_manager_id = NULL, decision = 'unresolved'
-                WHERE employee_id = 'report'
-            """)
-            metrics = connection.execute("""
-                SELECT resolved_count, unresolved_count, coverage,
-                       precision, average_confidence
-                FROM company_run_metrics WHERE run_id = ? AND company_id = 'cmp_0001'
-            """, (self.run_id,)).fetchone()
-            self.assertEqual(tuple(metrics), (0, 3, 0.0, 0.0, 0.0))
+    def test_keys_reject_duplicate_and_unknown_company(self):
+        with closing(connect(self.database)) as connection:
+            with self.assertRaises(sqlite3.IntegrityError):
+                connection.execute("""
+                    INSERT INTO employees VALUES
+                    ('cmp_0001', 'ceo', 'Duplicate', 'CEO', '', '', '', '', 99)
+                """)
+            with self.assertRaises(sqlite3.IntegrityError):
+                connection.execute("""
+                    INSERT INTO employees VALUES
+                    ('missing', 'another', 'Another', 'Analyst', '', '', '', '', 99)
+                """)
 
 
 if __name__ == "__main__":

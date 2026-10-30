@@ -1,16 +1,16 @@
 PRAGMA foreign_keys = ON;
 
--- Persist only source records, benchmark metadata, run lineage and model output.
--- Business-facing attributes and metrics are calculated by the views below.
-CREATE TABLE IF NOT EXISTS companies (
-    company_id TEXT NOT NULL PRIMARY KEY,
+-- Only observed source records are stored. Every other object below is a
+-- read-only view, recalculated when an employee is inserted or changed.
+CREATE TABLE companies (
+    company_id TEXT PRIMARY KEY,
     company_name TEXT NOT NULL,
     industry TEXT NOT NULL,
     headquarters TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS employees (
-    company_id TEXT NOT NULL,
+CREATE TABLE employees (
+    company_id TEXT NOT NULL REFERENCES companies(company_id),
     employee_id TEXT NOT NULL,
     full_name TEXT NOT NULL,
     job_title TEXT NOT NULL,
@@ -19,263 +19,331 @@ CREATE TABLE IF NOT EXISTS employees (
     location TEXT NOT NULL,
     work_email TEXT NOT NULL,
     source_row_number INTEGER NOT NULL CHECK (source_row_number > 0),
-    PRIMARY KEY (company_id, employee_id),
-    FOREIGN KEY (company_id) REFERENCES companies (company_id)
+    PRIMARY KEY (company_id, employee_id)
 );
 
-CREATE TABLE IF NOT EXISTS inference_runs (
-    run_id TEXT NOT NULL PRIMARY KEY,
-    source_hash TEXT NOT NULL UNIQUE CHECK (length(source_hash) = 64),
-    model_version TEXT NOT NULL,
-    pipeline_version TEXT NOT NULL,
-    model_type TEXT NOT NULL,
-    probability_threshold REAL NOT NULL CHECK (probability_threshold BETWEEN 0 AND 1),
-    margin_threshold REAL NOT NULL CHECK (margin_threshold BETWEEN 0 AND 1),
-    source_company_count INTEGER NOT NULL CHECK (source_company_count > 0),
-    source_employee_count INTEGER NOT NULL CHECK (source_employee_count > 0),
-    load_status TEXT NOT NULL CHECK (load_status IN ('loading', 'ready')),
-    loaded_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
-);
+CREATE INDEX employees_by_company_team ON employees(company_id, raw_team);
 
--- One durable row per model decision. Feature, prediction and explanation views
--- expose different business grains without copying the same result repeatedly.
-CREATE TABLE IF NOT EXISTS inference_outputs (
-    run_id TEXT NOT NULL,
-    company_id TEXT NOT NULL,
-    employee_id TEXT NOT NULL,
-    inferred_department TEXT NOT NULL,
-    inferred_level TEXT NOT NULL,
-    inferred_rank INTEGER NOT NULL CHECK (inferred_rank BETWEEN 0 AND 10),
-    accepted_manager_id TEXT,
-    best_candidate_id TEXT,
-    confidence REAL NOT NULL CHECK (confidence BETWEEN 0 AND 1),
-    margin REAL NOT NULL CHECK (margin BETWEEN 0 AND 1 AND margin <= confidence),
-    decision TEXT NOT NULL CHECK (decision IN ('accepted', 'unresolved', 'company_root')),
-    reasons_json TEXT NOT NULL CHECK (json_valid(reasons_json) AND json_type(reasons_json) = 'array'),
-    PRIMARY KEY (run_id, company_id, employee_id),
-    CHECK (accepted_manager_id IS NULL OR accepted_manager_id <> employee_id),
-    CHECK (best_candidate_id IS NULL OR best_candidate_id <> employee_id),
-    CHECK (
-        (decision = 'accepted' AND accepted_manager_id IS NOT NULL
-            AND best_candidate_id IS NOT NULL AND accepted_manager_id = best_candidate_id)
-        OR (decision IN ('unresolved', 'company_root') AND accepted_manager_id IS NULL)
-    ),
-    FOREIGN KEY (run_id) REFERENCES inference_runs (run_id),
-    FOREIGN KEY (company_id, employee_id) REFERENCES employees (company_id, employee_id),
-    FOREIGN KEY (company_id, accepted_manager_id) REFERENCES employees (company_id, employee_id),
-    FOREIGN KEY (company_id, best_candidate_id) REFERENCES employees (company_id, employee_id)
-);
+-- A stable label for the live SQL rules. It contains no model output rows.
+CREATE VIEW inference_runs AS
+SELECT 'live' AS run_id,
+       'current employees' AS source_hash,
+       'sql-rules-v1' AS model_version,
+       'sql-views-v1' AS pipeline_version,
+       'Deterministic SQL hierarchy rules' AS model_type,
+       0.98 AS probability_threshold,
+       0.04 AS margin_threshold,
+       (SELECT count(*) FROM companies) AS source_company_count,
+       (SELECT count(*) FROM employees) AS source_employee_count,
+       'ready' AS load_status;
 
-CREATE INDEX IF NOT EXISTS outputs_by_manager
-    ON inference_outputs (run_id, company_id, accepted_manager_id)
-    WHERE accepted_manager_id IS NOT NULL;
+CREATE VIEW company_profiles AS
+SELECT c.company_id, c.company_name, c.industry,
+       CASE WHEN count(e.employee_id) < 130 THEN 'Small'
+            WHEN count(e.employee_id) < 180 THEN 'Growth'
+            ELSE 'Mid-market' END AS size_band,
+       count(e.employee_id) AS employee_count, c.headquarters
+FROM companies c LEFT JOIN employees e USING(company_id)
+GROUP BY c.company_id;
 
--- Imported labels are a fixed answer key from the dataset generator. They are
--- never inferred from model output; doing so would invalidate evaluation.
-CREATE TABLE IF NOT EXISTS benchmark_labels (
-    company_id TEXT NOT NULL,
-    employee_id TEXT NOT NULL,
-    manager_employee_id TEXT,
-    canonical_title TEXT NOT NULL,
-    canonical_department TEXT NOT NULL,
-    canonical_team TEXT NOT NULL,
-    canonical_level TEXT NOT NULL,
-    is_people_manager INTEGER NOT NULL CHECK (is_people_manager IN (0, 1)),
-    noise_profile_json TEXT NOT NULL
-        CHECK (json_valid(noise_profile_json) AND json_type(noise_profile_json) = 'array'),
-    PRIMARY KEY (company_id, employee_id),
-    CHECK (manager_employee_id IS NULL OR manager_employee_id <> employee_id),
-    FOREIGN KEY (company_id, employee_id) REFERENCES employees (company_id, employee_id),
-    FOREIGN KEY (company_id, manager_employee_id) REFERENCES employees (company_id, employee_id)
-);
+-- Normalize only the observed text; no answer-key columns enter inference.
+CREATE VIEW employee_text AS
+SELECT e.*,
+       ' ' || trim(replace(replace(replace(replace(replace(replace(replace(
+           lower(e.job_title), '.', ' '), ',', ' '), '-', ' '), '/', ' '),
+           '  ', ' '), '  ', ' '), '  ', ' ')) || ' ' AS title_text,
+       lower(trim(replace(replace(replace(e.raw_team, '  ', ' '),
+           ' / ', '/'), ' /', '/'))) AS team_path,
+       lower(trim(e.raw_department)) AS department_text
+FROM employees e;
 
--- The benchmark shape is calculated from source labels; root status is not
--- copied into another stored column.
-CREATE VIEW IF NOT EXISTS benchmark_truth AS
-SELECT
-    company_id, employee_id, manager_employee_id,
-    canonical_title, canonical_department, canonical_team, canonical_level,
-    is_people_manager,
-    CASE WHEN manager_employee_id IS NULL THEN 1 ELSE 0 END AS is_root,
-    noise_profile_json
-FROM benchmark_labels;
+-- A title is a management signal only when it explicitly describes a
+-- leadership role. Senior, Staff and Principal ICs remain individual
+-- contributors. Manager in an account/product/success IC title is ambiguous.
+CREATE VIEW employee_classification AS
+SELECT t.*,
+       CASE
+         WHEN title_text LIKE '% chief executive officer %' OR trim(title_text) = 'ceo'
+           THEN 'CEO'
+         WHEN title_text LIKE '% chief %'
+           OR trim(title_text) IN ('cto','cro','coo','cpo','cmo','cdo','cfo','ciso','cio','cco')
+           OR title_text LIKE '% general counsel %' THEN 'C-Suite'
+         WHEN title_text LIKE '% vice president %' OR title_text LIKE '% vp %'
+           OR title_text LIKE ' head %' THEN 'VP / Head'
+         WHEN title_text LIKE '% senior director %' OR title_text LIKE '% sr director %'
+           THEN 'Senior Director'
+         WHEN title_text LIKE '% director %' THEN 'Director'
+         WHEN title_text LIKE '% team lead %' OR title_text LIKE '% supervisor %'
+           THEN 'Team Lead / Supervisor'
+         WHEN (
+           title_text LIKE '% product manager %' OR title_text LIKE '% product mgr %'
+           OR title_text LIKE '% account manager %' OR title_text LIKE '% account mgr %'
+           OR title_text LIKE '% customer success manager %'
+           OR title_text LIKE '% customer success mgr %'
+           OR title_text LIKE '% cust success manager %'
+           OR title_text LIKE '% cust success mgr %'
+         ) AND (
+           title_text LIKE ' junior %' OR title_text LIKE ' jr %'
+           OR title_text LIKE ' senior %' OR title_text LIKE ' sr %'
+           OR title_text LIKE ' staff %' OR title_text LIKE ' principal %'
+           OR trim(title_text) IN ('product manager','product mgr','account manager',
+             'account mgr','customer success manager','customer success mgr',
+             'cust success manager','cust success mgr')
+         )
+           THEN CASE WHEN title_text LIKE ' junior %' OR title_text LIKE ' jr %'
+                       THEN 'Junior IC'
+                     WHEN title_text LIKE ' senior %' OR title_text LIKE ' sr %'
+                       THEN 'Senior IC'
+                     WHEN title_text LIKE ' staff %' OR title_text LIKE ' principal %'
+                       THEN 'Principal / Staff IC'
+                     ELSE 'Individual Contributor' END
+         WHEN title_text LIKE '% senior % manager %'
+           OR title_text LIKE '% sr % manager %'
+           OR title_text LIKE '% senior % mgr %'
+           OR title_text LIKE '% sr % mgr %'
+           THEN 'Senior Manager'
+         WHEN title_text LIKE '% manager %' OR title_text LIKE '% mgr %'
+           OR title_text LIKE '% group product %' THEN 'Manager'
+         WHEN title_text LIKE ' staff %' OR title_text LIKE ' principal %'
+           OR title_text LIKE ' lead %' OR title_text LIKE '% lead '
+           THEN 'Principal / Staff IC'
+         WHEN title_text LIKE ' senior %' OR title_text LIKE ' sr %'
+           THEN 'Senior IC'
+         WHEN title_text LIKE ' junior %' OR title_text LIKE ' jr %'
+           THEN 'Junior IC'
+         ELSE 'Individual Contributor'
+       END AS inferred_level,
+       CASE
+         WHEN title_text LIKE '% chief executive officer %' OR trim(title_text) = 'ceo'
+           THEN 'Executive'
+         WHEN title_text LIKE '% quality %' OR title_text LIKE '% qa %'
+           THEN 'Engineering'
+         WHEN title_text LIKE '% marketing %' OR title_text LIKE '% mktg %'
+           OR title_text LIKE '% growth %' OR title_text LIKE '% demand gen %'
+           THEN 'Marketing'
+         WHEN title_text LIKE '% data %' OR title_text LIKE '% analytics %'
+           OR title_text LIKE '% analyst %' OR title_text LIKE '% machine learning %'
+           THEN 'Data & Analytics'
+         WHEN title_text LIKE '% security %' OR title_text LIKE '% infosec %'
+           THEN 'Security'
+         WHEN title_text LIKE '% product engineering %' OR title_text LIKE '% product eng %'
+           THEN 'Engineering'
+         WHEN title_text LIKE '% product %' OR title_text LIKE '% ux %'
+           OR title_text LIKE '% design %' THEN 'Product'
+         WHEN title_text LIKE '% customer success %' OR title_text LIKE '% support %'
+           OR title_text LIKE '% onboarding %' THEN 'Customer Success'
+         WHEN title_text LIKE '% sales %' OR title_text LIKE '% revenue %'
+           OR title_text LIKE '% account %' OR title_text LIKE '% partnership %'
+           THEN 'Sales'
+         WHEN title_text LIKE '% finance %' OR title_text LIKE '% financial %'
+           OR title_text LIKE '% accounting %' OR title_text LIKE '% cfo %'
+           THEN 'Finance'
+         WHEN title_text LIKE '% people %' OR title_text LIKE '% human resources %'
+           OR title_text LIKE '% hr %' OR title_text LIKE '% talent %'
+           THEN 'People'
+         WHEN title_text LIKE '% legal %' OR title_text LIKE '% counsel %'
+           OR title_text LIKE '% compliance %' THEN 'Legal'
+         WHEN title_text LIKE '% operations %' OR title_text LIKE '% ops %'
+           OR title_text LIKE '% program %' THEN 'Operations'
+         WHEN title_text LIKE '% information technology %' OR title_text LIKE '% it %'
+           OR title_text LIKE '% infrastructure %' THEN 'IT'
+         WHEN title_text LIKE '% engineer %' OR title_text LIKE '% developer %'
+           OR title_text LIKE '% software %' OR title_text LIKE '% technology %'
+           OR title_text LIKE '% eng %' OR title_text LIKE '% cto %'
+           THEN 'Engineering'
+         WHEN department_text IN ('eng','engineering','tech','software') THEN 'Engineering'
+         WHEN department_text IN ('ops','operations','bizops') THEN 'Operations'
+         WHEN department_text IN ('hr','people','people ops') THEN 'People'
+         WHEN department_text IN ('mktg','marketing','growth') THEN 'Marketing'
+         WHEN department_text IN ('sales','revenue','commercial') THEN 'Sales'
+         WHEN department_text IN ('data','analytics','bi') THEN 'Data & Analytics'
+         WHEN department_text IN ('cs','customer success','cx') THEN 'Customer Success'
+         WHEN department_text IN ('fin','finance','accounting') THEN 'Finance'
+         WHEN department_text IN ('prod','product') THEN 'Product'
+         WHEN department_text IN ('security','infosec') THEN 'Security'
+         WHEN department_text IN ('legal','compliance') THEN 'Legal'
+         WHEN department_text IN ('it','information technology') THEN 'IT'
+         ELSE 'Unclassified' END AS inferred_department
+FROM employee_text t;
 
--- Dynamic company attributes. Headcount and size band always reflect employees.
-CREATE VIEW IF NOT EXISTS company_profiles AS
-SELECT
-    c.company_id,
-    c.company_name,
-    c.industry,
-    CASE
-        WHEN count(e.employee_id) < 130 THEN 'Small'
-        WHEN count(e.employee_id) < 180 THEN 'Growth'
-        ELSE 'Mid-market'
-    END AS size_band,
-    count(e.employee_id) AS employee_count,
-    c.headquarters
-FROM companies AS c
-LEFT JOIN employees AS e USING (company_id)
-GROUP BY c.company_id, c.company_name, c.industry, c.headquarters;
+CREATE VIEW employee_features AS
+SELECT 'live' AS run_id, company_id, employee_id, inferred_department,
+       inferred_level,
+       CASE inferred_level
+         WHEN 'CEO' THEN 10 WHEN 'C-Suite' THEN 9
+         WHEN 'VP / Head' THEN 8 WHEN 'Senior Director' THEN 7
+         WHEN 'Director' THEN 6 WHEN 'Senior Manager' THEN 5
+         WHEN 'Manager' THEN 4
+         WHEN 'Team Lead / Supervisor' THEN 3
+         WHEN 'Principal / Staff IC' THEN 3
+         WHEN 'Senior IC' THEN 2 WHEN 'Junior IC' THEN 0
+         ELSE 1 END AS inferred_rank,
+       'processed' AS processing_status
+FROM employee_classification;
 
--- Every employee appears for every ready run. A newly inserted raw employee is
--- visible immediately as pending instead of silently disappearing from reports.
-CREATE VIEW IF NOT EXISTS employee_features AS
-SELECT
-    r.run_id,
-    e.company_id,
-    e.employee_id,
-    coalesce(o.inferred_department, 'Unclassified') AS inferred_department,
-    coalesce(o.inferred_level, 'Unknown') AS inferred_level,
-    coalesce(o.inferred_rank, 1) AS inferred_rank,
-    CASE WHEN o.employee_id IS NULL THEN 'pending_inference' ELSE 'processed' END AS processing_status
-FROM inference_runs AS r
-CROSS JOIN employees AS e
-LEFT JOIN inference_outputs AS o
-    ON o.run_id = r.run_id
-    AND o.company_id = e.company_id
-    AND o.employee_id = e.employee_id
-WHERE r.load_status = 'ready';
+-- Candidate set stays inside one company and permits only explicit managers.
+-- A management role may report to the next available higher layer. ICs can
+-- report to an explicit Team Lead or Manager, but never to a Senior IC.
+CREATE VIEW manager_candidates AS
+SELECT r.company_id, r.employee_id, c.employee_id AS candidate_id,
+       rf.inferred_rank AS report_rank, cf.inferred_rank AS candidate_rank,
+       rf.inferred_level AS report_level, cf.inferred_level AS candidate_level,
+       rf.inferred_department AS report_department,
+       cf.inferred_department AS candidate_department,
+       r.team_path AS report_team, c.team_path AS candidate_team,
+       CASE WHEN r.team_path = c.team_path AND r.team_path NOT IN ('','n/a','unknown','-')
+                 THEN 'same_team'
+            WHEN r.team_path <> '' AND c.team_path <> ''
+                 AND r.team_path LIKE c.team_path || '/%'
+                 THEN 'parent_team'
+            ELSE 'other' END AS team_relation,
+       CASE WHEN r.location <> '' AND r.location = c.location THEN 1 ELSE 0 END
+         AS same_location
+FROM employee_classification r
+JOIN employee_features rf USING(company_id, employee_id)
+JOIN employee_classification c ON c.company_id = r.company_id
+JOIN employee_features cf ON cf.company_id = c.company_id AND cf.employee_id = c.employee_id
+WHERE r.employee_id <> c.employee_id
+  AND cf.inferred_level IN ('CEO','C-Suite','VP / Head','Senior Director',
+        'Director','Senior Manager','Manager','Team Lead / Supervisor')
+  AND (
+      (rf.inferred_rank < 3 AND cf.inferred_rank >= 3)
+      OR (rf.inferred_level IN ('Senior IC','Principal / Staff IC')
+          AND cf.inferred_rank >= 4)
+      OR (rf.inferred_level = 'Team Lead / Supervisor' AND cf.inferred_rank >= 4)
+      OR (rf.inferred_rank >= 4 AND cf.inferred_rank > rf.inferred_rank)
+  )
+  AND (
+      r.team_path = c.team_path
+      OR r.team_path LIKE c.team_path || '/%'
+      OR cf.inferred_level = 'CEO'
+  );
 
-CREATE VIEW IF NOT EXISTS reporting_predictions AS
-SELECT
-    r.run_id,
-    e.company_id,
-    e.employee_id,
-    o.accepted_manager_id,
-    o.best_candidate_id,
-    coalesce(o.confidence, 0.0) AS confidence,
-    coalesce(o.margin, 0.0) AS margin,
-    coalesce(o.decision, 'pending_inference') AS decision
-FROM inference_runs AS r
-CROSS JOIN employees AS e
-LEFT JOIN inference_outputs AS o
-    ON o.run_id = r.run_id
-    AND o.company_id = e.company_id
-    AND o.employee_id = e.employee_id
-WHERE r.load_status = 'ready';
+-- Scores represent strength of visible hierarchy evidence, not a learned
+-- probability. Missing or conflicting team paths fall below the accept floor.
+CREATE VIEW candidate_scores AS
+SELECT m.*,
+       CASE
+         WHEN report_level = 'C-Suite' AND candidate_level = 'CEO' THEN 0.995
+         WHEN report_level = 'VP / Head' AND candidate_level = 'CEO'
+              AND team_relation = 'parent_team' THEN 0.94
+         WHEN report_level = 'VP / Head' AND candidate_level = 'C-Suite'
+              AND team_relation = 'parent_team' THEN 0.99
+         WHEN report_level IN ('Junior IC','Individual Contributor')
+              AND candidate_level = 'Team Lead / Supervisor'
+              AND team_relation = 'same_team' THEN 0.995
+         WHEN report_level IN ('Senior IC','Principal / Staff IC')
+              AND candidate_level = 'Manager'
+              AND team_relation = 'same_team' THEN 0.99
+         WHEN report_level = 'Team Lead / Supervisor'
+              AND candidate_level = 'Manager'
+              AND team_relation = 'same_team' THEN 0.995
+         WHEN report_rank < 4 AND candidate_level = 'Manager'
+              AND team_relation = 'same_team' THEN 0.95
+         WHEN report_rank >= 4 AND candidate_rank = report_rank + 1
+              AND team_relation IN ('same_team','parent_team') THEN 0.99
+         WHEN report_rank >= 4 AND candidate_rank = report_rank + 2
+              AND team_relation IN ('same_team','parent_team') THEN 0.94
+         WHEN report_rank >= 4 AND candidate_rank > report_rank
+              AND team_relation = 'parent_team'
+              THEN 0.90 - 0.02 * (candidate_rank - report_rank - 3)
+         WHEN report_rank < 4 AND candidate_level = 'Manager'
+              AND team_relation = 'parent_team' THEN 0.75
+         WHEN report_department = candidate_department
+              AND report_department <> 'Unclassified' THEN 0.67
+         WHEN candidate_level = 'CEO' THEN 0.45
+         ELSE 0.20 END
+         + CASE WHEN same_location = 1 THEN 0.002 ELSE 0 END
+         AS evidence_score
+FROM manager_candidates m;
 
--- Evaluation is a live comparison, not a stored copy of a prediction/result.
--- An employee without a generated label is visibly unevaluated.
-CREATE VIEW IF NOT EXISTS benchmark_comparison AS
-SELECT
-    p.run_id, p.company_id, p.employee_id,
-    p.accepted_manager_id, p.confidence, p.decision,
-    b.manager_employee_id AS expected_manager_id,
-    CASE
-        WHEN b.employee_id IS NULL THEN 'unlabeled'
-        WHEN p.decision <> 'accepted' THEN 'not_accepted'
-        WHEN p.accepted_manager_id = b.manager_employee_id THEN 'correct'
-        ELSE 'incorrect'
-    END AS evaluation_status
-FROM reporting_predictions AS p
-LEFT JOIN benchmark_truth AS b USING (company_id, employee_id);
+-- Correlate the shortlist to one employee so a company-page lookup does not
+-- rank every employee in the database. The top two scores fit in one JSON
+-- value; this avoids three separate candidate scans per employee.
+CREATE VIEW employee_top_candidates AS
+SELECT e.company_id, e.employee_id,
+       (SELECT json_group_array(json_array(top.candidate_id, top.evidence_score))
+        FROM (
+            SELECT s.candidate_id, s.evidence_score
+            FROM candidate_scores s
+            WHERE s.company_id = e.company_id AND s.employee_id = e.employee_id
+            ORDER BY s.evidence_score DESC, length(s.candidate_team) DESC,
+                     s.candidate_rank ASC, s.candidate_id
+            LIMIT 2
+        ) top) AS top_two_json
+FROM employees e;
 
-CREATE VIEW IF NOT EXISTS prediction_reasons AS
-SELECT
-    o.run_id,
-    o.company_id,
-    o.employee_id,
-    reason.key AS position,
-    reason.value AS reason
-FROM inference_outputs AS o
-JOIN json_each(o.reasons_json) AS reason;
-
-CREATE VIEW IF NOT EXISTS employee_noise AS
-SELECT
-    t.company_id,
-    t.employee_id,
-    noise.key AS position,
-    noise.value AS noise_type
-FROM benchmark_truth AS t
-JOIN json_each(t.noise_profile_json) AS noise;
-
--- Metrics are calculated from employee-level rows, never copied from an export.
--- Pending employees lower coverage until the inference pipeline processes them.
-CREATE VIEW IF NOT EXISTS company_run_metrics AS
-WITH employee_metrics AS (
-    SELECT
-        p.run_id,
-        p.company_id,
-        sum(p.decision = 'accepted') AS resolved_count,
-        sum(p.decision IN ('unresolved', 'pending_inference')) AS unresolved_count,
-        1.0 * sum(p.decision = 'accepted') /
-            max(sum(p.decision <> 'company_root'), 1) AS coverage_raw,
-        coalesce(avg(CASE WHEN p.decision = 'accepted' THEN p.confidence END), 0.0)
-            AS average_confidence_raw
-    FROM reporting_predictions AS p
-    GROUP BY p.run_id, p.company_id
-), benchmark_metrics AS (
-    SELECT
-        run_id, company_id,
-        1.0 * sum(evaluation_status = 'correct') /
-            max(sum(evaluation_status IN ('correct', 'incorrect')), 1) AS precision_raw
-    FROM benchmark_comparison
-    GROUP BY run_id, company_id
+CREATE VIEW reporting_predictions AS
+WITH scored AS (
+    SELECT e.company_id, e.employee_id, f.inferred_level,
+           json_extract(t.top_two_json, '$[0][0]') AS candidate_id,
+           round(coalesce(json_extract(t.top_two_json, '$[0][1]'), 0.0), 4)
+               AS confidence,
+           round(max(0.0, coalesce(json_extract(t.top_two_json, '$[0][1]'), 0.0) -
+                    coalesce(json_extract(t.top_two_json, '$[1][1]'), 0.0)), 4)
+               AS margin
+    FROM employees e
+    JOIN employee_features f USING(company_id, employee_id)
+    JOIN employee_top_candidates t USING(company_id, employee_id)
 )
-SELECT
-    e.run_id,
-    e.company_id,
-    e.resolved_count,
-    e.unresolved_count,
-    cast(e.coverage_raw * 10000.0 + 0.5000000001 AS INTEGER) / 10000.0 AS coverage,
-    cast(b.precision_raw * 10000.0 + 0.5000000001 AS INTEGER) / 10000.0 AS precision,
-    cast(e.average_confidence_raw * 10000.0 + 0.5000000001 AS INTEGER) / 10000.0
-        AS average_confidence
-FROM employee_metrics AS e
-JOIN benchmark_metrics AS b USING (run_id, company_id);
+SELECT 'live' AS run_id, company_id, employee_id,
+       CASE WHEN inferred_level <> 'CEO' AND confidence >= 0.98
+                  AND margin >= 0.04 THEN candidate_id END AS accepted_manager_id,
+       candidate_id AS best_candidate_id,
+       min(1.0, confidence) AS confidence, margin,
+       CASE WHEN inferred_level = 'CEO' THEN 'company_root'
+            WHEN confidence >= 0.98 AND margin >= 0.04 THEN 'accepted'
+            ELSE 'unresolved' END AS decision
+FROM scored;
 
-CREATE VIEW IF NOT EXISTS run_metrics AS
-WITH run_totals AS (
-    SELECT
-        run_id,
-        count(DISTINCT company_id) AS company_count,
-        count(*) AS employee_count,
-        sum(decision = 'accepted') AS accepted_count,
-        sum(decision IN ('unresolved', 'pending_inference')) AS unresolved_count,
-        sum(decision = 'pending_inference') AS pending_inference_count,
-        coalesce(avg(CASE WHEN decision = 'accepted' THEN confidence END), 0.0)
-            AS average_resolved_confidence_raw
-    FROM reporting_predictions
-    GROUP BY run_id
-)
-SELECT
-    run_id,
-    company_count,
-    employee_count,
-    accepted_count,
-    unresolved_count,
-    pending_inference_count,
-    cast(average_resolved_confidence_raw * 10000.0 + 0.5000000001 AS INTEGER) / 10000.0
-        AS average_resolved_confidence
-FROM run_totals;
+CREATE VIEW prediction_reasons AS
+SELECT p.run_id, p.company_id, p.employee_id, 0 AS position,
+       CASE WHEN p.decision = 'company_root' THEN 'CEO is the company root'
+            WHEN p.best_candidate_id IS NULL THEN 'No suitable management title'
+            WHEN p.decision = 'accepted' THEN 'Team path and seniority identify a manager'
+            WHEN p.confidence < 0.98 THEN 'Insufficient team or role evidence'
+            ELSE 'Several candidates have similar evidence' END AS reason
+FROM reporting_predictions p;
 
--- One inspectable decision per employee and run. The answer key is deliberately absent.
-CREATE VIEW IF NOT EXISTS employee_reporting_audit AS
-SELECT
-    p.run_id, e.company_id, e.employee_id, e.full_name, e.job_title,
-    e.raw_department, e.raw_team, e.location,
-    f.inferred_department, f.inferred_level, f.processing_status,
-    p.accepted_manager_id, manager.full_name AS inferred_manager,
-    p.best_candidate_id, candidate.full_name AS leading_candidate,
-    p.confidence, p.margin, p.decision,
-    r.probability_threshold, r.margin_threshold,
-    CASE
-        WHEN p.decision = 'pending_inference' THEN 'pending_inference'
-        WHEN p.decision = 'company_root' THEN 'observed_ceo_title'
-        WHEN p.decision = 'accepted' THEN 'cleared_both_checks'
-        WHEN p.best_candidate_id IS NULL THEN 'no_suitable_candidate'
-        WHEN p.confidence < r.probability_threshold AND p.margin < r.margin_threshold
-            THEN 'low_confidence_and_ambiguous_candidates'
-        WHEN p.confidence < r.probability_threshold THEN 'low_confidence'
-        WHEN p.margin < r.margin_threshold THEN 'ambiguous_candidates'
-        ELSE 'unresolved'
-    END AS decision_reason,
-    r.source_hash, r.model_version, r.pipeline_version
-FROM reporting_predictions AS p
-JOIN inference_runs AS r USING (run_id)
-JOIN employees AS e USING (company_id, employee_id)
-JOIN employee_features AS f USING (run_id, company_id, employee_id)
-LEFT JOIN employees AS manager
-    ON manager.company_id = p.company_id AND manager.employee_id = p.accepted_manager_id
-LEFT JOIN employees AS candidate
-    ON candidate.company_id = p.company_id AND candidate.employee_id = p.best_candidate_id;
+CREATE VIEW company_run_metrics AS
+SELECT p.run_id, p.company_id,
+       sum(p.decision = 'accepted') AS resolved_count,
+       sum(p.decision = 'unresolved') AS unresolved_count,
+       round(1.0 * sum(p.decision = 'accepted') /
+             max(sum(p.decision <> 'company_root'), 1), 4) AS coverage,
+       round(coalesce(avg(CASE WHEN p.decision = 'accepted'
+             THEN p.confidence END), 0), 4) AS average_confidence
+FROM reporting_predictions p GROUP BY p.run_id, p.company_id;
+
+CREATE VIEW run_metrics AS
+SELECT 'live' AS run_id, count(DISTINCT company_id) AS company_count,
+       count(*) AS employee_count,
+       sum(decision = 'accepted') AS accepted_count,
+       sum(decision = 'unresolved') AS unresolved_count,
+       0 AS pending_inference_count,
+       round(coalesce(avg(CASE WHEN decision = 'accepted'
+             THEN confidence END), 0), 4) AS average_resolved_confidence
+FROM reporting_predictions;
+
+CREATE VIEW employee_reporting_audit AS
+SELECT p.run_id, e.company_id, e.employee_id, e.full_name, e.job_title,
+       e.raw_department, e.raw_team, e.location,
+       f.inferred_department, f.inferred_level, f.processing_status,
+       p.accepted_manager_id, manager.full_name AS inferred_manager,
+       p.best_candidate_id, candidate.full_name AS leading_candidate,
+       p.confidence, p.margin, p.decision,
+       r.probability_threshold, r.margin_threshold,
+       CASE WHEN p.decision = 'company_root' THEN 'observed_ceo_title'
+            WHEN p.decision = 'accepted' THEN 'cleared_both_checks'
+            WHEN p.best_candidate_id IS NULL THEN 'no_suitable_candidate'
+            WHEN p.confidence < r.probability_threshold THEN 'low_confidence'
+            ELSE 'ambiguous_candidates' END AS decision_reason,
+       r.source_hash, r.model_version, r.pipeline_version
+FROM reporting_predictions p
+JOIN inference_runs r USING(run_id)
+JOIN employees e USING(company_id, employee_id)
+JOIN employee_features f USING(run_id, company_id, employee_id)
+LEFT JOIN employees manager ON manager.company_id = p.company_id
+      AND manager.employee_id = p.accepted_manager_id
+LEFT JOIN employees candidate ON candidate.company_id = p.company_id
+      AND candidate.employee_id = p.best_candidate_id;

@@ -55,16 +55,16 @@ explicit management cue identifies a people-management role.
 - Team names form a containment path, for example
   `Company / Technology / Engineering / Quality & Reliability / Quality`.
 
-## Inference rule
+## Live inference rule
 
-The inference pipeline reconstructs explicit management titles against the
-same ladder before pair scoring. It uses title-derived department and executive
-portfolio first, then exact team/parent-team scope and distinguishing function
-words. Only one unambiguous parent can receive the deterministic hierarchy
-confidence; ties and missing evidence still abstain. Junior and intermediate
-ICs are routed to an explicit Team Lead/Supervisor when its scope can be
-identified. Senior, Staff and Principal titles remain ICs and are never turned
-into managers by seniority alone.
+The operational database derives features and manager choices in SQL views.
+It normalizes explicit management titles, filters to more-senior candidates in
+the same company, and scores team scope and function evidence. A candidate is
+accepted only when the evidence score and its lead over the next candidate
+clear the thresholds in the `inference_runs` view. Ties and missing evidence
+remain unresolved. The evidence score is a heuristic rather than a calibrated
+probability. Senior, Staff and Principal IC titles do not become managers just
+because of their seniority.
 
 The original generated employee population is retained. Rows that previously
 forced an unnecessary specialist executive into a company become functional
@@ -95,8 +95,11 @@ Sources were reviewed on 30 October 2026.
 
 ## Automated checks
 
-`pipeline/validate_hierarchy.py` checks a held-out sample of 75 companies and
-fails when:
+`pipeline/validate_dataset.py` checks the generated source and answer key.
+`scripts/quality_checks.sql` checks the current SQL view output for key
+integrity, decision consistency, seniority, and cycles. The older
+`pipeline/validate_hierarchy.py` checks the separate Python model export on a
+held-out sample of 75 companies and fails when:
 
 - a manager is not more senior than the report;
 - an IC receives direct reports;

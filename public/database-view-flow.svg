@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1100" viewBox="0 0 1200 1100" role="img" aria-labelledby="title desc">
+<title id="title">Database source tables and SQL view dependencies</title>
+<desc id="desc">Every derived view is shown with arrows from the tables and views it reads. The two source tables are the only objects that store rows.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#8da393"/></marker></defs>
+<rect width="100%" height="100%" fill="#fafbf8"/>
+<style>text{font-family:system-ui,sans-serif;fill:#283c32}.name{font-size:16px;font-weight:650}.kind{font-size:11px;fill:#557262}.heading{font-size:14px;font-weight:650}</style>
+<text x="24" y="31" class="heading">Stored source rows → calculated SQL views</text>
+<path d="M355.0,133 C355.0,159.0 233.0,159.0 233.0,180" stroke="#a6b9aa" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<path d="M845.0,133 C845.0,159.0 233.0,159.0 233.0,180" stroke="#a6b9aa" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<path d="M355.0,133 C355.0,159.0 600.0,159.0 600.0,180" stroke="#a6b9aa" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<path d="M845.0,133 C845.0,159.0 600.0,159.0 600.0,180" stroke="#a6b9aa" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<path d="M845.0,133 C845.0,159.0 967.0,159.0 967.0,180" stroke="#a6b9aa" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<path d="M967.0,243 C967.0,269.0 600.0,269.0 600.0,290" stroke="#a6b9aa" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<path d="M600.0,353 C600.0,379.0 600.0,379.0 600.0,400" stroke="#a6b9aa" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<path d="M600.0,353 C600.0,434.0 600.0,434.0 600.0,510" stroke="#a6b9aa" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<path d="M600.0,463 C600.0,489.0 600.0,489.0 600.0,510" stroke="#a6b9aa" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<path d="M600.0,573 C600.0,599.0 600.0,599.0 600.0,620" stroke="#a6b9aa" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<path d="M600.0,683 C600.0,709.0 600.0,709.0 600.0,730" stroke="#a6b9aa" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<path d="M845.0,133 C845.0,434.0 600.0,434.0 600.0,730" stroke="#a6b9aa" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<path d="M845.0,133 C845.0,489.0 600.0,489.0 600.0,840" stroke="#a6b9aa" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<path d="M600.0,463 C600.0,654.0 600.0,654.0 600.0,840" stroke="#a6b9aa" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<path d="M600.0,793 C600.0,819.0 600.0,819.0 600.0,840" stroke="#a6b9aa" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<path d="M600.0,903 C600.0,929.0 159.0,929.0 159.0,950" stroke="#a6b9aa" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<path d="M600.0,903 C600.0,929.0 453.0,929.0 453.0,950" stroke="#a6b9aa" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<path d="M600.0,903 C600.0,929.0 747.0,929.0 747.0,950" stroke="#a6b9aa" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<path d="M600.0,903 C600.0,929.0 1041.0,929.0 1041.0,950" stroke="#a6b9aa" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<path d="M233.0,243 C233.0,599.0 1041.0,599.0 1041.0,950" stroke="#a6b9aa" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<path d="M845.0,133 C845.0,544.0 1041.0,544.0 1041.0,950" stroke="#a6b9aa" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<path d="M600.0,463 C600.0,709.0 1041.0,709.0 1041.0,950" stroke="#a6b9aa" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<rect x="220" y="75" width="270" height="58" rx="7" fill="#eaf1e8" stroke="#afc3b1"/>
+<text x="234" y="99" class="name">companies</text>
+<text x="234" y="120" class="kind">SOURCE TABLE · stores rows</text>
+<rect x="710" y="75" width="270" height="58" rx="7" fill="#eaf1e8" stroke="#afc3b1"/>
+<text x="724" y="99" class="name">employees</text>
+<text x="724" y="120" class="kind">SOURCE TABLE · stores rows</text>
+<rect x="98" y="185" width="270" height="58" rx="7" fill="#ffffff" stroke="#afc3b1"/>
+<text x="112" y="209" class="name">inference_runs</text>
+<text x="112" y="230" class="kind">SQL VIEW · calculated on query</text>
+<rect x="465" y="185" width="270" height="58" rx="7" fill="#ffffff" stroke="#afc3b1"/>
+<text x="479" y="209" class="name">company_profiles</text>
+<text x="479" y="230" class="kind">SQL VIEW · calculated on query</text>
+<rect x="832" y="185" width="270" height="58" rx="7" fill="#ffffff" stroke="#afc3b1"/>
+<text x="846" y="209" class="name">employee_text</text>
+<text x="846" y="230" class="kind">SQL VIEW · calculated on query</text>
+<rect x="465" y="295" width="270" height="58" rx="7" fill="#ffffff" stroke="#afc3b1"/>
+<text x="479" y="319" class="name">employee_classification</text>
+<text x="479" y="340" class="kind">SQL VIEW · calculated on query</text>
+<rect x="465" y="405" width="270" height="58" rx="7" fill="#ffffff" stroke="#afc3b1"/>
+<text x="479" y="429" class="name">employee_features</text>
+<text x="479" y="450" class="kind">SQL VIEW · calculated on query</text>
+<rect x="465" y="515" width="270" height="58" rx="7" fill="#ffffff" stroke="#afc3b1"/>
+<text x="479" y="539" class="name">manager_candidates</text>
+<text x="479" y="560" class="kind">SQL VIEW · calculated on query</text>
+<rect x="465" y="625" width="270" height="58" rx="7" fill="#ffffff" stroke="#afc3b1"/>
+<text x="479" y="649" class="name">candidate_scores</text>
+<text x="479" y="670" class="kind">SQL VIEW · calculated on query</text>
+<rect x="465" y="735" width="270" height="58" rx="7" fill="#ffffff" stroke="#afc3b1"/>
+<text x="479" y="759" class="name">employee_top_candidates</text>
+<text x="479" y="780" class="kind">SQL VIEW · calculated on query</text>
+<rect x="465" y="845" width="270" height="58" rx="7" fill="#ffffff" stroke="#afc3b1"/>
+<text x="479" y="869" class="name">reporting_predictions</text>
+<text x="479" y="890" class="kind">SQL VIEW · calculated on query</text>
+<rect x="24" y="955" width="270" height="58" rx="7" fill="#ffffff" stroke="#afc3b1"/>
+<text x="38" y="979" class="name">prediction_reasons</text>
+<text x="38" y="1000" class="kind">SQL VIEW · calculated on query</text>
+<rect x="318" y="955" width="270" height="58" rx="7" fill="#ffffff" stroke="#afc3b1"/>
+<text x="332" y="979" class="name">company_run_metrics</text>
+<text x="332" y="1000" class="kind">SQL VIEW · calculated on query</text>
+<rect x="612" y="955" width="270" height="58" rx="7" fill="#ffffff" stroke="#afc3b1"/>
+<text x="626" y="979" class="name">run_metrics</text>
+<text x="626" y="1000" class="kind">SQL VIEW · calculated on query</text>
+<rect x="906" y="955" width="270" height="58" rx="7" fill="#ffffff" stroke="#afc3b1"/>
+<text x="920" y="979" class="name">employee_reporting_audit</text>
+<text x="920" y="1000" class="kind">SQL VIEW · calculated on query</text>
+</svg>

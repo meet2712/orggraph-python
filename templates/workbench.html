@@ -10,14 +10,14 @@
 
   <div class="workbench-notice">
     <p>Queries run on a read-only copy in your browser. They cannot change the source database.</p>
-    <span>One query · up to 200 rows · 5 second limit</span>
+    <span>One query · up to 200 rows · 20 second limit</span>
   </div>
 
   <div class="workbench-layout">
     <aside class="database-browser" aria-label="Database tables">
       <div class="browser-heading"><h2>Tables &amp; views</h2><span id="database-table-count"></span></div>
       <div id="database-tables" class="database-tables"><p class="muted">Loading tables…</p></div>
-      <p class="browser-footnote">Generated records, inferred features, decisions, and a separate answer key.</p>
+      <p class="browser-footnote">Two source tables. All features, decisions and metrics are live SQL views.</p>
       <p class="browser-footnote"><a href="/schema.html#local-database">Open this database locally →</a></p>
     </aside>
 
@@ -33,7 +33,7 @@
             <option value="matches">Accepted manager matches</option>
             <option value="chain">Follow a manager chain</option>
             <option value="quality">Missing source fields</option>
-            <option value="lineage">Load and model lineage</option>
+            <option value="lineage">Inference rules and thresholds</option>
           </select>
         </label>
       </div>

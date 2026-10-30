@@ -1,140 +1,53 @@
 # Database design
 
-SQLite is enough for this read-only assessment: one portable file, explicit SQL,
-foreign-key constraints and the same snapshot in the Flask app and browser SQL
-workspace. The design keeps persisted facts small and puts deterministic
-transformations in views so their logic is inspectable.
+The SQLite app database persists only the company directory and observed employee records. Reporting lines, scores, explanations, headcounts and coverage are calculated by SQL views over those two tables. A direct insert or edit in `employees` becomes visible on the next query; no employee-to-manager mapping table needs maintenance.
 
-## Persisted tables
+## Source tables
 
-| Table | One row represents | Why it is persisted |
+| Table | Grain | Stored fields |
 |---|---|---|
-| `companies` | One company master record. | Name, industry and headquarters are source attributes. |
-| `employees` | One observed employee in a company. | These are the messy input fields used by inference. |
-| `benchmark_labels` | One generated source label per employee. | Known answers and injected-noise metadata are fixed source facts, separate from model input and output. |
-| `inference_runs` | One checked source/model run. | Hashes and thresholds are immutable lineage for a reproducible run. |
-| `inference_outputs` | One model decision per employee/run. | Features, candidate scores and explanations are the durable output of model execution. |
+| `companies` | One company | ID, name, industry, headquarters |
+| `employees` | One observed person | Company and employee IDs, name, job title, department, team, location, email and source row number |
 
-`companies` intentionally has no `employee_count` or `size_band` column. Both
-depend on the current employee population and therefore belong in a view.
+Employee IDs identify rows and join an employee to their company. They do **not** encode who reports to whom. `companies` has no stored employee count or size band.
 
-## Dynamic views
+## Views
 
-| View | What it calculates |
+| View | Calculation |
 |---|---|
-| `benchmark_truth` | The answer-key shape from source labels; `is_root` is calculated from whether the known manager is null. |
-| `benchmark_comparison` | A live side-by-side comparison of each prediction and its known answer, with `correct`, `incorrect`, `not_accepted` or `unlabeled` status. |
-| `company_profiles` | Current employee count and size band from `employees`. |
-| `employee_features` | Inferred function, seniority and processing status for every employee/ready run. |
-| `reporting_predictions` | Accepted manager, leading candidate, confidence, margin and decision. |
-| `prediction_reasons` | One ordered reason per decision by expanding `reasons_json`. |
-| `employee_noise` | One noise label per generated employee by expanding the benchmark metadata. |
-| `company_run_metrics` | Resolved/unresolved counts, coverage, precision and average accepted confidence. |
-| `run_metrics` | Current company, employee, accepted, unresolved, pending and average-confidence totals for a run. |
-| `employee_reporting_audit` | Raw fields, features, manager choices, thresholds and an auditable decision reason. |
+| `company_profiles` | Live employee count and size band |
+| `employee_features` | Normalized function and seniority from observed titles and fields |
+| `reporting_predictions` | Leading manager candidate, evidence score, lead over second place, and accepted or unresolved decision |
+| `prediction_reasons` | Readable signals behind each decision |
+| `company_run_metrics` | Accepted and unresolved line counts, coverage and average accepted score |
+| `run_metrics` | Current totals across companies and employees |
+| `employee_reporting_audit` | Raw input and derived decision side by side |
+| `inference_runs` | Current SQL rule version and acceptance thresholds, as a view |
 
-The complete `CREATE VIEW` queries are in [`schema.sql`](../schema.sql) and are
-also displayed on the portal's Database schema page.
+The SQL in [`schema.sql`](../schema.sql) defines all these views. The [schema page](../templates/schema.html) exposes their complete definitions. The Flask page uses [`sql/company_predictions.sql`](../sql/company_predictions.sql), a company-scoped form of the same inference logic so it does not evaluate all 500 companies for one page. Candidate ranking is entirely in SQL. Adding an employee recalculates that employee's match and can change another employee's top candidate. A match is accepted only when the score reaches the threshold **and** its lead over the next candidate is large enough. The score is an interpretable heuristic, not a calibrated probability.
 
-### Example: live company headcount
+A quick check in PyCharm:
 
 ```sql
-CREATE VIEW company_profiles AS
-SELECT
-    c.company_id,
-    c.company_name,
-    c.industry,
-    CASE
-        WHEN count(e.employee_id) < 130 THEN 'Small'
-        WHEN count(e.employee_id) < 180 THEN 'Growth'
-        ELSE 'Mid-market'
-    END AS size_band,
-    count(e.employee_id) AS employee_count,
-    c.headquarters
-FROM companies AS c
-LEFT JOIN employees AS e USING (company_id)
-GROUP BY c.company_id, c.company_name, c.industry, c.headquarters;
+SELECT company_id, employee_count, size_band
+FROM company_profiles
+WHERE company_id = 'cmp_0001';
+
+SELECT e.full_name, e.job_title, p.accepted_manager_id, p.confidence, p.margin, p.decision
+FROM employees AS e
+JOIN reporting_predictions AS p USING (company_id, employee_id)
+WHERE e.company_id = 'cmp_0001'
+LIMIT 25;
 ```
 
-If one employee is inserted, `employee_count` and `size_band` immediately
-recalculate. No company row or saved metric needs to be updated.
+After an `INSERT` into `employees`, rerun these queries. Headcount, size band and reporting views update without editing `companies` or running a Python ETL job. A local edit in PyCharm affects the local database only; the published GitHub Pages site remains a fixed exported snapshot until it is rebuilt and deployed.
 
-### Example: live company metrics
+## Offline answer key and evaluation
 
-`company_run_metrics` aggregates employee-level decisions. Resolved count is
-the number of accepted edges. Unresolved count includes explicit abstentions and
-new employees still waiting for inference. Coverage divides accepted edges by
-non-root employees. Precision counts only accepted edges with a generated label,
-using `benchmark_comparison`; an unlabeled new employee is not counted as wrong.
-Average confidence uses accepted edges only.
+[`data/employees_ground_truth.csv`](../data/employees_ground_truth.csv) contains the generated direct-manager answers. This file is an **evaluation fixture**, not an operational table or a feature used by inference. It must stay independent of predictions: deriving an answer from the model's own output would make precision self-confirming. [`scripts/evaluate_sql_inference.py`](../scripts/evaluate_sql_inference.py) compares the SQL decisions for held-out companies with this CSV outside SQLite. When a new employee is inserted, there is no benchmark answer for them until one is independently supplied; they can still receive an inferred manager immediately.
 
-This distinction is important: the view is dynamic, but it does not pretend to
-run a Python model inside SQLite. A new employee appears immediately with
-`processing_status = 'pending_inference'`; the inference pipeline must still
-produce that employee's scored output before an edge can be accepted.
+## Constraints and checks
 
-## Input, model output and benchmark remain separate
+`employees.company_id` has a foreign key to `companies.company_id`; `(company_id, employee_id)` uniquely identifies a person. The SQL inference view restricts candidate managers to the same company and requires a higher leadership level. `scripts/quality_checks.sql` checks source keys, view cardinality, score bounds, decision consistency and reporting cycles. The loader creates a new database atomically if the source files or schema change; ordinary local employee edits are preserved across app restarts.
 
-Blank titles, departments, teams and locations stay blank in `employees`.
-Display labels such as “Title unavailable” are added when the page payload is
-constructed, never written over the raw fields. `source_row_number` preserves
-the original CSV order.
-
-`inference_outputs` is imported from the checked prediction files. A decision
-can be `accepted`, `unresolved` or `company_root`; only an accepted manager
-creates a chart edge. The views add `pending_inference` when a raw employee has
-no output for a ready run.
-
-`benchmark_labels` imports the generator's separate answer file. These labels
-must stay fixed: deriving the "truth" from the model's own prediction would
-make accuracy self-confirming. `benchmark_truth` and `benchmark_comparison` are
-views, so root status and prediction-versus-answer mapping are calculated in
-inspectable SQL. The model never uses benchmark labels to choose a manager.
-
-## Constraints and validation
-
-- Composite employee keys include `company_id`; manager and candidate foreign
-  keys cannot cross companies.
-- `inference_outputs` permits one output per employee/run.
-- Confidence and margin are constrained to `[0, 1]`, with margin no greater than
-  confidence. Self-management is rejected.
-- An accepted decision must use its leading candidate as the accepted manager.
-- Startup validates foreign keys, row counts, threshold compliance, reporting
-  cycles, seniority and dynamic-view reconciliation before replacing the prior
-  snapshot.
-- The import runs in a staging file inside a transaction. Failure leaves the
-  previous database untouched.
-
-The current checked source contains 500 companies, 87,160 employees, 66,793
-accepted reporting lines and 19,883 unresolved decisions. Data-shape checks are
-separate from model quality: a valid foreign key does not prove that an inferred
-reporting line is correct.
-
-## Lineage and rebuilding
-
-`inference_runs` stores the source hash, model hash, pipeline hash, thresholds,
-source population, status and load time. The stable run key is derived from the
-full source fingerprint. Source counts describe what the model saw; live counts
-come from the views.
-
-`scripts/build_database.py` prepares the checked database and compressed
-download. Unchanged startup verifies and reuses the snapshot. Changed or damaged
-artifacts trigger an atomic rebuild. This take-home publishes one current
-snapshot; retaining changing source versions would require a dataset/version key.
-
-## Inspect it
-
-The `/data.html` page runs read-only SQL in the browser. The `/schema.html` page
-shows the physical ER diagram, every derived view and the complete SQL definition
-for each view. The downloadable snapshot is `/database/snapshot.sqlite.gz`.
-
-From the repository:
-
-```bash
-sqlite3 -header -column instance/orggraph.sqlite3 < scripts/quality_checks.sql
-```
-
-The quality script checks lineage, row grains, foreign keys, dynamic headcounts,
-decision cardinality, metric reconciliation, score bounds, seniority, cycles and
-threshold compliance. Queries that look for invalid records should return no
-rows.
+The downloadable database is a snapshot of the published source rows and SQL views. It is not a live hosted database connection.

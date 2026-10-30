@@ -37,19 +37,17 @@ ORDER BY employee_id;`,
        ROUND(metrics.coverage * 100, 1) AS coverage_pct
 FROM company_profiles AS profile
 JOIN company_run_metrics AS metrics USING (company_id)
+WHERE profile.company_id IN ('cmp_0001', 'cmp_0002', 'cmp_0003')
 ORDER BY coverage_pct, profile.company_name;`,
     counts: `SELECT 'companies' AS dataset, COUNT(*) AS rows FROM companies
 UNION ALL
-SELECT 'employees', COUNT(*) FROM employees
-UNION ALL
-SELECT 'accepted reporting lines', COUNT(*)
-FROM reporting_predictions WHERE decision = 'accepted';`,
+SELECT 'employees', COUNT(*) FROM employees;`,
     unresolved: `SELECT f.inferred_department AS department,
        COUNT(*) AS unresolved_people
 FROM reporting_predictions AS p
 JOIN employee_features AS f
   USING (run_id, company_id, employee_id)
-WHERE p.decision = 'unresolved'
+WHERE p.company_id = 'cmp_0001' AND p.decision = 'unresolved'
 GROUP BY f.inferred_department
 ORDER BY unresolved_people DESC;`,
     matches: `SELECT c.company_name, e.full_name AS employee,
@@ -61,7 +59,7 @@ JOIN employees AS e
   ON e.company_id = p.company_id AND e.employee_id = p.employee_id
 JOIN employees AS m
   ON m.company_id = p.company_id AND m.employee_id = p.accepted_manager_id
-WHERE p.decision = 'accepted'
+WHERE p.company_id = 'cmp_0001' AND p.decision = 'accepted'
 ORDER BY p.confidence DESC
 LIMIT 50;`,
     chain: `WITH RECURSIVE manager_chain AS (
@@ -88,10 +86,8 @@ FROM manager_chain ORDER BY depth;`,
        SUM(CASE WHEN TRIM(raw_team) = '' THEN 1 ELSE 0 END) AS missing_teams,
        SUM(CASE WHEN TRIM(location) = '' THEN 1 ELSE 0 END) AS missing_locations
 FROM employees;`,
-    lineage: `SELECT run_id, model_version, pipeline_version,
-       source_company_count, source_employee_count,
-       probability_threshold, margin_threshold, load_status, loaded_at
-FROM inference_runs ORDER BY loaded_at DESC;`,
+    lineage: `SELECT run_id, model_type, probability_threshold, margin_threshold
+FROM inference_runs;`,
   };
 
   function placeholder(text) {
@@ -187,8 +183,8 @@ FROM inference_runs ORDER BY loaded_at DESC;`,
     setBusy(true);
     queryTimer = setTimeout(() => {
       placeholder("The query was stopped before a result was returned.");
-      stopWorker("The query exceeded the 5 second limit. Reload the database to try a smaller query.");
-    }, 5000);
+      stopWorker("The query exceeded the 20 second limit. Reload the database to try a smaller query.");
+    }, 20000);
     worker.postMessage({ type: "query", id: activeQueryId, query: queryEditor.value });
   }
 
@@ -243,7 +239,7 @@ FROM inference_runs ORDER BY loaded_at DESC;`,
       button.title = table.type === "view" ? `${table.name} · read-only view` : table.name;
       const count = document.createElement("span");
       count.className = "table-row-count";
-      count.textContent = table.rowCount.toLocaleString("en-US");
+      count.textContent = table.rowCount === null ? "view" : table.rowCount.toLocaleString("en-US");
       button.append(name, count);
       button.addEventListener("click", () => {
         for (const other of tableList.querySelectorAll("button")) other.setAttribute("aria-pressed", String(other === button));

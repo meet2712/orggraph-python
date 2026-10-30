@@ -1,172 +1,36 @@
 # OrgGraph
 
-A flat employee list rarely tells you who reports to whom. OrgGraph uses job
-titles, departments, team names and location to infer those reporting lines.
-Each accepted line has a confidence score. If two managers look equally
-plausible, the person stays unresolved.
+OrgGraph turns a flat list of employees into an inferred reporting chart. The working app is at [GitHub Pages](https://meet2712.github.io/orggraph-python/). Reviewers can [query the SQLite database](https://meet2712.github.io/orggraph-python/data.html) and [read its view definitions](https://meet2712.github.io/orggraph-python/schema.html).
 
-[Open the app](https://meet2712.github.io/orggraph-python/) ·
-[Browse the database and run SQL](https://meet2712.github.io/orggraph-python/data.html) ·
-[Database ER diagram](https://meet2712.github.io/orggraph-python/schema.html)
+The assessment asks for at least 500 companies with at least 100 employees each, messy job titles and missing fields, confidence on reporting lines, a hosted chart, source code and an explanation of how results were checked. This project generates 500 synthetic companies and 87,160 people. It leaves a manager unresolved when the evidence is insufficient.
 
-The dataset is generated: 500 companies, 87,160 employees and ten industries.
-Every company has 100–250 employees. Names, emails and reporting lines are made
-up; the clean hierarchy is kept separately so the predictions can be measured.
+## Database design
 
-## What to look at
+The operational SQLite file has two persisted tables:
 
-Pick a company and open a person in the chart. Their details show the accepted
-manager, confidence, candidate gap and reasons for the match. **Needs review**
-shows people without an accepted manager. **All people** includes everyone,
-with accepted managers named alongside unresolved decisions.
+- `companies`: company ID, name, industry and headquarters.
+- `employees`: one observed row per person, including name, job title, department, team, location and email.
 
-The database page is there to make the decisions inspectable. You can look at
-raw input fields, follow a manager chain, check missing data or query
-`employee_reporting_audit` to see why a manager was accepted or rejected. The
-ER diagram includes every column, its SQL type, primary and foreign keys, and
-relationship cardinality.
+Employee IDs are row keys. No table stores an employee-to-manager answer or prediction mapping. `schema.sql` defines SQL views for current headcount, size band, inferred employee features, manager candidates and decisions, reasons, coverage and the audit. These views recalculate when a source row changes. Adding one employee in PyCharm updates that company's headcount and the new employee's inference without editing another table or rerunning Python ETL. The Python loader rebuilds the local database only when the source files or schema change; ordinary local employee edits are preserved.
 
-The pages use the available window width. The chart can be panned and zoomed;
-Fit keeps the org chart fitted as the window changes. The ER diagram stays at
-actual size and scrolls horizontally on a small screen.
+The generated answer key is [`data/employees_ground_truth.csv`](data/employees_ground_truth.csv). It is kept outside the app database and never used as an inference feature. It supports independent offline evaluation. A new manually inserted employee has no known answer until one is supplied separately; the inference view still produces a decision.
 
-## Database choices
+[Database notes](docs/DATABASE.md) explain each table and view. [Hierarchy policy](docs/HIERARCHY.md) explains the title ladder and individual-contributor safeguards.
 
-I used SQLite because this version has one published dataset and no editing
-workflow. It keeps the app easy to run locally and lets a reviewer download the
-same data they see in the portal.
+## How inference works
 
-There are five persisted tables and ten read-only SQL views. The main separation is:
+1. Normalize a messy title and infer a function and seniority level.
+2. Consider plausible, more-senior leaders within the same company. Team scope and function help distinguish candidates.
+3. Score each candidate and compare the best with the second best.
+4. Accept the best manager only when the evidence score and the lead over the next candidate both clear the SQL thresholds. Otherwise leave the reporting line unresolved.
 
-- `companies` and `employees` hold the observed source records. Company headcount
-  is deliberately absent from `companies`.
-- `inference_runs` records immutable source/model lineage and acceptance thresholds.
-- `inference_outputs` is the one durable model-output table: features, candidate,
-  scores, decision and explanation JSON at employee/run grain.
-- `benchmark_labels` imports the generator's fixed answer key and title-noise
-  labels. A benchmark needs independent known answers to measure correctness.
-- `benchmark_truth` derives root status from those labels, while
-  `benchmark_comparison` joins each model decision to its known answer. Both
-  are views; neither stores a copied correctness result.
-- `company_profiles`, `employee_features`, `reporting_predictions`,
-  `prediction_reasons`, `employee_noise`, `company_run_metrics`, `run_metrics`
-  and `employee_reporting_audit` are views. Their joins, conditions and
-  aggregations are visible in `schema.sql` and on the database schema page.
+The score is an interpretable rule-based evidence score, not a calibrated probability. Senior, Staff and Principal individual contributors are not automatically treated as managers. Junior employees are not automatically assigned to a Senior IC. An explicit Team Lead/Supervisor can lead the appropriate group. The expected management ladder is CEO → optional specialist C-suite → VP/Head → Director → Senior Manager → Manager → optional Team Lead/Supervisor. QA roles should stay within QA ownership when the source supports that.
 
-Composite keys stop employee and manager references crossing companies. Score
-bounds, self-management, missing initial outputs, cycles and company counts are
-checked before a load is accepted. The importer builds a staging database and
-replaces the working snapshot only after the checks pass. If the inputs have not
-changed, startup verifies and reuses the existing files.
-
-`company_profiles` calculates `employee_count` and `size_band` from the live
-`employees` rows. `company_run_metrics` calculates resolved/unresolved counts,
-coverage, precision and average accepted confidence from employee-level
-decisions; `run_metrics` calculates the corresponding dataset totals. Adding a
-raw employee updates the views immediately and exposes the new row as
-`pending_inference`. The inference pipeline must still produce a scored output
-before a reporting edge can be accepted. No count or summary row needs a manual
-update.
-
-`employee_reporting_audit` joins the source fields, inferred features, manager
-choices and run metadata. It does not include the generated answer key.
-[Database notes](docs/DATABASE.md) cover the table grains, constraints and load
-process in more detail. [DATA_DICTIONARY.md](DATA_DICTIONARY.md) describes the CSVs.
-
-The public SQL editor runs on a downloaded SQLite copy in a browser worker.
-The first download is about 9 MB; progress is shown while it loads.
-It accepts one read-only query, returns up to 200 rows and stops after five
-seconds. There is no public server endpoint that accepts SQL. You can also
-[download the snapshot](https://meet2712.github.io/orggraph-python/database/snapshot.sqlite.gz),
-or get the committed compressed database from
-[`public/downloads/orggraph.sqlite.gz`](public/downloads/orggraph.sqlite.gz).
-Extract the `.gz` file and open it in a local SQLite client. That copy does not
-sync changes back to the site.
-
-## How the inference works
-
-The generator creates a clean company structure, then adds abbreviated and
-misspelled titles, conflicting department labels, missing fields and incorrect
-team values. Some observed team names contain a hierarchy such as
-`Engineering / Platform / Core Services`. The clean manager IDs and canonical
-fields stay in a separate answer key.
-
-The generator separates the people-management ladder from the individual-
-contributor ladder. Its management path is CEO → optional C-suite → VP/Head →
-Director → Senior Manager → Manager → optional Team Lead/Supervisor. Junior, intermediate,
-Senior, Staff and Principal are IC career levels; a senior title alone does not
-make someone a people manager. An explicit Team Lead can supervise junior and
-intermediate ICs. Senior, Staff and Principal ICs report to a formal Manager.
-
-The CEO is the only universal executive role. Non-CEO C-suite membership is
-selected reproducibly from company size and industry: Small companies have one
-or two specialist executives, Growth companies two to four, and Mid-market
-companies three to five. A function's VP/Head reports to its matching executive
-when that role exists and otherwise reports directly to the CEO.
-
-Manager and employee titles are aligned with their function. QA Engineers and
-QA Team Leads stay under a QA Manager before the branch joins broader
-Engineering leadership. The hierarchy policy and external references are in
-[`docs/HIERARCHY.md`](docs/HIERARCHY.md).
-
-Only titles with an explicit management cue—such as Team Lead, Supervisor,
-Manager, Director, VP, Head or Chief—are considered as manager candidates.
-The management ladder first narrows each leader to the next plausible parent
-layer. Title-derived department and executive portfolio come before noisy team
-text; exact team scope and function words separate peers. A unique match on
-that ladder receives deterministic structural confidence. All other candidates
-are scored using department, team scope, role family, seniority gap, location
-and missing-field signals. Titles such as Product Manager, Account Manager and
-Customer Success Manager remain IC roles unless another explicit management
-cue is present.
-
-For junior and intermediate employees, an explicit Team Lead/Supervisor in the
-same inferred scope is considered before a formal Manager. If a possible Team
-Lead cannot be placed because its title or team is missing, the direct edge is
-left unresolved instead of flattening the chart.
-
-Training uses generated manager labels. Calibration and threshold selection
-use separate validation companies. At scoring time, the model uses only the
-messy observed fields; it cannot read the answer key as an input feature.
-
-A line needs at least 47.5% combined confidence and a 10 percentage-point lead
-over the next candidate. Both checks must pass. These cutoffs were chosen to
-reach 97% validation precision with at least 50 accepted examples. If no pair
-of cutoffs meets that target, the pipeline accepts no lines.
-
-A person has at most one accepted manager. Managers must be more senior, which
-prevents cycles. Unresolved people remain disconnected; their leading
-candidate is shown only as an unconfirmed possibility.
-
-## Results
-
-Companies are split into 350 for training, 75 for validation and 75 for the
-final test. All employees from a company stay in the same split.
-
-| Method, on the 75 test companies | Precision | Coverage | Recall | F1 |
-|---|---:|---:|---:|---:|
-| Rules baseline | 88.46% | 90.87% | 80.38% | 84.23% |
-| Hybrid hierarchy + pair scores | 97.74% | 76.61% | 74.87% | 84.79% |
-
-Precision measures how many accepted lines are correct. Coverage measures how
-many employees with a true manager received an accepted prediction. Recall
-measures how many true reporting lines were recovered correctly.
-
-Across all 500 companies, the published run has 66,793 accepted lines, 19,883
-unresolved decisions and 484 people identified as company roots from their
-observed titles. These operational counts are kept separate from the test
-metrics above.
-
-These results are for synthetic data. They do not establish accuracy on real
-companies. Missing team information can leave two managers indistinguishable,
-and missing titles can cause errors even at the top of a company. The app
-keeps those mistakes visible in the comparison with generated answers. It
-currently stores one checked snapshot; retained dataset versions and comparisons
-between past runs would need a further schema change.
+The SQL for each step is inspectable in [`schema.sql`](schema.sql) or on the schema page. Flask uses [`sql/company_predictions.sql`](sql/company_predictions.sql), a company-scoped SQL query with the same rules, so one page need not score all 500 companies. The `employee_reporting_audit` view shows raw input, inferred features, leading candidate, selected manager, score, margin and decision reason in one query.
 
 ## Run locally
 
-Use Python 3.11 or later.
+Use Python 3.11 or later:
 
 ```bash
 git clone https://github.com/meet2712/orggraph-python.git
@@ -174,88 +38,44 @@ cd orggraph-python
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements.txt
-python scripts/package-source.py
+python scripts/build_database.py
 python app.py
 ```
 
-Open <http://127.0.0.1:5000>. The first start imports the committed CSVs and
-predictions into `instance/orggraph.sqlite3`. It does not generate a new dataset
-or train a model. Request connections are read-only. The package script
-refreshes the source and dataset downloads and builds the ER diagram from
-`schema.sql`.
+Open <http://127.0.0.1:5000>. The local SQLite database is `instance/orggraph.sqlite3`. The app queries the SQL views at request time. If you edit employees in that local file, refresh the page to see the new result. The static GitHub Pages site is an exported snapshot and changes only after a new build and deployment.
 
-To inspect the database checks from a terminal:
+Inspect the source and views directly:
 
 ```bash
+sqlite3 instance/orggraph.sqlite3 '.tables'
 sqlite3 -header -column instance/orggraph.sqlite3 < scripts/quality_checks.sql
 ```
 
-## Hosting
+The browser SQL editor opens a read-only copy of the published database. You can download its compressed snapshot from the schema page and open it in PyCharm or another SQLite client.
 
-The main app is on GitHub Pages. Python renders the Flask/Jinja templates at
-build time and exports the company pages, browser assets and compressed SQLite
-snapshot. Search, filters, person details and SQL then run in the browser.
-Python is still used for generation, training, validation and page rendering;
-GitHub Pages does not run a Python server.
-
-```bash
-python scripts/export_site.py --base-path /orggraph-python
-```
-
-The workflow in `.github/workflows/pages.yml` runs the checks, exports 505
-pages into `dist/` and publishes them when `main` is pushed. The repository's
-Pages source needs to be set to GitHub Actions.
-
-Render is an optional way to run the same source as a Flask server.
-`render.yaml` contains the settings:
-
-```text
-Build: pip install -r requirements.txt && python scripts/build_database.py && python scripts/package-source.py
-Start: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --preload
-Health check: /health
-```
-
-The current read-only demo does not need that server. A future upload or
-inference API would need a backend. Render's free instance may sleep when idle;
-its database files can be rebuilt from the committed inputs after a restart.
-
-## Checks and regeneration
-
-```bash
-python -m unittest discover -s tests -p 'test_*.py'
-python -m unittest discover -s pipeline -p 'test_*.py'
-python pipeline/validate_dataset.py --data-dir data
-python pipeline/validate_outputs.py --output-dir public/data
-python pipeline/validate_hierarchy.py --data-dir data --output-dir public/data --sample-size 75
-```
-
-The checks cover relational integrity, safe database replacement, read-only
-connections, decision counts and inference thresholds. The hierarchy audit
-uses the 75 held-out companies to verify every management level, prevent IC
-titles from receiving direct reports, enforce QA ownership and measure manager
-span.
-A reproducibility test
-regenerates the input CSVs and compares them with the committed files.
-
-To replace the generated inputs and fit a new model:
+## Generation and checks
 
 ```bash
 python pipeline/generate_dataset.py --companies 500 --min-employees 100 --max-employees 250 --seed 20261029 --output-dir data
-python pipeline/train_and_infer.py --data-dir data --output-dir public/data --model-dir model
+python -m unittest discover -s tests -p 'test_*.py'
+python pipeline/validate_dataset.py --data-dir data
 ```
 
-## Main files
+The generator writes messy observations and the separate benchmark CSV. The operational inference reads only the observations. Accuracy must be measured independently against the benchmark CSV; coverage and evidence scores alone do not establish correctness on synthetic or real companies. `pipeline/train_and_infer.py` and the older `public/data/companies/*.json` predictions remain as a historical offline experiment. The current site and SQLite reporting views do not read those prediction files; their manager decisions are calculated in SQL.
 
-| File or directory | Purpose |
+On 75 held-out generated companies (13,447 employees), the live SQL rules accepted 6,322 reporting lines. Of those, 6,163 matched the separate answer CSV and 159 did not: 97.48% precision at 47.28% coverage. Coverage is deliberately lower because ambiguous lines are left unresolved. These figures are for synthetic data only.
+
+## Hosting and files
+
+GitHub Actions runs the checks, exports the Flask/Jinja pages, and publishes the static app to GitHub Pages. It includes a compressed SQLite snapshot for the browser SQL editor. Render can run the same Flask app, but its database is local to that deployment and is not a shared writable database.
+
+| Path | Purpose |
 |---|---|
-| `app.py`, `templates/` | Flask routes and rendered pages |
-| `database.py`, `schema.sql` | Import, validation, tables and SQL reads |
-| `pipeline/` | Dataset generation, inference and evaluation |
-| `docs/HIERARCHY.md` | Management ladder, IC policy and research references |
-| `data/`, `model/`, `public/data/` | Inputs, fitted model and published predictions |
-| `public/app.js`, `public/style.css` | Browser interactions and layout |
-| `public/sql-worker.js` | Browser SQLite execution and query limits |
-| `scripts/build_erd.py` | ER diagram generated from the actual schema |
-| `scripts/export_site.py` | Static export for hosting |
-| `scripts/quality_checks.sql` | Database inspection queries |
-| `tests/` | App, import and reproducibility checks |
+| [`schema.sql`](schema.sql) | Source tables and all live inference views |
+| [`sql/company_predictions.sql`](sql/company_predictions.sql) | Company-scoped SQL inference for app pages |
+| [`database.py`](database.py) | Load source records and query the views |
+| [`app.py`](app.py), [`templates/`](templates) | Flask pages |
+| [`pipeline/generate_dataset.py`](pipeline/generate_dataset.py) | Synthetic source and independent answer key |
+| [`scripts/quality_checks.sql`](scripts/quality_checks.sql) | Read-only integrity checks |
+| [`scripts/build_erd.py`](scripts/build_erd.py) | ER diagram built from the schema |
+| [`scripts/export_site.py`](scripts/export_site.py) | Static GitHub Pages export |

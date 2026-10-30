@@ -275,17 +275,6 @@ if (chartView) {
     chartView.scrollBy(move[0], move[1]);
   });
 
-  document.querySelector("#show-truth").addEventListener("change", (event) => {
-    for (const status of document.querySelectorAll("[data-confidence]")) {
-      const correct = status.dataset.correct === "true";
-      const normalText = status.classList.contains("card-status")
-        ? `${status.dataset.confidence} confidence` : status.dataset.confidence;
-      status.textContent = event.target.checked
-        ? `${status.dataset.confidence} · ${correct ? "correct" : "incorrect"}` : normalText;
-      status.classList.toggle("wrong", event.target.checked && !correct);
-    }
-  });
-
   new ResizeObserver(() => requestLayout()).observe(canvas);
   new ResizeObserver(() => requestLayout(true)).observe(chartView);
   window.addEventListener("resize", () => requestLayout(true));
@@ -320,7 +309,6 @@ if (records && dialog) {
 
     const manager = people.get(person.predictedManagerId);
     const candidate = people.get(person.bestCandidateId);
-    const truth = people.get(person.groundTruthManagerId);
     const isRoot = person.inferredLevel === "CEO";
     const nameParts = person.name.split(/\s+/);
 
@@ -365,18 +353,9 @@ if (records && dialog) {
     }
     document.querySelector("#dialog-signals").hidden = person.reasons.length === 0;
 
-    setText("dialog-truth-manager", truth
-      ? `Generated direct manager: ${truth.name} · ${truth.title || "Title missing"}.`
-      : "This person is the generated company root.");
-    setText("dialog-truth-result", manager
-      ? `The inferred reporting line is ${person.isCorrect ? "correct" : "incorrect"}.`
-      : isRoot ? "" : "The model left this manager unresolved.");
     setText("dialog-original-title", person.title || "Missing");
     setText("dialog-original-department", person.rawDepartment);
     setText("dialog-record-id", person.id);
-    setText("dialog-noise", person.noiseProfile.join(", ").replaceAll("_", " "));
-
-    document.querySelector("#dialog-truth-disclosure").open = false;
     document.querySelector("#dialog-record-disclosure").open = false;
     dialog.scrollTop = 0;
 

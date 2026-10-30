@@ -4,31 +4,89 @@ from collections import defaultdict
 from html import escape
 import json
 from pathlib import Path
+import re
 import sqlite3
 
 ROOT = Path(__file__).resolve().parents[1]
-GRID = {
-    'companies': (0, 0), 'employees': (0, 1), 'benchmark_labels': (1, 1),
-    'inference_runs': (2, 0), 'inference_outputs': (2, 1),
-}
+GRID = {'companies': (0, 0), 'employees': (0, 1)}
 GRAINS = {
     'companies': 'One company', 'employees': 'One observed employee',
-    'benchmark_labels': 'One generated source label per employee',
-    'inference_runs': 'One checked source/model run',
-    'inference_outputs': 'One durable model decision per employee/run',
 }
 VIEW_GRAINS = {
-    'benchmark_truth': 'One answer derived from source labels',
-    'benchmark_comparison': 'One live prediction-versus-label comparison',
     'company_profiles': 'One live company profile',
-    'employee_features': 'One employee feature set per ready run',
-    'reporting_predictions': 'One current decision per employee/ready run',
+    'employee_features': 'One live feature set per employee',
+    'reporting_predictions': 'One live decision per employee',
     'prediction_reasons': 'One explanation signal per decision',
-    'employee_noise': 'One generated noise label per employee',
-    'company_run_metrics': 'One calculated company summary per ready run',
-    'run_metrics': 'One calculated summary per ready run',
-    'employee_reporting_audit': 'One inspectable decision per employee/ready run',
+    'company_run_metrics': 'One live company summary',
+    'run_metrics': 'One live database summary',
+    'employee_reporting_audit': 'One inspectable decision per employee',
+    'inference_runs': 'Current SQL rules and thresholds',
+    'employee_text': 'Normalized title and source text',
+    'employee_classification': 'Title-derived function and seniority',
+    'manager_candidates': 'Plausible manager pairs',
+    'candidate_scores': 'Evidence score for each pair',
+    'employee_top_candidates': 'Best and second-best candidate',
 }
+
+
+def render_view_flow(tables, views):
+    """Draw every view and its source dependencies from SQLite definitions."""
+    objects = {item['name']: item for item in [*tables, *views]}
+    dependencies = {}
+    for view in views:
+        references = re.findall(r'\b(?:FROM|JOIN)\s+"?([A-Za-z_][A-Za-z_0-9]*)',
+                                view['definition'], flags=re.IGNORECASE)
+        dependencies[view['name']] = [name for name in dict.fromkeys(references)
+                                      if name in objects and name != view['name']]
+    layers = {table['name']: 0 for table in tables}
+    for _ in views:
+        for view in views:
+            parent_layers = [layers[parent] for parent in dependencies[view['name']]
+                             if parent in layers]
+            if len(parent_layers) == len(dependencies[view['name']]):
+                layers[view['name']] = max(parent_layers, default=0) + 1
+    if len(layers) != len(objects):
+        raise ValueError('View dependency diagram has an unresolved reference or cycle')
+    by_layer = defaultdict(list)
+    for name, layer in layers.items():
+        by_layer[layer].append(name)
+    max_layer = max(by_layer)
+    width, node_width, node_height, layer_height = 1200, 270, 58, 110
+    height = (max_layer + 1) * layer_height + 110
+    positions = {}
+    for layer, names in by_layer.items():
+        for index, name in enumerate(names):
+            x = round((width - len(names) * node_width) / (len(names) + 1) * (index + 1)
+                      + node_width * index)
+            positions[name] = (x, 75 + layer * layer_height)
+    lines = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" aria-labelledby="title desc">',
+        '<title id="title">Database source tables and SQL view dependencies</title>',
+        '<desc id="desc">Every derived view is shown with arrows from the tables and views it reads. The two source tables are the only objects that store rows.</desc>',
+        '<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#8da393"/></marker></defs>',
+        '<rect width="100%" height="100%" fill="#fafbf8"/>',
+        '<style>text{font-family:system-ui,sans-serif;fill:#283c32}.name{font-size:16px;font-weight:650}.kind{font-size:11px;fill:#557262}.heading{font-size:14px;font-weight:650}</style>',
+        '<text x="24" y="31" class="heading">Stored source rows → calculated SQL views</text>',
+    ]
+    for child, parents in dependencies.items():
+        cx, cy = positions[child]
+        for parent in parents:
+            px, py = positions[parent]
+            start_x, start_y = px + node_width / 2, py + node_height
+            end_x, end_y = cx + node_width / 2, cy
+            bend_y = (start_y + end_y) / 2
+            lines.append(f'<path d="M{start_x},{start_y} C{start_x},{bend_y} {end_x},{bend_y} {end_x},{end_y-5}" stroke="#a6b9aa" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>')
+    for name, (x, y) in positions.items():
+        stored = name in {table['name'] for table in tables}
+        fill = '#eaf1e8' if stored else '#ffffff'
+        kind = 'SOURCE TABLE · stores rows' if stored else 'SQL VIEW · calculated on query'
+        lines.extend([
+            f'<rect x="{x}" y="{y}" width="{node_width}" height="{node_height}" rx="7" fill="{fill}" stroke="#afc3b1"/>',
+            f'<text x="{x+14}" y="{y+24}" class="name">{escape(name)}</text>',
+            f'<text x="{x+14}" y="{y+45}" class="kind">{kind}</text>',
+        ])
+    lines.append('</svg>')
+    return '\n'.join(lines)
 
 
 def render_svg(tables, relationships):
@@ -49,7 +107,7 @@ def render_svg(tables, relationships):
     canvas_height = row_tops[-1] + row_heights[-1] + 60
     svg = [f'<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="{canvas_height}" viewBox="0 0 1200 {canvas_height}" role="img" aria-labelledby="title desc">',
            '<title id="title">OrgGraph database entity relationship diagram</title>',
-           '<desc id="desc">All columns and SQL types in five persisted tables. PK marks primary keys and FK marks foreign keys. Derived views are documented separately.</desc>',
+           '<desc id="desc">The two persisted source tables and their columns. Inference and metrics are calculated by SQL views.</desc>',
            '<rect width="1200" height="100%" fill="#fafbf8"/>',
            '<style>text{font-family:system-ui,sans-serif;fill:#283c32}.field{font-family:ui-monospace,monospace;font-size:12px}.key{font-family:ui-monospace,monospace;font-size:10px;fill:#4c624e}.edge{font-size:12px;font-weight:600;paint-order:stroke;stroke:#fafbf8;stroke-width:6px;stroke-linejoin:round}.note{font-size:12px;fill:#5c6c5e}</style>',
            '<text x="40" y="30" class="note">PK  Primary key     FK  Foreign key     Each line represents one foreign-key constraint</text>']
@@ -160,7 +218,8 @@ def build_diagram():
                 'identifying': set(child_columns).issubset(keys),
             })
     views = []
-    for name, grain in VIEW_GRAINS.items():
+    for (name,) in connection.execute("SELECT name FROM sqlite_master WHERE type = 'view' ORDER BY rowid"):
+        grain = VIEW_GRAINS.get(name, 'Calculated from source and other views')
         columns = connection.execute(f'PRAGMA table_info("{name}")').fetchall()
         definition = connection.execute(
             "SELECT sql FROM sqlite_master WHERE type = 'view' AND name = ?", (name,)
@@ -177,7 +236,11 @@ def build_diagram():
     connection.close()
     (ROOT / 'public/database-erd.svg').write_text(render_svg(tables, relationships))
     (ROOT / 'public/database-erd-full.svg').write_text(render_svg(tables, relationships))
-    metadata = {'tables': tables, 'views': views, 'relationships': relationships}
+    (ROOT / 'public/database-view-flow.svg').write_text(render_view_flow(tables, views))
+    metadata = {
+        'tables': tables, 'views': views, 'relationships': relationships,
+        'company_query': (ROOT / 'sql/company_predictions.sql').read_text(),
+    }
     (ROOT / 'public/database-schema.json').write_text(json.dumps(metadata, indent=2))
     mermaid = ['erDiagram']
     for table in tables:

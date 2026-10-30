@@ -1,4 +1,4 @@
-"""A small Flask app for browsing saved org-chart predictions."""
+"""A small Flask app for browsing SQL-derived org-chart predictions."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from pathlib import Path
 
 from flask import Flask, abort, current_app, g, render_template, send_file
 
-from database import connect, ensure_snapshot, read_company, read_index, read_json
+from database import connect, ensure_snapshot, read_company, read_index, read_json, write_compressed_snapshot
 
 
 ROOT = Path(__file__).resolve().parent
@@ -18,7 +18,7 @@ DEFAULT_COMPANY = "cmp_0001"
 
 
 def initialize_database(app: Flask) -> None:
-    """Load a checked relational snapshot without running inference."""
+    """Load source records and install the SQL inference views."""
     data_dir = Path(app.config["DATA_DIR"])
     index = read_json(data_dir / "index.json")
     evaluation = read_json(data_dir / "evaluation.json")
@@ -37,13 +37,13 @@ def initialize_database(app: Flask) -> None:
         seen.add(company_id)
     run_id, reused = ensure_snapshot(
         Path(app.config["DATABASE"]), Path(app.config["DATABASE_SNAPSHOT"]),
-        data_dir, Path(app.config["RAW_DATA_DIR"]),
-        Path(app.config["MODEL_PATH"]), index, evaluation,
+        data_dir, Path(app.config["RAW_DATA_DIR"]), index,
     )
     app.config["ACTIVE_RUN_ID"] = run_id
     app.config["DATABASE_REUSED"] = reused
     app.config["DATASET_INDEX"] = index
     app.config["EVALUATION"] = evaluation
+    app.config["SQL_EVALUATION"] = read_json(data_dir / "sql_evaluation.json")
 
 
 def get_database() -> sqlite3.Connection:
@@ -92,10 +92,17 @@ def page_context(page: str, company_id: str = DEFAULT_COMPANY) -> dict:
     index = current_app.config.get("STATIC_EXPORT_INDEX")
     if index is None:
         index = read_index(get_database(), current_app.config["ACTIVE_RUN_ID"])
+    settings = get_database().execute(
+        "SELECT probability_threshold, margin_threshold FROM inference_runs WHERE run_id = ?",
+        (current_app.config["ACTIVE_RUN_ID"],),
+    ).fetchone()
     return {
         "page": page,
         "index": index,
         "evaluation": current_app.config["EVALUATION"],
+        "sql_evaluation": current_app.config["SQL_EVALUATION"],
+        "threshold": {"probability": settings["probability_threshold"],
+                      "margin": settings["margin_threshold"]},
         "company": payload,
         "companies": index["companies"],
         "selected_id": company_id,
@@ -109,7 +116,6 @@ def create_app(test_config: dict | None = None) -> Flask:
         DATABASE=ROOT / "instance" / "orggraph.sqlite3",
         DATA_DIR=ROOT / "public" / "data",
         RAW_DATA_DIR=ROOT / "data",
-        MODEL_PATH=ROOT / "model" / "model.json",
         DATABASE_SNAPSHOT=ROOT / "instance" / "snapshot.sqlite.gz",
     )
     if test_config:
@@ -156,6 +162,9 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     @app.get("/database/snapshot.sqlite.gz")
     def database_snapshot():
+        # Include edits made directly in the local SQLite source tables.
+        write_compressed_snapshot(Path(app.config["DATABASE"]),
+                                  Path(app.config["DATABASE_SNAPSHOT"]))
         return send_file(
             app.config["DATABASE_SNAPSHOT"], mimetype="application/octet-stream",
             as_attachment=True, download_name="orggraph.sqlite.gz", max_age=0,

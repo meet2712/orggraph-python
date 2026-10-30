@@ -7,14 +7,14 @@
       {% if person.predictedManagerId %}
         <small>Reports to {{ employees_by_id[person.predictedManagerId].name }}</small>
       {% elif person.inferredLevel != 'CEO' %}
-        <small>{% if not person.bestCandidateId %}No suitable manager candidate{% elif person.confidence < evaluation.model.threshold.probability %}Evidence below the confidence threshold{% else %}Candidates too close to choose a manager{% endif %}</small>
+        <small>{% if not person.bestCandidateId %}No suitable manager candidate{% elif person.confidence < threshold.probability %}Evidence below the acceptance threshold{% else %}Candidates too close to choose a manager{% endif %}</small>
       {% endif %}
       {% if not person.predictedManagerId and person.bestCandidateId %}
         <small>Unconfirmed candidate: {{ employees_by_id[person.bestCandidateId].name }}</small>
       {% endif %}
     </span>
     {% if person.predictedManagerId %}
-      <span class="person-status accepted" data-confidence="{{ person.confidence|percent }}" data-correct="{{ 'true' if person.isCorrect else 'false' }}">{{ person.confidence|percent }}</span>
+      <span class="person-status accepted" data-confidence="{{ person.confidence|percent }}">{{ person.confidence|percent }}</span>
     {% elif person.inferredLevel == 'CEO' %}
       <span class="person-status">Company root</span>
     {% else %}
@@ -31,7 +31,7 @@
     <span class="card-title">{{ person.title or 'Title missing' }}</span>
     <span class="card-meta" title="{{ person.inferredDepartment }} · {{ person.location }}">{{ person.inferredDepartment }} · {{ person.location }}</span>
     {% if person.predictedManagerId %}
-      <span class="card-status accepted" data-confidence="{{ person.confidence|percent }}" data-correct="{{ 'true' if person.isCorrect else 'false' }}">{{ person.confidence|percent }} confidence</span>
+      <span class="card-status accepted" data-confidence="{{ person.confidence|percent }}">{{ person.confidence|percent }} confidence</span>
     {% elif person.inferredLevel == 'CEO' %}
       <span class="card-status root-status">Company root</span>
     {% else %}
@@ -191,16 +191,15 @@
         <p id="no-people" class="empty-state" hidden>No people match these filters. Try another department or search.</p>
         <div class="chart-bottom">
           <span id="people-result-count" aria-live="polite">{{ company.summary.resolved }} reporting lines · {{ company.summary.coverage|percent }} coverage</span>
-          <label><input type="checkbox" id="show-truth"> Compare with generated answers</label>
         </div>
       </section>
-      <p class="company-footnote">This company and its people are generated. A line is accepted when confidence is at least {{ evaluation.model.threshold.probability|percent }} and the lead over the next candidate is at least {{ evaluation.model.threshold.margin|points }} percentage points. Uncertain matches stay in Needs review.</p>
+      <p class="company-footnote">This company and its people are generated. A line is accepted when its evidence score is at least {{ threshold.probability|percent }} and the lead over the next candidate is at least {{ threshold.margin|points }} percentage points. Uncertain matches stay in Needs review.</p>
       <noscript><p class="note">Company links and reporting branches work without JavaScript. Enable JavaScript to search, filter, and open a person’s details.</p></noscript>
     </main>
   </div>
 
   <script type="application/json" id="company-records">{{ company.employees|tojson }}</script>
-  <dialog class="person-dialog" id="person-dialog" aria-labelledby="dialog-name" data-probability="{{ evaluation.model.threshold.probability }}" data-margin="{{ evaluation.model.threshold.margin }}">
+  <dialog class="person-dialog" id="person-dialog" aria-labelledby="dialog-name" data-probability="{{ threshold.probability }}" data-margin="{{ threshold.margin }}">
     <form method="dialog"><button class="close-button" aria-label="Close details">✕</button></form>
     <span class="person-avatar large" id="dialog-avatar" aria-hidden="true"></span>
     <h2 id="dialog-name" tabindex="-1"></h2>
@@ -216,23 +215,14 @@
       <button type="button" class="manager-link" id="dialog-manager" hidden><span id="dialog-manager-name"></span> <span aria-hidden="true">↗</span></button>
       <p id="dialog-decision-description"></p>
       <dl class="decision-numbers" id="dialog-decision-numbers">
-        <div><dt>Confidence</dt><dd id="dialog-confidence"></dd><small>Needs {{ evaluation.model.threshold.probability|percent }}</small></div>
-        <div><dt>Lead over next candidate</dt><dd id="dialog-margin"></dd><small>Percentage points · needs {{ evaluation.model.threshold.margin|points }}</small></div>
+        <div><dt>Evidence score</dt><dd id="dialog-confidence"></dd><small>Needs {{ threshold.probability|percent }}</small></div>
+        <div><dt>Lead over next candidate</dt><dd id="dialog-margin"></dd><small>Percentage points · needs {{ threshold.margin|points }}</small></div>
       </dl>
       <div id="dialog-signals">
         <h4>Signals behind the match</h4>
         <ul class="reason-list" id="dialog-reasons"></ul>
       </div>
-      <p class="small-note" id="dialog-confidence-note">Confidence is an estimate, not a guarantee. These signals can still lead to an incorrect match.</p>
-    </section>
-    <section class="record-section">
-      <details id="dialog-truth-disclosure">
-        <summary>Compare with the generated answer</summary>
-        <div class="detail-copy">
-          <p id="dialog-truth-manager"></p>
-          <p id="dialog-truth-result"></p>
-        </div>
-      </details>
+      <p class="small-note" id="dialog-confidence-note">This is a rule-based evidence score, not a calibrated probability. A high score can still be wrong.</p>
     </section>
     <section class="record-section">
       <details id="dialog-record-disclosure">
@@ -241,7 +231,6 @@
           <div><dt>Original title</dt><dd id="dialog-original-title"></dd></div>
           <div><dt>Original department</dt><dd id="dialog-original-department"></dd></div>
           <div><dt>Record ID</dt><dd id="dialog-record-id"></dd></div>
-          <div><dt>Input noise</dt><dd id="dialog-noise"></dd></div>
         </dl>
       </details>
     </section>
@@ -251,65 +240,25 @@
   {% include 'workbench.html' %}
 
   {% elif page == 'results' %}
-  {% set model = evaluation.model %}
-  {% set baseline = evaluation.baseline %}
   <main class="document-page" id="main-content">
     <header class="page-heading">
-      <p class="muted">Checking the predictions</p>
-      <h1>Results on unseen companies</h1>
-      <p>These results come from {{ evaluation.split.testCompanies }} companies kept out of training and threshold selection. All people and reporting lines in this project are generated.</p>
+      <p class="muted">Offline benchmark and current database</p>
+      <h1>Reporting-line results</h1>
+      <p>The SQL inference was checked against generated answers for {{ sql_evaluation.companies }} held-out companies. Those answers are in a separate CSV, outside the app database. All companies and employees are synthetic.</p>
     </header>
-    <dl class="stats-row" aria-label="Test results">
-      <div class="stat"><dt>Accepted matches that were right</dt><dd>{{ model.precision|percent }}</dd></div>
-      <div class="stat"><dt>Possible reporting lines accepted</dt><dd>{{ model.coverage|percent }}</dd></div>
-      <div class="stat"><dt>Reporting lines left unresolved</dt><dd>{{ model.unresolved_edges|count }}</dd></div>
+    <dl class="stats-row" aria-label="Held-out SQL inference benchmark">
+      <div class="stat"><dt>Precision among accepted lines</dt><dd>{{ sql_evaluation.precision|percent }}</dd></div>
+      <div class="stat"><dt>Coverage of possible lines</dt><dd>{{ sql_evaluation.coverage|percent }}</dd></div>
+      <div class="stat"><dt>Accepted reporting lines</dt><dd>{{ sql_evaluation.accepted_reporting_lines|count }}</dd></div>
     </dl>
     <section class="paper-section">
-      <h2>Compared with a simple rules baseline</h2>
-      <p>Both methods use the same test companies and can leave a manager unresolved.</p>
-      <div class="table-scroll">
-        <table class="simple-table">
-          <caption class="sr-only">Manager predictions across {{ evaluation.split.testCompanies }} test companies</caption>
-          <thead><tr><th scope="col">Measure</th><th scope="col">Rules baseline</th><th scope="col">Hybrid model</th></tr></thead>
-          <tbody>
-            <tr><th scope="row">Precision · right among accepted</th><td>{{ baseline.precision|percent }}</td><td><strong>{{ model.precision|percent }}</strong></td></tr>
-            <tr><th scope="row">Coverage · accepted among possible</th><td>{{ baseline.coverage|percent }}</td><td><strong>{{ model.coverage|percent }}</strong></td></tr>
-            <tr><th scope="row">Recall · right among possible</th><td>{{ baseline.recall|percent }}</td><td>{{ model.recall|percent }}</td></tr>
-            <tr><th scope="row">Accepted reporting lines</th><td>{{ baseline.predicted_edges|count }}</td><td>{{ model.predicted_edges|count }}</td></tr>
-            <tr><th scope="row">Correct reporting lines</th><td>{{ baseline.correct_edges|count }}</td><td>{{ model.correct_edges|count }}</td></tr>
-            <tr><th scope="row">Incorrect reporting lines</th><td>{{ (baseline.predicted_edges - baseline.correct_edges)|count }}</td><td>{{ (model.predicted_edges - model.correct_edges)|count }}</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="note">Of {{ model.eligible_edges|count }} possible test reporting lines, the model accepted {{ model.predicted_edges|count }} and got {{ model.correct_edges|count }} right. The simple baseline accepts almost every line but makes more incorrect assignments. The hybrid hierarchy and scoring model abstains when the parent layer or candidate is unclear. Real company data still needs its own evaluation.</p>
+      <h2>What was checked</h2>
+      <p>On {{ sql_evaluation.employees|count }} people in the held-out companies, the SQL rules accepted {{ sql_evaluation.accepted_reporting_lines|count }} reporting lines: {{ sql_evaluation.correct_reporting_lines|count }} matched the independently generated manager and {{ sql_evaluation.incorrect_reporting_lines|count }} did not. Precision is correct lines divided by accepted lines. Coverage is accepted lines divided by people with a true manager.</p>
+      <p class="note">The high precision comes with lower coverage: the rules leave uncertain managers open rather than add a weak edge. These synthetic-data results do not establish accuracy on real company records. The benchmark CSV is used only by the offline evaluator.</p>
     </section>
     <section class="paper-section">
-      <h2>Where it struggles</h2>
-      <p>Missing information and similar titles make some managers hard to distinguish. Accuracy varies across these groups.</p>
-      <div class="table-scroll">
-        <table class="simple-table">
-          <caption class="sr-only">Results by input noise on test companies</caption>
-          <thead><tr><th scope="col">Input group</th><th scope="col">People</th><th scope="col">Precision</th><th scope="col">Coverage</th></tr></thead>
-          <tbody>{% for name, metrics in model.by_noise_type|dictsort %}<tr><th scope="row">{{ name|replace('_', ' ') }}</th><td>{{ metrics.population|count }}</td><td>{{ metrics.precision|percent }}</td><td>{{ metrics.coverage|percent }}</td></tr>{% endfor %}</tbody>
-        </table>
-      </div>
-      <p class="note">A record can have several kinds of noise, so these groups overlap. The overall precision figure does not apply equally to every group.</p>
-    </section>
-    <section class="paper-section">
-      <h2>What confidence tells you</h2>
-      <p>Confidence combines a validated hierarchy rule for one unambiguous management-path match with calibrated pair scores for other candidates. It is checked against validation data, but a high score can still be wrong.</p>
-      <p>On test companies, the calibration gap, averaged by group size, is {{ model.expected_calibration_error|points }} percentage points. A line is only accepted when confidence reaches {{ model.threshold.probability|percent }} and the lead over the next candidate reaches {{ model.threshold.margin|points }} percentage points.</p>
-      <details>
-        <summary>See confidence groups</summary>
-        <div class="table-scroll">
-          <table class="simple-table">
-            <caption class="sr-only">Average confidence and correctness for all top manager candidates, including unresolved cases</caption>
-            <thead><tr><th scope="col">Score range</th><th scope="col">Candidates</th><th scope="col">Average confidence</th><th scope="col">Actually correct</th></tr></thead>
-            <tbody>{% for bin in model.calibration_bins %}<tr><th scope="row">{{ (bin.low * 100)|int }}–{{ (bin.high * 100)|int }}%</th><td>{{ bin.count|count }}</td><td>{{ bin.confidence|percent }}</td><td>{{ bin.accuracy|percent }}</td></tr>{% endfor %}</tbody>
-          </table>
-        </div>
-        <p class="note">This includes top candidates that were rejected. Groups with only a few examples can swing sharply, so treat them cautiously.</p>
-      </details>
+      <h2>What the evidence score means</h2>
+      <p>The score reflects title seniority, functional match, and team scope. It is a heuristic, not a calibrated probability. A link is accepted only when its score reaches {{ threshold.probability|percent }} and exceeds the next candidate by {{ threshold.margin|points }} percentage points. The separate generated answer file can be used for offline accuracy checks; it is not stored in the app database.</p>
     </section>
   </main>
 
@@ -317,113 +266,29 @@
   {% include 'schema.html' %}
   {% elif page == 'approach' %}
   {% set dataset = evaluation.dataset %}
-  {% set split = evaluation.split %}
-  {% set model = evaluation.model %}
   <main class="document-page" id="main-content">
-    <header class="page-heading"><p class="muted">A short explanation</p><h1>From job titles to reporting lines</h1><p>The aim is to find managers when the evidence is useful and leave the rest open for review. A title alone will not always tell us who someone reports to.</p></header>
+    <header class="page-heading"><p class="muted">How it works</p><h1>From job titles to reporting lines</h1><p>The database starts with a flat employee list. SQL views interpret each row and calculate reporting lines whenever the source changes.</p></header>
     <section class="paper-section">
-      <h2>How it works</h2>
-      <ol class="steps">
-        <li><h3>Generate companies with a known hierarchy</h3><p>The Python generator creates {{ dataset.companies|count }} companies and {{ dataset.employees|count }} people across {{ dataset.industries }} industries, with {{ dataset.minimumCompanySize }}–{{ dataset.maximumCompanySize }} people per company. It adds abbreviations, typos, inconsistent casing, and missing fields. Clean reporting lines are saved separately to check predictions.</p></li>
-        <li><h3>Rebuild the hierarchy, then score the matches</h3><p>Titles are cleaned up to infer function and seniority. Explicit leaders follow CEO → optional C-suite → VP/Head → Director → Senior Manager → Manager → Team Lead/Supervisor; VP is above Director. When a matching specialist executive is absent, the VP/Head reports to the CEO. Title-derived department and executive portfolio are used before noisy team text. A unique parent-layer match gets deterministic hierarchy confidence. Other candidates are scored using department, role family, team scope, location, and seniority gap. Senior, Staff and Principal IC titles are not treated as managers.</p></li>
-        <li><h3>Keep a reporting line only when it clears both checks</h3><p>The leading candidate needs at least {{ model.threshold.probability|percent }} confidence and a {{ model.threshold.margin|points }} percentage point lead over the next candidate. Otherwise the manager stays unresolved. Each person has at most one inferred manager. Requiring a more senior manager prevents circular reporting chains.</p></li>
-        <li><h3>Test on companies the model has not seen</h3><p>The split uses whole companies: {{ split.trainCompanies }} for training, {{ split.validationCompanies }} for calibration and threshold selection, and {{ split.testCompanies }} for the final test. People from one company never appear in different splits. Predictions are compared with the generated direct manager.</p></li>
-      </ol>
+      <h2>1. Generate messy source records</h2>
+      <p>The Python generator creates {{ dataset.companies|count }} companies and {{ dataset.employees|count }} employees with varied functions, seniority, team sizes, missing fields and title noise. The generated answer key is stored separately in a CSV for offline evaluation. It is never imported into the operational database or used to choose a manager.</p>
     </section>
-    <section class="paper-section score-explainer" aria-labelledby="score-explainer-title">
-      <h2 id="score-explainer-title">How one reporting-line score is calculated</h2>
-      <p>The model compares one employee with each plausible manager in the same company. It scores the pairs, ranks them, and only publishes the leading pair when both acceptance checks pass.</p>
-      <div class="score-flow" role="list" aria-label="Reporting-line scoring flow">
-        <article class="score-stage" role="listitem">
-          <span class="score-step">01 · Input</span>
-          <h3>Read the observed row</h3>
-          <p>Title, department, team and location are used exactly as supplied. The generated answer key is not an input.</p>
-        </article>
-        <article class="score-stage" role="listitem">
-          <span class="score-step">02 · Interpret</span>
-          <h3>Infer function and level</h3>
-          <p>Abbreviations and noisy titles are normalized into a department, role family and seniority level.</p>
-        </article>
-        <article class="score-stage" role="listitem">
-          <span class="score-step">03 · Shortlist</span>
-          <h3>Build manager candidates</h3>
-          <p>Only more-senior, explicit leadership titles are eligible. Hierarchy, function and team scope narrow the list.</p>
-        </article>
-        <article class="score-stage" role="listitem">
-          <span class="score-step">04 · Compare</span>
-          <h3>Create 19 pair signals</h3>
-          <p>Each employee–candidate pair is compared on team, parent team, function, role family, location, rank gap and missing data.</p>
-        </article>
-        <article class="score-stage" role="listitem">
-          <span class="score-step">05 · Decide</span>
-          <h3>Score, calibrate and check</h3>
-          <p>The model produces comparable probabilities. The top score and its lead over second place determine the decision.</p>
-        </article>
+    <section class="paper-section score-explainer">
+      <h2>2. Calculate the hierarchy in SQL</h2>
+      <div class="score-flow" role="list" aria-label="Reporting-line inference stages">
+        <article class="score-stage" role="listitem"><span class="score-step">01 · Input</span><h3>Read source rows</h3><p><code>companies</code> and <code>employees</code> are the only persisted tables. Titles, department, team and location remain as observed.</p></article>
+        <article class="score-stage" role="listitem"><span class="score-step">02 · Parse</span><h3>Infer role level</h3><p><code>employee_features</code> normalizes title abbreviations and derives seniority and function from source fields.</p></article>
+        <article class="score-stage" role="listitem"><span class="score-step">03 · Compare</span><h3>Rank candidates</h3><p>Only plausible leaders in the same company are considered. Seniority, team scope and function determine the evidence score.</p></article>
+        <article class="score-stage" role="listitem"><span class="score-step">04 · Decide</span><h3>Accept or abstain</h3><p><code>reporting_predictions</code> compares the top candidates. It creates an edge only when the score and the lead over second place both clear their thresholds.</p></article>
       </div>
-
       <div class="score-formula-grid">
-        <article class="formula-card">
-          <span class="formula-label">Candidate score</span>
-          <code>z = bias + Σ(weight × standardized signal)</code>
-          <p>The logistic model learns the signal weights from the training companies.</p>
-        </article>
-        <article class="formula-card">
-          <span class="formula-label">Confidence</span>
-          <code>confidence = calibrated sigmoid(z)</code>
-          <p>This is the calibrated score for the leading employee–manager pair. A unique validated hierarchy match is raised to at least 99.5%.</p>
-        </article>
-        <article class="formula-card">
-          <span class="formula-label">Lead over next candidate</span>
-          <code>lead = top confidence − second confidence</code>
-          <p>A high top score is not enough when another manager has a nearly equal score. Candidate probabilities are independent; they do not add up to 100%.</p>
-        </article>
+        <article class="formula-card"><span class="formula-label">Evidence score</span><code>score = strongest matching hierarchy/team rule + location tie-break</code><p>The SQL <code>CASE</code> order sets the main score. Location contributes a small tie-break. The score is not a calibrated probability.</p></article>
+        <article class="formula-card"><span class="formula-label">Lead over next candidate</span><code>lead = top score − second score</code><p>If two candidates look too similar, the model leaves the manager unresolved.</p></article>
+        <article class="formula-card"><span class="formula-label">Acceptance</span><code>score ≥ {{ threshold.probability|percent }} AND lead ≥ {{ threshold.margin|points }} points</code><p>Thresholds are visible in the <code>inference_runs</code> view and decision audit.</p></article>
       </div>
-
-      <div class="worked-score" aria-labelledby="worked-score-title">
-        <div class="worked-score-copy">
-          <p class="muted">Published example · <a class="text-link" href="/companies/cmp_0001.html">Nimbus Grid</a></p>
-          <h3 id="worked-score-title">Sofia Martin · “Sr., Eng Mgr”</h3>
-          <dl class="raw-row-example">
-            <div><dt>Raw department</dt><dd>Engineering</dd></div>
-            <div><dt>Raw team</dt><dd>Product Engineering</dd></div>
-            <div><dt>Inferred level</dt><dd>Senior Manager</dd></div>
-          </dl>
-          <p>The leading candidate shares the department, exact team, location and is one hierarchy level above.</p>
-        </div>
-        <div class="candidate-scores" aria-label="Candidate confidence comparison">
-          <div class="candidate-score top-candidate">
-            <div><strong>Kabir Kim</strong><span>Director of Product Engineering</span></div>
-            <b>91.9%</b>
-            <span class="score-bar" aria-hidden="true"><span style="width:91.9%"></span></span>
-          </div>
-          <div class="candidate-score">
-            <div><strong>Akira Shah</strong><span>Director, Quality &amp; Reliability</span></div>
-            <b>58.2%</b>
-            <span class="score-bar" aria-hidden="true"><span style="width:58.2%"></span></span>
-          </div>
-          <div class="decision-math">
-            <div><span>Confidence</span><strong>91.9% ≥ {{ model.threshold.probability|percent }}</strong><small>passes</small></div>
-            <div><span>Lead over next</span><strong>91.9 − 58.2 = 33.7 points</strong><small>needs {{ model.threshold.margin|points }}</small></div>
-            <p><strong>Accepted:</strong> Kabir Kim is published as Sofia Martin’s inferred manager.</p>
-          </div>
-        </div>
-      </div>
-
-      <details class="signal-details">
-        <summary>See all 19 comparison signals</summary>
-        <div class="signal-groups">
-          <div><h3>Scope match</h3><p>Same inferred department, raw department match, same team, parent-team match, same role family and same location.</p></div>
-          <div><h3>Hierarchy</h3><p>One-level, two-level or larger rank gap; candidate is a leader, executive or Team Lead; scaled employee and candidate ranks.</p></div>
-          <div><h3>Data quality</h3><p>Missing employee title, department or team, plus confidence in the inferred employee and candidate departments.</p></div>
-        </div>
-      </details>
-      <p class="note"><strong>Final guardrail:</strong> the title must be present, QA and Team Lead safeguards must pass, confidence must be at least {{ model.threshold.probability|percent }}, and the lead must be at least {{ model.threshold.margin|points }} percentage points. If any check fails, the manager remains unresolved.</p>
     </section>
-    <section class="paper-section"><h2>Why some people have no manager</h2><p>Two managers can have the same title, and missing team information can make them indistinguishable. Picking one would make the chart look more complete without making it more reliable. Those cases stay visible under “Needs review,” along with the leading candidate and its score.</p><p>The chart uses inferred reporting lines. The generated answer is available separately in each person’s details, so you can inspect good matches and mistakes.</p></section>
-    <section class="paper-section"><h2>What this version can tell us</h2><p>It shows how the approach handles messy generated records. It does not establish accuracy on real companies, where titles, reporting customs, and data quality will differ. The current model also misses many reporting lines in the generated data. Precision and coverage are shown together to make that tradeoff visible.</p></section>
-    <section class="paper-section"><h2>Built in Python</h2><p>Python generates the dataset, trains the inference model and renders the pages with Flask and Jinja. GitHub Pages serves the exported pages and a SQLite snapshot. Search, filters, person details and read-only SQL run in the browser. The same source can also run as a Flask server.</p></section>
-    <section class="paper-section"><h2>Derived in SQL views</h2><p>The database persists source records, benchmark metadata, run lineage and one model-output row per employee. Current headcount, size band, employee features, reporting decisions, explanations, company/run metrics and the decision audit are read-only views. Their complete <code>CREATE VIEW</code> queries are available on the <a href="/schema.html">Database schema page</a>.</p><p>If an employee is inserted, company headcount and coverage recalculate immediately and the employee appears as <code>pending_inference</code>. The Python model still has to score that employee before a reporting edge can be accepted; a SQL view does not disguise an unprocessed record as a prediction.</p></section>
-    <section class="paper-section"><h2>Try it yourself</h2><p>The dataset package includes input records, generated answers, and the generator. The source package includes the Python app, inference pipeline, and instructions to run the checks.</p><div class="download-row"><a class="button" href="/downloads/firmable-org-chart-dataset.zip" download>Download dataset</a><a class="button" href="/downloads/orggraph-source.zip" download>Download source</a></div></section>
+    <section class="paper-section"><h2>3. Inspect the decision</h2><p><code>employee_reporting_audit</code> joins the raw employee row with inferred features, the selected manager or leading candidate, score, margin and decision reason. <code>company_profiles</code> and <code>company_run_metrics</code> calculate headcount, size band and coverage from current rows. Each app page runs a company-scoped SQL form of the same inference rules for speed.</p><p>Open the <a href="/schema.html">schema page</a> to read every <code>CREATE VIEW</code> statement, or run a query in the <a href="/data.html">database explorer</a>.</p></section>
+    <section class="paper-section"><h2>4. Check quality separately</h2><p>The generated answer CSV can be compared with the SQL view output outside the app. This avoids putting employee-to-manager answer mappings in the operational database. Coverage describes how many lines were accepted; precision requires that separate answer key. A high evidence score alone does not prove a correct manager.</p></section>
+    <section class="paper-section"><h2>Try it yourself</h2><p>The source package includes the generator, schema, app and quality queries. The dataset package includes observed records and the separate answer key.</p><div class="download-row"><a class="button" href="/downloads/firmable-org-chart-dataset.zip" download>Download dataset</a><a class="button" href="/downloads/orggraph-source.zip" download>Download source</a></div></section>
   </main>
   {% endif %}
 

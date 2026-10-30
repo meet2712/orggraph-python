@@ -16,48 +16,4 @@ erDiagram
         TEXT work_email
         INTEGER source_row_number
     }
-    benchmark_labels {
-        TEXT company_id PK,FK
-        TEXT employee_id PK,FK
-        TEXT manager_employee_id FK
-        TEXT canonical_title
-        TEXT canonical_department
-        TEXT canonical_team
-        TEXT canonical_level
-        INTEGER is_people_manager
-        TEXT noise_profile_json
-    }
-    inference_runs {
-        TEXT run_id PK
-        TEXT source_hash
-        TEXT model_version
-        TEXT pipeline_version
-        TEXT model_type
-        REAL probability_threshold
-        REAL margin_threshold
-        INTEGER source_company_count
-        INTEGER source_employee_count
-        TEXT load_status
-        TEXT loaded_at
-    }
-    inference_outputs {
-        TEXT run_id PK,FK
-        TEXT company_id PK,FK
-        TEXT employee_id PK,FK
-        TEXT inferred_department
-        TEXT inferred_level
-        INTEGER inferred_rank
-        TEXT accepted_manager_id FK
-        TEXT best_candidate_id FK
-        REAL confidence
-        REAL margin
-        TEXT decision
-        TEXT reasons_json
-    }
     companies ||--o{ employees : company_id
-    employees |o..o{ benchmark_labels : manager_employee_id
-    employees ||--o| benchmark_labels : employee_id
-    employees |o..o{ inference_outputs : best_candidate_id
-    employees |o..o{ inference_outputs : accepted_manager_id
-    employees ||--o{ inference_outputs : employee_id
-    inference_runs ||--o{ inference_outputs : run_id

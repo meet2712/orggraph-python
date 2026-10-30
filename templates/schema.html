@@ -2,7 +2,7 @@
   <header class="page-heading">
     <p class="muted">Database design</p>
     <h1>Database ER diagram</h1>
-    <p>Five persisted tables hold source records, generated benchmark labels, run lineage and model output. Ten read-only SQL views calculate profiles, root status, prediction-versus-answer checks, decisions and metrics.</p>
+    <p>Two persisted tables hold company and employee source records. SQL views calculate headcount, employee features, manager candidates, decisions and metrics directly from those rows.</p>
     <p><a href="/data.html">Explore the database &amp; SQL editor →</a></p>
   </header>
   <section class="paper-section">
@@ -10,12 +10,20 @@
     <p class="schema-actions"><a href="/database-erd.svg" target="_blank" rel="noopener">Open full-size ER diagram ↗</a> <a href="/database-erd.svg" download>Download SVG</a> <a href="/database-erd.mmd" download>Download Mermaid source</a></p>
     <p class="diagram-hint">All columns and SQL types at actual size. Scroll across the diagram on a small screen. PK = primary key · FK = foreign key. Crow’s-foot notation: circle = optional, bar = one, fork = many.</p>
     <div class="erd-viewport" id="database-diagram" tabindex="0" role="region" aria-label="Scrollable entity relationship diagram">
-      <img src="/database-erd.svg" width="1200" alt="Database ER diagram showing all columns, SQL types, primary keys, foreign keys and relationship cardinalities for five persisted tables.">
+      <img src="/database-erd.svg" width="1200" alt="Database ER diagram showing the two source tables, their columns, primary and foreign keys.">
+    </div>
+  </section>
+  <section class="paper-section">
+    <h2>How the tables feed the views</h2>
+    <p>This diagram includes every SQL view. Arrows show which source tables or other views each query reads. Green boxes store rows; white boxes are calculated when queried.</p>
+    <p class="schema-actions"><a href="/database-view-flow.svg" target="_blank" rel="noopener">Open full-size view diagram ↗</a> <a href="/database-view-flow.svg" download>Download SVG</a></p>
+    <div class="erd-viewport" tabindex="0" role="region" aria-label="Scrollable SQL view dependency diagram">
+      <img src="/database-view-flow.svg" width="1200" alt="Flow from companies and employees through title parsing, candidate scoring and reporting predictions to audit and metrics views.">
     </div>
   </section>
   <section class="paper-section">
     <h2>A decision audit, not a second copy of the data</h2>
-    <p><code>employee_reporting_audit</code> joins an employee's raw fields to their inferred features, accepted manager, leading candidate, scores, thresholds and run hashes. Its <code>decision_reason</code> distinguishes low confidence, close candidates, missing candidates, pending inference and accepted links. The generated answer key is excluded.</p>
+    <p><code>employee_reporting_audit</code> joins an employee's raw fields to their inferred features, accepted manager, leading candidate, scores and decision reason. The answer key is kept in a separate CSV and is not part of this database.</p>
     <pre class="schema-query">SELECT full_name, inferred_manager, leading_candidate,
        confidence, margin, decision_reason
 FROM employee_reporting_audit
@@ -39,6 +47,11 @@ WHERE company_id = 'cmp_0004';</pre>
     </div>
   </section>
   <section class="paper-section">
+    <h2>Company page SQL</h2>
+    <p>The app uses this company-scoped query to calculate reporting lines from the same two source tables. Its <code>:company_id</code> parameter limits work to the selected company.</p>
+    <details><summary>Read the company inference query</summary><pre class="schema-query"><code>{{ schema.company_query }}</code></pre></details>
+  </section>
+  <section class="paper-section">
     <h2>Tables and columns</h2>
     <p>Each table states what one row represents. Expand it to see every column, its type and its key membership.</p>
     <div class="schema-tables">
@@ -60,14 +73,14 @@ WHERE company_id = 'cmp_0004';</pre>
   </section>
   <section class="paper-section">
     <h2>Keys and relationships</h2>
-    <p>One referenced row can have zero, one, or many dependent rows as shown. “Optional” means the dependent foreign key can be empty, as with an unresolved manager. Composite employee keys prevent links across companies or runs.</p>
+    <p>One company can have many employees. The employee's company key refers to the company row; manager choices are calculated in views, so there is no stored manager foreign key.</p>
     <div class="table-scroll"><table class="simple-table"><thead><tr><th scope="col">Dependent key</th><th scope="col">References</th><th scope="col">Dependents per referenced row</th><th scope="col">Foreign key</th></tr></thead><tbody>
       {% for relation in schema.relationships %}<tr><td><code>{{ relation.child }} ({{ relation.child_columns|join(', ') }})</code></td><td><code>{{ relation.parent }} ({{ relation.parent_columns|join(', ') }})</code></td><td>{{ relation.cardinality }}</td><td>{{ 'Optional' if relation.optional else 'Required' }}</td></tr>{% endfor %}
     </tbody></table></div>
   </section>
   <section class="paper-section">
     <h2>What the database checks before serving</h2>
-    <p>The published run must initially contain one model output per source employee. Afterward, a newly inserted employee appears immediately as <code>pending_inference</code>; live headcount and coverage views update before the model is rerun. Keys, accepted lines, decision counts and company coverage must reconcile. Self-management, cross-company links, cycles and invalid scores fail validation. A failed import leaves the previous snapshot intact.</p>
-    <p>This demo keeps one checked dataset snapshot. The hashes identify its inputs and model; historical employee versions and comparisons between stored runs would be the next extension.</p>
+    <p>A newly inserted employee appears in the feature, prediction and audit views on the next query. Headcount, size band and coverage update with the same source change. Checks cover keys, accepted lines, decision counts, self-management, cross-company links, seniority and cycles.</p>
+    <p>The published site is a fixed export of the database at deployment time. Local employee edits remain local until a new snapshot is built and deployed.</p>
   </section>
 </main>

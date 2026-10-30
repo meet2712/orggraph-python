@@ -113,7 +113,7 @@ function inspectTables() {
     name,
     sql,
     type,
-    rowCount: readRows(`SELECT COUNT(*) FROM ${quoteIdentifier(name)}`).rows[0][0],
+    rowCount: type === "table" ? readRows(`SELECT COUNT(*) FROM ${quoteIdentifier(name)}`).rows[0][0] : null,
     columns: readRows(`PRAGMA table_info(${quoteIdentifier(name)})`).rows,
     foreignKeys: readRows(`PRAGMA foreign_key_list(${quoteIdentifier(name)})`).rows,
   }));
