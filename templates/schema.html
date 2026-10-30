@@ -15,11 +15,17 @@
   </section>
   <section class="paper-section">
     <h2>How the tables feed the views</h2>
-    <p>This diagram includes every SQL view. Arrows show which source tables or other views each query reads. Green boxes store rows; white boxes are calculated when queried.</p>
+    <p>Read this from left to right: source records become title features, manager candidates, decisions and reports. Arrows show the main reading path. Each view card lists the tables or views its SQL reads directly. Views calculate results when queried; they do not copy rows into another table.</p>
     <p class="schema-actions"><a href="/database-view-flow.svg" target="_blank" rel="noopener">Open full-size view diagram ↗</a> <a href="/database-view-flow.svg" download>Download SVG</a></p>
-    <div class="erd-viewport" tabindex="0" role="region" aria-label="Scrollable SQL view dependency diagram">
-      <img src="/database-view-flow.svg" width="1200" alt="Flow from companies and employees through title parsing, candidate scoring and reporting predictions to audit and metrics views.">
+    <p class="diagram-hint">Scroll sideways to see all five stages. On a phone, swipe across the diagram.</p>
+    <div class="erd-viewport view-flow-viewport" tabindex="0" role="region" aria-label="Scrollable SQL view flow diagram">
+      <img src="/database-view-flow.svg" width="1810" alt="Five-stage SQL view flow from two source tables through preparation, manager matching, reporting decisions and inspection. Each card lists its exact direct inputs.">
     </div>
+    <details class="view-inputs"><summary>See every view and its direct inputs</summary>
+      <div class="table-scroll"><table class="simple-table"><thead><tr><th scope="col">View</th><th scope="col">Reads from</th><th scope="col">Result</th></tr></thead><tbody>
+        {% for view in schema.views %}<tr><th scope="row"><code>{{ view.name }}</code></th><td>{% for input in view.reads %}<code>{{ input }}</code>{{ ', ' if not loop.last else '' }}{% endfor %}</td><td>{{ view.grain }}</td></tr>{% endfor %}
+      </tbody></table></div>
+    </details>
   </section>
   <section class="paper-section">
     <h2>A decision audit, not a second copy of the data</h2>
@@ -27,8 +33,10 @@
     <pre class="schema-query">SELECT full_name, inferred_manager, leading_candidate,
        confidence, margin, decision_reason
 FROM employee_reporting_audit
-WHERE company_id = 'cmp_0004';</pre>
-    <p>Open the SQL editor and select “Why a manager was chosen or rejected” to try this on the actual records.</p>
+WHERE company_id = 'cmp_0004'
+  AND employee_id IN ('emp_0000542', 'emp_0000543')
+ORDER BY employee_id;</pre>
+    <p>Open the SQL editor and select “Two manager decisions” to try this on the actual records.</p>
   </section>
   <section class="paper-section">
     <h2>Derived views and their SQL</h2>

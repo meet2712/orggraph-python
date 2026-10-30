@@ -14,7 +14,7 @@
       {% endif %}
     </span>
     {% if person.predictedManagerId %}
-      <span class="person-status accepted" data-confidence="{{ person.confidence|percent }}">{{ person.confidence|percent }}</span>
+      <span class="person-status accepted">Evidence {{ person.confidence|percent }}</span>
     {% elif person.inferredLevel == 'CEO' %}
       <span class="person-status">Company root</span>
     {% else %}
@@ -31,11 +31,11 @@
     <span class="card-title">{{ person.title or 'Title missing' }}</span>
     <span class="card-meta" title="{{ person.inferredDepartment }} · {{ person.location }}">{{ person.inferredDepartment }} · {{ person.location }}</span>
     {% if person.predictedManagerId %}
-      <span class="card-status accepted" data-confidence="{{ person.confidence|percent }}">{{ person.confidence|percent }} confidence</span>
+      <span class="card-status accepted">Evidence {{ person.confidence|percent }}</span>
     {% elif person.inferredLevel == 'CEO' %}
       <span class="card-status root-status">Company root</span>
     {% else %}
-      <span class="card-status unknown">Manager unknown</span>
+      <span class="card-status unknown">Needs review</span>
     {% endif %}
   </button>
 {%- endmacro %}
@@ -60,7 +60,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Explore inferred reporting lines, review uncertain manager matches, and see how the model was tested.">
+  <meta name="description" content="Explore reporting lines inferred by SQL views, review uncertain matches, and see how the rules were tested.">
   <title>{{ company.company.name ~ ' · ' if page == 'chart' else '' }}OrgGraph</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/style.css">
@@ -282,7 +282,7 @@
       </div>
       <div class="score-formula-grid">
         <article class="formula-card"><span class="formula-label">Evidence score</span><code>score = strongest matching hierarchy/team rule + location tie-break</code><p>The SQL <code>CASE</code> order sets the main score. Location contributes a small tie-break. The score is not a calibrated probability.</p></article>
-        <article class="formula-card"><span class="formula-label">Lead over next candidate</span><code>lead = top score − second score</code><p>If two candidates look too similar, the model leaves the manager unresolved.</p></article>
+        <article class="formula-card"><span class="formula-label">Lead over next candidate</span><code>lead = top score − second score</code><p>If two candidates look too similar, the SQL rules leave the manager unresolved.</p></article>
         <article class="formula-card"><span class="formula-label">Acceptance</span><code>score ≥ {{ threshold.probability|percent }} AND lead ≥ {{ threshold.margin|points }} points</code><p>Thresholds are visible in the <code>inference_runs</code> view and decision audit.</p></article>
       </div>
     </section>

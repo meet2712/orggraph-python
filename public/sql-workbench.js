@@ -25,49 +25,45 @@ if (queryEditor) {
 
   const examples = {
     audit: `SELECT full_name, job_title, inferred_manager, leading_candidate,
-       ROUND(confidence * 100, 1) AS confidence_pct,
+       ROUND(confidence * 100, 1) AS evidence_score_pct,
        ROUND(margin * 100, 1) AS lead_pct, decision, decision_reason
 FROM employee_reporting_audit
 WHERE company_id = 'cmp_0004'
+  AND employee_id IN ('emp_0000542', 'emp_0000543')
 ORDER BY employee_id;`,
-    coverage: `SELECT profile.company_name,
-       profile.employee_count AS people,
-       metrics.resolved_count AS accepted_lines,
-       metrics.unresolved_count AS needs_review,
-       ROUND(metrics.coverage * 100, 1) AS coverage_pct
-FROM company_profiles AS profile
-JOIN company_run_metrics AS metrics USING (company_id)
-WHERE profile.company_id IN ('cmp_0001', 'cmp_0002', 'cmp_0003')
-ORDER BY coverage_pct, profile.company_name;`,
+    profiles: `SELECT company_name, employee_count AS people, size_band
+FROM company_profiles
+WHERE company_id IN ('cmp_0001', 'cmp_0002', 'cmp_0003')
+ORDER BY company_name;`,
     counts: `SELECT 'companies' AS dataset, COUNT(*) AS rows FROM companies
 UNION ALL
 SELECT 'employees', COUNT(*) FROM employees;`,
-    unresolved: `SELECT f.inferred_department AS department,
-       COUNT(*) AS unresolved_people
-FROM reporting_predictions AS p
-JOIN employee_features AS f
-  USING (run_id, company_id, employee_id)
-WHERE p.company_id = 'cmp_0001' AND p.decision = 'unresolved'
-GROUP BY f.inferred_department
-ORDER BY unresolved_people DESC;`,
+    classification: `SELECT e.full_name, e.job_title,
+       f.inferred_department, f.inferred_level
+FROM employees AS e
+JOIN employee_features AS f USING (company_id, employee_id)
+WHERE e.company_id = 'cmp_0004'
+  AND e.employee_id IN ('emp_0000542', 'emp_0000543')
+ORDER BY e.employee_id;`,
     matches: `SELECT c.company_name, e.full_name AS employee,
        m.full_name AS inferred_manager,
-       ROUND(p.confidence * 100, 1) AS confidence_pct
+       ROUND(p.confidence * 100, 1) AS evidence_score_pct
 FROM reporting_predictions AS p
 JOIN companies AS c USING (company_id)
 JOIN employees AS e
   ON e.company_id = p.company_id AND e.employee_id = p.employee_id
 JOIN employees AS m
   ON m.company_id = p.company_id AND m.employee_id = p.accepted_manager_id
-WHERE p.company_id = 'cmp_0001' AND p.decision = 'accepted'
-ORDER BY p.confidence DESC
-LIMIT 50;`,
+WHERE p.company_id = 'cmp_0004'
+  AND p.employee_id IN ('emp_0000542', 'emp_0000545')
+  AND p.decision = 'accepted'
+ORDER BY e.employee_id;`,
     chain: `WITH RECURSIVE manager_chain AS (
   SELECT e.company_id, e.employee_id, e.full_name, e.job_title,
          p.run_id, p.accepted_manager_id, 0 AS depth
   FROM employees AS e
   JOIN reporting_predictions AS p USING (company_id, employee_id)
-  WHERE e.company_id = 'cmp_0001' AND e.employee_id = 'emp_0000178'
+  WHERE e.company_id = 'cmp_0001' AND e.employee_id = 'emp_0000018'
   UNION ALL
   SELECT e.company_id, e.employee_id, e.full_name, e.job_title,
          p.run_id, p.accepted_manager_id, chain.depth + 1

@@ -1616,6 +1616,8 @@ input[type="checkbox"] {
 .schema-actions { display: flex; flex-wrap: wrap; gap: 12px 24px; }
 .erd-viewport { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: #fafbf8; }
 .erd-viewport img { display: block; width: 1200px; max-width: none; height: auto; }
+.view-flow-viewport img { width: 1810px; }
+.view-inputs { margin-top: 16px; }
 .diagram-hint { color: var(--muted); font-size: 13px; }
 .schema-tables { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .schema-entity { min-width: 0; border: 1px solid var(--line); border-radius: 6px; background: white; }

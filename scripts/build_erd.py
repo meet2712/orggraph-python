@@ -29,62 +29,116 @@ VIEW_GRAINS = {
 }
 
 
-def render_view_flow(tables, views):
-    """Draw every view and its source dependencies from SQLite definitions."""
-    objects = {item['name']: item for item in [*tables, *views]}
+def view_dependencies(tables, views):
+    """List the real table/view inputs in each saved CREATE VIEW statement."""
+    names = {item['name'] for item in [*tables, *views]}
     dependencies = {}
     for view in views:
         references = re.findall(r'\b(?:FROM|JOIN)\s+"?([A-Za-z_][A-Za-z_0-9]*)',
                                 view['definition'], flags=re.IGNORECASE)
         dependencies[view['name']] = [name for name in dict.fromkeys(references)
-                                      if name in objects and name != view['name']]
-    layers = {table['name']: 0 for table in tables}
-    for _ in views:
-        for view in views:
-            parent_layers = [layers[parent] for parent in dependencies[view['name']]
-                             if parent in layers]
-            if len(parent_layers) == len(dependencies[view['name']]):
-                layers[view['name']] = max(parent_layers, default=0) + 1
-    if len(layers) != len(objects):
-        raise ValueError('View dependency diagram has an unresolved reference or cycle')
-    by_layer = defaultdict(list)
-    for name, layer in layers.items():
-        by_layer[layer].append(name)
-    max_layer = max(by_layer)
-    width, node_width, node_height, layer_height = 1200, 270, 58, 110
-    height = (max_layer + 1) * layer_height + 110
-    positions = {}
-    for layer, names in by_layer.items():
-        for index, name in enumerate(names):
-            x = round((width - len(names) * node_width) / (len(names) + 1) * (index + 1)
-                      + node_width * index)
-            positions[name] = (x, 75 + layer * layer_height)
-    lines = [
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}" role="img" aria-labelledby="title desc">',
-        '<title id="title">Database source tables and SQL view dependencies</title>',
-        '<desc id="desc">Every derived view is shown with arrows from the tables and views it reads. The two source tables are the only objects that store rows.</desc>',
-        '<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#8da393"/></marker></defs>',
-        '<rect width="100%" height="100%" fill="#fafbf8"/>',
-        '<style>text{font-family:system-ui,sans-serif;fill:#283c32}.name{font-size:16px;font-weight:650}.kind{font-size:11px;fill:#557262}.heading{font-size:14px;font-weight:650}</style>',
-        '<text x="24" y="31" class="heading">Stored source rows → calculated SQL views</text>',
+                                      if name in names and name != view['name']]
+    return dependencies
+
+
+def render_view_flow(tables, views, dependencies):
+    """Draw the five-stage read path without crossing every SQL join."""
+    stages = [
+        ('1 · SOURCE', ['companies', 'employees', 'inference_runs']),
+        ('2 · PREPARE', ['employee_text', 'employee_classification', 'employee_features']),
+        ('3 · MATCH', ['manager_candidates', 'candidate_scores', 'employee_top_candidates']),
+        ('4 · DECIDE', ['reporting_predictions', 'prediction_reasons']),
+        ('5 · INSPECT', ['company_profiles', 'company_run_metrics',
+                         'run_metrics', 'employee_reporting_audit']),
     ]
-    for child, parents in dependencies.items():
-        cx, cy = positions[child]
-        for parent in parents:
-            px, py = positions[parent]
-            start_x, start_y = px + node_width / 2, py + node_height
-            end_x, end_y = cx + node_width / 2, cy
-            bend_y = (start_y + end_y) / 2
-            lines.append(f'<path d="M{start_x},{start_y} C{start_x},{bend_y} {end_x},{bend_y} {end_x},{end_y-5}" stroke="#a6b9aa" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>')
-    for name, (x, y) in positions.items():
-        stored = name in {table['name'] for table in tables}
-        fill = '#eaf1e8' if stored else '#ffffff'
-        kind = 'SOURCE TABLE · stores rows' if stored else 'SQL VIEW · calculated on query'
+    objects = {item['name'] for item in [*tables, *views]}
+    shown = [name for _, stage in stages for name in stage]
+    if set(shown) != objects or len(shown) != len(objects):
+        raise ValueError(f'Update view flow stages: missing {objects - set(shown)}, '
+                         f'extra {set(shown) - objects}')
+    descriptions = {
+        'companies': 'Company details',
+        'employees': 'Messy employee records',
+        'inference_runs': 'Current SQL thresholds',
+        'employee_text': 'Normalize title and team text',
+        'employee_classification': 'Function and seniority',
+        'employee_features': 'One feature set per person',
+        'manager_candidates': 'Plausible same-company leaders',
+        'candidate_scores': 'Evidence for each candidate',
+        'employee_top_candidates': 'Best and second-best candidate',
+        'reporting_predictions': 'Accept a link or abstain',
+        'prediction_reasons': 'Explain the decision',
+        'company_profiles': 'Headcount and size band',
+        'company_run_metrics': 'Per-company coverage',
+        'run_metrics': 'Overall counts and mean score',
+        'employee_reporting_audit': 'Inspect an employee decision',
+    }
+    width, height, card_width, card_height = 1810, 640, 318, 96
+    left, column_step, first_card_y, card_step = 28, 356, 166, 104
+    lines = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
+        f'viewBox="0 0 {width} {height}" role="img" aria-labelledby="title desc">',
+        '<title id="title">How source tables feed the SQL reporting views</title>',
+        '<desc id="desc">Five stages run left to right: source tables, title preparation, manager matching, reporting decisions, and inspection. Every view card names its exact direct inputs. Views read source rows on demand and never copy them.</desc>',
+        '<defs><marker id="flow-arrow" viewBox="0 0 10 10" refX="8" refY="5" '
+        'markerWidth="7" markerHeight="7" orient="auto">'
+        '<path d="M0 0 L10 5 L0 10 Z" fill="#4b7965"/></marker></defs>',
+        f'<rect width="{width}" height="{height}" fill="#f7f9f6"/>',
+        '<style>text{font-family:system-ui,sans-serif;fill:#283c32}'
+        '.heading{font-size:19px;font-weight:700}.note{font-size:12px;fill:#526159}'
+        '.stage{font-size:13px;font-weight:700;letter-spacing:.07em;fill:#315c49}'
+        '.name{font-size:15px;font-weight:700}.description{font-size:12px;fill:#506159}'
+        '.reads{font-family:ui-monospace,monospace;font-size:11px;fill:#5b6b5d}'
+        '.kind{font-size:10px;font-weight:700;fill:#376c50}</style>',
+        '<text x="28" y="35" class="heading">Two source tables → live reporting views</text>',
+        '<text x="28" y="58" class="note">Arrows trace the main reporting path. Side views can read source tables directly; each “Reads” line gives the exact inputs.</text>',
+    ]
+    for stage_index, (title, names) in enumerate(stages):
+        x = left + stage_index * column_step
         lines.extend([
-            f'<rect x="{x}" y="{y}" width="{node_width}" height="{node_height}" rx="7" fill="{fill}" stroke="#afc3b1"/>',
-            f'<text x="{x+14}" y="{y+24}" class="name">{escape(name)}</text>',
-            f'<text x="{x+14}" y="{y+45}" class="kind">{kind}</text>',
+            f'<rect x="{x - 8}" y="105" width="{card_width + 16}" height="480" '
+            'rx="9" fill="#f0f4ef" stroke="#dae5da"/>',
+            f'<text x="{x + 7}" y="137" class="stage">{escape(title)}</text>',
         ])
+        if stage_index < len(stages) - 1:
+            next_x = left + (stage_index + 1) * column_step
+            lines.append(f'<path d="M{x + card_width + 6},128 H{next_x - 15}" '
+                         'fill="none" stroke="#4b7965" stroke-width="2.5" '
+                         'marker-end="url(#flow-arrow)"/>')
+        for item_index, name in enumerate(names):
+            y = first_card_y + item_index * card_step
+            stored = name in {'companies', 'employees'}
+            fill = '#e4efe6' if stored else '#ffffff'
+            stroke = '#80a98b' if stored else '#b9cbbd'
+            lines.extend([
+                f'<g aria-label="{escape(name)}">',
+                f'<rect x="{x}" y="{y}" width="{card_width}" height="{card_height}" '
+                f'rx="7" fill="{fill}" stroke="{stroke}"/>',
+                f'<text x="{x + 12}" y="{y + 21}" class="name">{escape(name)}</text>',
+                f'<text x="{x + 12}" y="{y + 41}" class="description">'
+                f'{escape(descriptions[name])}</text>',
+            ])
+            if stored:
+                lines.append(f'<text x="{x + 12}" y="{y + 63}" class="kind">'
+                             'SOURCE TABLE · stores rows</text>')
+            else:
+                read_lines = []
+                current = 'Reads: '
+                for parent in dependencies[name]:
+                    candidate = current + (', ' if current != 'Reads: ' else '') + parent
+                    if len(candidate) > 44 and current != 'Reads: ':
+                        read_lines.append(current)
+                        current = parent
+                    else:
+                        current = candidate
+                read_lines.append(current)
+                if len(read_lines) > 3:
+                    raise ValueError(f'Too many input lines for {name}')
+                for line_index, value in enumerate(read_lines):
+                    lines.append(f'<text x="{x + 12}" y="{y + 63 + 13 * line_index}" '
+                                 f'class="reads">{escape(value)}</text>')
+            lines.append('</g>')
+    lines.append('<text x="28" y="616" class="note">Green = stored source table · White = calculated SQL view · Views run on query and do not copy rows</text>')
     lines.append('</svg>')
     return '\n'.join(lines)
 
@@ -234,9 +288,13 @@ def build_diagram():
             ],
         })
     connection.close()
+    dependencies = view_dependencies(tables, views)
+    for view in views:
+        view['reads'] = dependencies[view['name']]
     (ROOT / 'public/database-erd.svg').write_text(render_svg(tables, relationships))
     (ROOT / 'public/database-erd-full.svg').write_text(render_svg(tables, relationships))
-    (ROOT / 'public/database-view-flow.svg').write_text(render_view_flow(tables, views))
+    (ROOT / 'public/database-view-flow.svg').write_text(
+        render_view_flow(tables, views, dependencies))
     metadata = {
         'tables': tables, 'views': views, 'relationships': relationships,
         'company_query': (ROOT / 'sql/company_predictions.sql').read_text(),
