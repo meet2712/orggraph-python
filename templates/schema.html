@@ -2,33 +2,41 @@
   <header class="page-heading">
     <p class="muted">Database design</p>
     <h1>Database ER diagram</h1>
-    <p>Two persisted tables hold company and employee source records. Thirteen SQL views calculate headcount, employee features, manager candidates, decisions and metrics from those rows.</p>
+    <p>Two tables keep the company and employee records as supplied. Thirteen views turn those records into reporting lines and summaries, without rewriting the source.</p>
     <p><a href="/data.html">Explore the database &amp; SQL editor →</a></p>
   </header>
   <section class="paper-section">
-    <h2>Entity relationship diagram</h2>
-    <p class="schema-actions"><a href="/database-erd.svg" target="_blank" rel="noopener">Open full-size ER diagram ↗</a> <a href="/database-erd.svg" download>Download SVG</a> <a href="/database-erd.mmd" download>Download Mermaid source</a></p>
-    <p class="diagram-hint">All columns and SQL types at actual size. Scroll across the diagram on a small screen. PK = primary key · FK = foreign key. Crow’s-foot notation: circle = optional, bar = one, fork = many.</p>
-    <div class="erd-viewport" id="database-diagram" tabindex="0" role="region" aria-label="Scrollable entity relationship diagram">
-      <img src="/database-erd.svg" width="1200" alt="Database ER diagram showing the two source tables, their columns, primary and foreign keys.">
+    <h2>Tables and views</h2>
+    <p>Green cards store the original records. Blue cards are SQL views. A dashed arrow means “reads from”; the solid line is the company foreign key. Every card includes all its columns.</p>
+    <div class="schema-actions">
+      <a href="/database-erd.svg" target="_blank" rel="noopener">Open full diagram ↗</a>
+      <a href="/database-erd.svg" download>Download SVG</a>
+      <a href="/database-erd.mmd" download>Download Mermaid source</a>
     </div>
-  </section>
-  <section class="paper-section">
-    <h2>How the tables feed the views</h2>
-    <p>Read this from left to right: source records and decision thresholds feed title features, manager candidates, decisions and reports. Arrows show the main reading path. Each view card lists the tables or views its SQL reads directly. Views calculate results when queried; they do not copy rows into another table.</p>
-    <p class="schema-actions"><a href="/database-view-flow.svg" target="_blank" rel="noopener">Open full-size view diagram ↗</a> <a href="/database-view-flow.svg" download>Download SVG</a></p>
-    <p class="diagram-hint">Scroll sideways to see all five stages. On a phone, swipe across the diagram.</p>
-    <div class="erd-viewport view-flow-viewport" tabindex="0" role="region" aria-label="Scrollable SQL view flow diagram">
-      <img src="/database-view-flow.svg" width="1810" alt="Five-stage SQL view flow from two source tables through preparation, manager matching, reporting decisions and inspection. Each card lists its exact direct inputs.">
+    <div class="schema-diagram-controls">
+      <label>Follow a table or view
+        <select id="schema-focus"><option value="">Show all connections</option>
+          {% for item in schema.tables + schema.views %}<option value="{{ item.name }}">{{ item.name }}</option>{% endfor %}
+        </select>
+      </label>
     </div>
-    <details class="view-inputs"><summary>See every view and its direct inputs</summary>
-      <div class="table-scroll"><table class="simple-table"><thead><tr><th scope="col">View</th><th scope="col">Reads from</th><th scope="col">Result</th></tr></thead><tbody>
-        {% for view in schema.views %}<tr><th scope="row"><code>{{ view.name }}</code></th><td>{% for input in view.reads %}<code>{{ input }}</code>{{ ', ' if not loop.last else '' }}{% endfor %}</td><td>{{ view.grain }}</td></tr>{% endfor %}
+    <p class="diagram-hint">Choose a card to highlight what it reads and what reads it. Clear the selection to see everything.</p>
+    <div class="erd-viewport" id="database-diagram" tabindex="0" role="region" aria-label="Tables, views and their connections">
+      <object id="schema-svg" class="schema-diagram" type="image/svg+xml" data="/database-erd.svg?v=tables-and-views"
+              width="{{ schema.diagram.width }}" height="{{ schema.diagram.height }}"
+              style="aspect-ratio: {{ schema.diagram.width }} / {{ schema.diagram.height }}; --diagram-width: {{ schema.diagram.width }}px"
+              aria-label="Two raw tables and thirteen SQL views, all columns and direct dependencies">
+        <a href="/database-erd.svg">Open the tables and views diagram</a>
+      </object>
+    </div>
+    <details class="view-inputs"><summary>View connections as a table</summary>
+      <div class="table-scroll"><table class="simple-table"><thead><tr><th scope="col">View</th><th scope="col">Reads from</th><th scope="col">Shows</th></tr></thead><tbody>
+        {% for view in schema.views %}<tr><th scope="row"><code>{{ view.name }}</code></th><td>{% for input in view.reads %}<code>{{ input }}</code>{{ ', ' if not loop.last else '' }}{% else %}Fixed thresholds{% endfor %}</td><td>{{ view.grain }}</td></tr>{% endfor %}
       </tbody></table></div>
     </details>
   </section>
   <section class="paper-section">
-    <h2>A decision audit, not a second copy of the data</h2>
+    <h2>Check one reporting decision</h2>
     <p><code>employee_reporting_audit</code> joins an employee's raw fields to their inferred features, accepted manager, leading candidate, scores and decision reason. The answer key is kept in a separate CSV and is not part of this database.</p>
     <pre class="schema-query">SELECT full_name, inferred_manager, leading_candidate,
        confidence, margin, decision_reason

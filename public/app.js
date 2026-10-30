@@ -394,3 +394,14 @@ if (records && dialog) {
     }
   });
 }
+
+const schemaSvg = document.querySelector("#schema-svg");
+if (schemaSvg) {
+  const focus = document.querySelector("#schema-focus");
+  function highlightSchema() {
+    const drawing = schemaSvg.contentDocument;
+    if (drawing?.defaultView?.selectObject) drawing.defaultView.selectObject(focus.value || null);
+  }
+  focus.addEventListener("change", highlightSchema);
+  schemaSvg.addEventListener("load", highlightSchema);
+}

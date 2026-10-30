@@ -194,8 +194,9 @@ SELECT r.company_id, r.employee_id, c.employee_id AS candidate_id,
        c.team_path AS candidate_team,
        CASE WHEN r.team_path = c.team_path AND r.team_path NOT IN ('','n/a','unknown','-')
                  THEN 'same_team'
-            WHEN r.team_path <> '' AND c.team_path <> ''
-                 AND r.team_path LIKE c.team_path || '/%'
+            WHEN r.team_path NOT IN ('','n/a','unknown','-')
+                 AND c.team_path NOT IN ('','n/a','unknown','-')
+                 AND substr(r.team_path, 1, length(c.team_path) + 1) = c.team_path || '/'
                  THEN 'parent_team'
             ELSE 'other' END AS team_relation,
        CASE WHEN r.location <> '' AND r.location = c.location THEN 1 ELSE 0 END
@@ -215,8 +216,8 @@ WHERE r.employee_id <> c.employee_id
       OR (rf.inferred_rank >= 4 AND cf.inferred_rank > rf.inferred_rank)
   )
   AND (
-      r.team_path = c.team_path
-      OR r.team_path LIKE c.team_path || '/%'
+      (r.team_path = c.team_path AND r.team_path NOT IN ('','n/a','unknown','-'))
+      OR (c.team_path NOT IN ('','n/a','unknown','-') AND substr(r.team_path, 1, length(c.team_path) + 1) = c.team_path || '/')
       OR cf.inferred_level = 'CEO'
   );
 
