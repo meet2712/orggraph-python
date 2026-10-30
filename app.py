@@ -143,6 +143,11 @@ def create_app(test_config: dict | None = None) -> Flask:
     def data_page():
         return render_template("index.html", **page_context("data"))
 
+    @app.get("/schema.html")
+    def schema_page():
+        return render_template("index.html", **page_context("schema"),
+                               schema=read_json(ROOT / "public/database-schema.json"))
+
     @app.get("/database/snapshot.sqlite.gz")
     def database_snapshot():
         return send_file(

@@ -204,7 +204,10 @@ def allocate_department_counts(total: int, departments: list[str], industry: str
         * INDUSTRY_ADJUSTMENTS.get(industry, {}).get(department, 1.0)
         for department in departments
     }
-    total_weight = sum(weights.values())
+    # Keep allocation identical across Python versions with different sum algorithms.
+    total_weight = 0.0
+    for weight in weights.values():
+        total_weight += weight
     raw = {department: remaining * weights[department] / total_weight for department in departments}
     for department in departments:
         counts[department] += int(raw[department])

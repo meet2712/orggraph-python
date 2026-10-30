@@ -132,3 +132,33 @@ CREATE TABLE IF NOT EXISTS company_run_metrics (
     FOREIGN KEY (run_id) REFERENCES inference_runs (run_id),
     FOREIGN KEY (company_id) REFERENCES companies (company_id)
 );
+
+-- One inspectable decision per employee and run. The answer key is deliberately absent.
+CREATE VIEW IF NOT EXISTS employee_reporting_audit AS
+SELECT
+    p.run_id, e.company_id, e.employee_id, e.full_name, e.job_title,
+    e.raw_department, e.raw_team, e.location,
+    f.inferred_department, f.inferred_level,
+    p.accepted_manager_id, manager.full_name AS inferred_manager,
+    p.best_candidate_id, candidate.full_name AS leading_candidate,
+    p.confidence, p.margin, p.decision,
+    r.probability_threshold, r.margin_threshold,
+    CASE
+        WHEN p.decision = 'company_root' THEN 'observed_ceo_title'
+        WHEN p.decision = 'accepted' THEN 'cleared_both_checks'
+        WHEN p.best_candidate_id IS NULL THEN 'no_suitable_candidate'
+        WHEN p.confidence < r.probability_threshold AND p.margin < r.margin_threshold
+            THEN 'low_confidence_and_ambiguous_candidates'
+        WHEN p.confidence < r.probability_threshold THEN 'low_confidence'
+        WHEN p.margin < r.margin_threshold THEN 'ambiguous_candidates'
+        ELSE 'unresolved'
+    END AS decision_reason,
+    r.source_hash, r.model_version, r.pipeline_version
+FROM reporting_predictions AS p
+JOIN inference_runs AS r USING (run_id)
+JOIN employees AS e USING (company_id, employee_id)
+JOIN employee_features AS f USING (run_id, company_id, employee_id)
+LEFT JOIN employees AS manager
+    ON manager.company_id = p.company_id AND manager.employee_id = p.accepted_manager_id
+LEFT JOIN employees AS candidate
+    ON candidate.company_id = p.company_id AND candidate.employee_id = p.best_candidate_id;

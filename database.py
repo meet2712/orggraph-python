@@ -316,9 +316,22 @@ def check_loaded_snapshot(connection, run_id, company_count, employee_count):
         JOIN reporting_predictions p USING (run_id, company_id)
         GROUP BY m.run_id, m.company_id
         HAVING sum(p.decision = 'accepted') <> m.resolved_count
+            OR sum(p.decision = 'unresolved') <> m.unresolved_count
+            OR abs(m.coverage - round(
+                1.0 * sum(p.decision = 'accepted') /
+                max(sum(p.decision <> 'company_root'), 1), 4)) > 0.00001
     """).fetchone()
     if mismatched_headcount or mismatched_summary:
         raise ValueError("Company counts do not match the source summaries")
+    weak_accepted = connection.execute("""
+        SELECT p.employee_id FROM reporting_predictions p
+        JOIN inference_runs r USING (run_id)
+        WHERE p.decision = 'accepted'
+          AND (p.confidence < r.probability_threshold OR p.margin < r.margin_threshold)
+        LIMIT 1
+    """).fetchone()
+    if weak_accepted:
+        raise ValueError("Accepted reporting line did not clear both thresholds")
     accepted = connection.execute(
         "SELECT count(*) FROM reporting_predictions WHERE decision = 'accepted'"
     ).fetchone()[0]

@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
+from build_erd import build_diagram
 
 ROOT = Path(__file__).resolve().parents[1]
 DESTINATION = ROOT / "public/downloads/orggraph-source.zip"
@@ -37,6 +38,7 @@ def include_file(path):
 
 
 def main():
+    build_diagram()
     DESTINATION.parent.mkdir(parents=True, exist_ok=True)
     with ZipFile(DATASET_DESTINATION, "w", ZIP_DEFLATED, compresslevel=6) as archive:
         for path in DATASET_FILES:

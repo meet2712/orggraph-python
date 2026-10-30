@@ -3,7 +3,7 @@
 import unittest
 from dataclasses import replace
 
-from pipeline.train_and_infer import ParsedEmployee, build_candidates, infer_department, infer_rank
+from pipeline.train_and_infer import ParsedEmployee, build_candidates, infer_department, infer_rank, prediction_reasons
 
 
 def person(employee_id: str, rank: int) -> ParsedEmployee:
@@ -29,6 +29,11 @@ def person(employee_id: str, rank: int) -> ParsedEmployee:
 
 
 class InferenceParsingTests(unittest.TestCase):
+    def test_manager_seniority_signal_does_not_imply_executive_leadership(self) -> None:
+        reasons = prediction_reasons(person("report", 2), person("manager", 4), 0.2)
+        self.assertIn("higher inferred seniority", reasons)
+        self.assertNotIn("senior leadership match", reasons)
+
     def test_individual_contributor_manager_titles_are_not_people_managers(self) -> None:
         cases = {
             "Product Manager": 1,

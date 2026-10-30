@@ -5,7 +5,7 @@
       <h1>Explore the data</h1>
       <p>Browse the tables or write a query to inspect the records and reporting decisions.</p>
     </div>
-    <span class="read-only-label">Read-only SQL</span>
+    <a class="read-only-label" href="/schema.html">View ER diagram</a>
   </header>
 
   <div class="workbench-notice">
@@ -15,7 +15,7 @@
 
   <div class="workbench-layout">
     <aside class="database-browser" aria-label="Database tables">
-      <div class="browser-heading"><h2>Tables</h2><span id="database-table-count"></span></div>
+      <div class="browser-heading"><h2>Tables &amp; views</h2><span id="database-table-count"></span></div>
       <div id="database-tables" class="database-tables"><p class="muted">Loading tables…</p></div>
       <p class="browser-footnote">Generated records, inferred features, decisions, and a separate answer key.</p>
     </aside>
@@ -26,6 +26,8 @@
         <label class="example-picker">Example
           <select id="sql-example">
             <option value="counts">Dataset counts</option>
+            <option value="audit">Why a manager was chosen or rejected</option>
+            <option value="coverage">Company reporting coverage</option>
             <option value="unresolved">Unresolved by department</option>
             <option value="matches">Accepted manager matches</option>
             <option value="chain">Follow a manager chain</option>

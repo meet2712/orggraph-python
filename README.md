@@ -2,7 +2,8 @@
 
 OrgGraph turns a flat employee list into a possible org chart. Pick a company,
 look through its reporting lines, and check the confidence behind each one.
-When the evidence is weak, the manager stays unresolved.
+When the evidence is weak, the manager stays unresolved. The All people view
+names accepted managers and explains which decisions still need review.
 
 Live app: <https://meet2712.github.io/orggraph-python/>.
 
@@ -26,7 +27,7 @@ There is no React build or Node dependency.
 ## Inspect the data
 
 The Database & SQL page shows the real tables, their keys, row counts, and
-relationships. Examples cover dataset counts, accepted matches, unresolved
+relationships. Examples cover dataset counts, per-company reporting coverage, accepted matches, unresolved
 people, missing source fields, manager chains, and load lineage.
 
 Queries run on a downloaded SQLite copy inside a browser worker. The editor
@@ -34,6 +35,18 @@ accepts one read-only query at a time, returns at most 200 rows, and stops a
 query after five seconds. Writes and schema changes are blocked. There is no
 server endpoint that accepts user SQL, and ordinary app connections use
 SQLite read-only mode. This keeps a public demo separate from data loading.
+
+## What goes beyond the brief
+
+- An inspectable decision audit: query accepted managers, unconfirmed candidates,
+  confidence, the runner-up gap and rejection reasons without joining the answer key.
+- A public read-only SQL workspace, with table keys, relationships and company
+  coverage. Queries run in a browser copy rather than on a server SQL endpoint.
+- A schema-backed ER diagram in the portal, with downloadable SVG and Mermaid
+  source for walking a reviewer through the design.
+- Checked loads, source/model lineage and a reproducibility test that compares
+  regenerated CSVs with the shipped benchmark. These make the result inspectable
+  rather than relying on a complete-looking chart.
 
 ## Database design
 
@@ -81,7 +94,7 @@ does not generate data or train a model. Each request reads the selected
 company using its own read-only connection. This version does not save edits.
 
 The main routes are `/`, `/companies/cmp_0001.html`, `/results.html`,
-`/approach.html`, and `/data.html`. `/health` checks that the app and database
+`/approach.html`, `/data.html`, and `/schema.html`. `/health` checks that the app and database
 are ready. `/database/snapshot.sqlite.gz` provides the synthetic database copy
 used by the browser SQL editor.
 
@@ -117,7 +130,7 @@ the full Flask app. To create the static pages:
 python scripts/export_site.py
 ```
 
-This renders the home page, all 500 company pages, results, approach, and database explorer into
+This renders the home page, all 500 company pages, results, approach, database explorer and ER diagram page into
 `dist/`, then copies the browser assets and downloads. It creates fresh dataset
 and source downloads before exporting, including when run from an extracted source ZIP.
 Filtering, person details, and read-only SQL work in the browser. The full
@@ -196,7 +209,8 @@ Recall asks: how many of all the true reporting lines did we recover?
 The learned scores accept about 2.9 times as many links as the rules baseline
 while keeping precision above 95% on the test split. The shortlist contains the
 true manager for 99.23% of test employees who have a manager. Across all 500
-companies, 58,672 reporting lines are accepted and 29,195 remain unresolved.
+companies, 58,672 reporting lines are accepted, 29,204 decisions need review,
+and 491 people are identified as company roots from their observed titles.
 For Nimbus Grid, 159 of 233 possible lines are accepted, 74 are unresolved,
 and 97.48% of accepted lines match the generated answer. The stricter threshold
 leaves more people without a manager rather than adding weak reporting lines.

@@ -53,6 +53,7 @@ def export_site(base_path: str = "") -> None:
         ("/results.html", "results.html"),
         ("/approach.html", "approach.html"),
         ("/data.html", "data.html"),
+        ("/schema.html", "schema.html"),
     ]
     routes.extend(
         (f"/companies/{company['id']}.html", f"companies/{company['id']}.html")
@@ -76,7 +77,7 @@ def export_site(base_path: str = "") -> None:
                 target.write_text("\n".join(line.strip() for line in html.splitlines() if line.strip()), encoding="utf-8")
 
         public = ROOT / "public"
-        for filename in ("style.css", "app.js", "workbench.css", "sql-workbench.js", "sql-worker.js"):
+        for filename in ("style.css", "app.js", "workbench.css", "sql-workbench.js", "sql-worker.js", "database-erd.svg", "database-erd.mmd", "database-schema.json"):
             shutil.copy2(public / filename, output / filename)
         if base_path:
             prefix_worker_paths(output, base_path)

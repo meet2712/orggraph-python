@@ -72,6 +72,11 @@ def main() -> None:
                 cursor = by_id[cursor]["predictedManagerId"]
 
         require(resolved == summary["resolved"], f"resolved count mismatch in {summary['id']}")
+        unresolved = sum(not e["predictedManagerId"] and e["inferredLevel"] != "CEO" for e in employees)
+        require(unresolved == summary["unresolved"], f"unresolved count mismatch in {summary['id']}")
+        eligible = sum(e["inferredLevel"] != "CEO" for e in employees)
+        require(abs(summary["coverage"] - round(resolved / max(eligible, 1), 4)) < 0.00001,
+                f"company coverage mismatch in {summary['id']}")
         employee_total += len(employees)
         edge_total += resolved
 

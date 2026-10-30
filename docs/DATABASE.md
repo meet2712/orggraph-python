@@ -68,6 +68,12 @@ the original exported metrics: averaging already rounded employee scores can
 change the last decimal place. The saved summary is not a substitute for the
 individual prediction rows.
 
+Resolved and unresolved company counts reconcile to the stored decision rows.
+Company coverage uses people without an inferred CEO designation as its denominator.
+Held-out benchmark coverage uses the separate generated answer key instead. These
+are different measures: a missing CEO title must not silently remove an unresolved
+person from the operational counts. The loader rejects mismatched counts or coverage.
+
 ## Constraints and checks
 
 - Composite foreign keys prevent references to people in another company or
@@ -150,3 +156,27 @@ another part of the dataset.
 These SQL checks cover the imported snapshot. The Results page still reports
 model quality on the 75 held-out test companies, a different population from
 all 500 companies in the database.
+
+### If this grows beyond the take-home
+
+The next useful schema change is a `datasets` table, with `dataset_id` on raw
+companies, employees, the answer key, and each inference run. That would retain
+old inputs and let reviewers compare two model runs on exactly the same data.
+The current single-snapshot demo records hashes and replaces its checked cache;
+it does not retain a history of changing employee records. For this task, that
+limit is explicit rather than hidden behind an unused history table.
+
+### Inspecting a reporting decision
+
+`employee_reporting_audit` is a view, at employee/run grain. It joins raw
+records, inferred features, predictions and run metadata. Accepted managers
+and unconfirmed candidates have separate columns. A reason code explains
+which acceptance check failed; source/model/pipeline hashes identify the run.
+It contains no generated manager answers or canonical benchmark fields. The
+view stores no additional employee records. The SQL workspace lists it beside
+the nine tables and includes a ready-to-run example.
+
+The portal's `/schema.html` page shows the ER diagram and every composite
+foreign key. `scripts/build_erd.py` reads `schema.sql` through an in-memory
+SQLite database to generate the SVG, Mermaid source and relationship reference.
+Source packaging rebuilds these files, so the diagram follows the actual schema.

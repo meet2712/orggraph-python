@@ -19,6 +19,21 @@ if (queryEditor) {
   let tables = [];
 
   const examples = {
+    audit: `SELECT full_name, job_title, inferred_manager, leading_candidate,
+       ROUND(confidence * 100, 1) AS confidence_pct,
+       ROUND(margin * 100, 1) AS lead_pct, decision, decision_reason
+FROM employee_reporting_audit
+WHERE company_id = 'cmp_0004'
+ORDER BY employee_id;`,
+    coverage: `SELECT c.company_name, COUNT(*) AS people,
+       SUM(p.decision = 'accepted') AS accepted_lines,
+       SUM(p.decision = 'unresolved') AS needs_review,
+       ROUND(100.0 * SUM(p.decision = 'accepted') /
+         NULLIF(SUM(p.decision <> 'company_root'), 0), 1) AS coverage_pct
+FROM companies AS c
+JOIN reporting_predictions AS p USING (company_id)
+GROUP BY c.company_id, c.company_name
+ORDER BY coverage_pct, c.company_name;`,
     counts: `SELECT 'companies' AS dataset, COUNT(*) AS rows FROM companies
 UNION ALL
 SELECT 'employees', COUNT(*) FROM employees
@@ -174,7 +189,7 @@ FROM inference_runs ORDER BY loaded_at DESC;`,
   }
 
   function inspectTable(table) {
-    document.querySelector("#schema-heading").textContent = `${table.name} · columns and relationships`;
+    document.querySelector("#schema-heading").textContent = `${table.name} · ${table.type === "view" ? "read-only view" : "table"} · columns and relationships`;
     const columns = document.querySelector("#schema-columns");
     columns.replaceChildren();
     for (const [, name, type, required, , primaryKey] of table.columns) {
@@ -201,7 +216,7 @@ FROM inference_runs ORDER BY loaded_at DESC;`,
     }
     if (!groups.size) {
       const paragraph = document.createElement("p");
-      paragraph.textContent = "This table has no foreign keys.";
+      paragraph.textContent = table.type === "view" ? "This view joins existing tables; it stores no additional rows or foreign keys." : "This table has no foreign keys.";
       relations.append(paragraph);
     }
     schemaInspector.hidden = false;
@@ -218,6 +233,7 @@ FROM inference_runs ORDER BY loaded_at DESC;`,
       const name = document.createElement("span");
       name.className = "table-name";
       name.textContent = table.name;
+      button.title = table.type === "view" ? `${table.name} · read-only view` : table.name;
       const count = document.createElement("span");
       count.className = "table-row-count";
       count.textContent = table.rowCount.toLocaleString("en-US");

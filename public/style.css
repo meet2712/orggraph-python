@@ -1304,6 +1304,8 @@ input[type="checkbox"] {
     font-size: 23px;
   }
   .chart-tabs {
+    gap: 12px;
+    overflow-x: auto;
     padding: 0 15px;
   }
   .chart-toolbar {
@@ -1402,3 +1404,12 @@ input[type="checkbox"] {
   .people-search { flex-basis: 60%; }
   .expand-button { margin-left: auto; }
 }
+
+/* Schema details stay readable; the full diagram scrolls inside its own frame. */
+.schema-page { max-width: 1250px; width: calc(100% - 48px); margin: 0 auto; padding: 38px 0 64px; }
+.schema-page .page-heading { max-width: 850px; }
+.schema-actions { display: flex; flex-wrap: wrap; gap: 12px 24px; }
+.erd-viewport { max-height: 750px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; background: #f6f8f3; }
+.erd-viewport img { display: block; width: 1250px; max-width: none; height: auto; }
+.schema-query { padding: 20px; overflow: auto; background: #f3f6ef; border: 1px solid var(--line); font-size: 12px; line-height: 1.7; }
+.schema-page code { overflow-wrap: anywhere; }

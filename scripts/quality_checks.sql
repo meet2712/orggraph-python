@@ -66,7 +66,7 @@ LEFT JOIN reporting_predictions AS p
 GROUP BY r.run_id, e.company_id, e.employee_id
 HAVING COUNT(p.employee_id) <> 1;
 
--- Expected: saved company counts match predictions and benchmark-eligible gaps.
+-- Expected: saved company counts match operational prediction decisions.
 SELECT metrics.run_id, metrics.company_id
 FROM company_run_metrics AS metrics
 WHERE metrics.resolved_count <> (
@@ -76,14 +76,9 @@ WHERE metrics.resolved_count <> (
       AND p.decision = 'accepted'
 )
 OR metrics.unresolved_count <> (
-    SELECT COUNT(*)
-    FROM reporting_predictions AS p
-    JOIN benchmark_truth AS truth
-        ON truth.company_id = p.company_id AND truth.employee_id = p.employee_id
-    WHERE p.run_id = metrics.run_id
-      AND p.company_id = metrics.company_id
-      AND p.accepted_manager_id IS NULL
-      AND truth.is_root = 0
+    SELECT COUNT(*) FROM reporting_predictions AS p
+    WHERE p.run_id = metrics.run_id AND p.company_id = metrics.company_id
+      AND p.decision = 'unresolved'
 );
 
 -- Expected: no accepted/abstained decision contradictions or invalid scores.
@@ -211,3 +206,10 @@ JOIN employee_features AS features
 WHERE person.company_id = 'cmp_0001'
 GROUP BY features.run_id, features.inferred_department, input_team
 ORDER BY features.inferred_department, employees DESC, input_team;
+
+-- Expected: accepted decisions clear the thresholds saved on their own run.
+SELECT p.run_id, p.company_id, p.employee_id
+FROM reporting_predictions AS p
+JOIN inference_runs AS r USING (run_id)
+WHERE p.decision = 'accepted'
+  AND (p.confidence < r.probability_threshold OR p.margin < r.margin_threshold);

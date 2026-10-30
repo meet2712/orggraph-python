@@ -153,17 +153,22 @@ if (chartView) {
     updateConnectors();
 
     let reviewMatches = 0;
+    let peopleMatches = 0;
     for (const row of reviewRows) {
-      row.hidden = !matchesFilters(row);
-      if (!row.hidden) reviewMatches += 1;
+      const matches = matchesFilters(row);
+      const unresolved = row.dataset.unresolved === "true";
+      row.hidden = !matches || (view === "review" && !unresolved);
+      if (matches && unresolved) reviewMatches += 1;
+      if (matches) peopleMatches += 1;
     }
 
     chartView.hidden = view !== "chart";
-    reviewView.hidden = view !== "review";
+    reviewView.hidden = view === "chart";
+    reviewView.scrollTop = 0;
     expandButton.hidden = view !== "chart";
     groupToolbar.hidden = view !== "chart";
     canvasControls.hidden = view !== "chart";
-    const visibleCount = view === "chart" ? matchingNodes.size : reviewMatches;
+    const visibleCount = view === "chart" ? matchingNodes.size : view === "review" ? reviewMatches : peopleMatches;
     emptyMessage.hidden = visibleCount > 0;
     emptyMessage.textContent = view === "chart" && reviewMatches > 0
       ? `${reviewMatches} matching ${reviewMatches === 1 ? "person has" : "people have"} an unresolved manager. Open Needs review to see them.`
@@ -177,6 +182,8 @@ if (chartView) {
 
     if (view === "review") {
       resultCount.textContent = `${reviewMatches} ${reviewMatches === 1 ? "person needs" : "people need"} review`;
+    } else if (view === "people") {
+      resultCount.textContent = `${peopleMatches} ${peopleMatches === 1 ? "person" : "people"} · accepted managers and unresolved decisions`;
     } else if (filtered) {
       resultCount.textContent = `${visibleCount} matching ${visibleCount === 1 ? "person" : "people"} · real ancestors kept for context`;
     } else if (groupFilter.value) {
@@ -195,6 +202,7 @@ if (chartView) {
       for (const other of viewButtons) other.setAttribute("aria-pressed", String(other === button));
       explanation.textContent = view === "review"
         ? "Only people without an accepted reporting line appear here. The candidate shown is unconfirmed. Open a person to see why no line was added."
+        : view === "people" ? "Everyone in this company is listed here. Accepted managers are named; unconfirmed candidates stay separate from reporting lines."
         : "Follow the lines from each manager to their direct reports. Select a person for details, or open the report count to see their team.";
       updatePeople();
     });
@@ -269,7 +277,7 @@ if (chartView) {
   updatePeople();
   requestAnimationFrame(() => {
     // Start at a readable size. Fit can show a wider team in one view when needed.
-    setZoom(Math.max(0.75, Math.min(1, (chartView.clientWidth - 24) / canvas.offsetWidth)), false);
+    setZoom(1, false);
     requestLayout(true);
   });
 }

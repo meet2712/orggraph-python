@@ -108,10 +108,11 @@ function readRows(sql, limit = MAX_ROWS) {
 }
 
 function inspectTables() {
-  const tables = readRows("SELECT name, sql FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name").rows;
-  return tables.map(([name, sql]) => ({
+  const tables = readRows("SELECT name, sql, type FROM sqlite_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' ORDER BY name").rows;
+  return tables.map(([name, sql, type]) => ({
     name,
     sql,
+    type,
     rowCount: readRows(`SELECT COUNT(*) FROM ${quoteIdentifier(name)}`).rows[0][0],
     columns: readRows(`PRAGMA table_info(${quoteIdentifier(name)})`).rows,
     foreignKeys: readRows(`PRAGMA foreign_key_list(${quoteIdentifier(name)})`).rows,

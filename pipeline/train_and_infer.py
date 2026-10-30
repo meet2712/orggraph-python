@@ -616,7 +616,7 @@ def prediction_reasons(report: ParsedEmployee, manager: ParsedEmployee, margin: 
     if " / " in report.team and report.team.rsplit(" / ", 1)[0] == manager.team:
         reasons.append("parent team")
     rank_gap = manager.rank - report.rank
-    reasons.append("one level above" if rank_gap == 1 else "senior leadership match")
+    reasons.append("one level above" if rank_gap == 1 else "higher inferred seniority")
     if report.location and report.location == manager.location:
         reasons.append("same location")
     if manager.rank >= 4:
@@ -691,7 +691,8 @@ def export_predictions(
                 "noiseProfile": report.noise_profile.split("|"),
             })
         company_meta = company_rows[company_id]
-        eligible = max(len(people) - 1, 1)
+        # Company counts describe inferred decisions, not the hidden answer key.
+        eligible = max(sum(person.rank_label != "CEO" for person in people), 1)
         payload = {
             "company": {
                 "id": company_id,

@@ -4,6 +4,11 @@
     <span class="person-name">
       <strong>{{ person.name }}</strong>
       <small>{{ person.title or 'Title missing' }}</small>
+      {% if person.predictedManagerId %}
+        <small>Reports to {{ employees_by_id[person.predictedManagerId].name }}</small>
+      {% elif person.inferredLevel != 'CEO' %}
+        <small>{% if not person.bestCandidateId %}No suitable manager candidate{% elif person.confidence < evaluation.model.threshold.probability %}Evidence below the confidence threshold{% else %}Candidates too close to choose a manager{% endif %}</small>
+      {% endif %}
       {% if not person.predictedManagerId and person.bestCandidateId %}
         <small>Unconfirmed candidate: {{ employees_by_id[person.bestCandidateId].name }}</small>
       {% endif %}
@@ -76,7 +81,7 @@
       <a href="/" {% if page == 'chart' %}aria-current="page"{% endif %}>Org chart</a>
       <a href="/results.html" {% if page == 'results' %}aria-current="page"{% endif %}>Results</a>
       <a href="/approach.html" {% if page == 'approach' %}aria-current="page"{% endif %}>How it works</a>
-      <a href="/data.html" {% if page == 'data' %}aria-current="page"{% endif %}>Database &amp; SQL</a>
+      <a href="/data.html" {% if page in ['data', 'schema'] %}aria-current="page"{% endif %}>Database &amp; SQL</a>
     </nav>
     <a class="header-download" href="/downloads/orggraph-source.zip" download><span aria-hidden="true">↓</span> Download source</a>
   </header>
@@ -122,6 +127,7 @@
         <div class="chart-tabs" aria-label="Choose chart or review list">
           <button type="button" data-view="chart" aria-pressed="true" aria-controls="chart-view">Reporting lines</button>
           <button type="button" data-view="review" aria-pressed="false" aria-controls="review-view">Needs review <span>{{ unresolved|length }}</span></button>
+          <button type="button" data-view="people" aria-pressed="false" aria-controls="review-view">All people <span>{{ company.employees|length }}</span></button>
         </div>
         <div class="chart-toolbar">
           <label class="department-filter">
@@ -178,8 +184,8 @@
         </div>
         </div>
         <div id="review-view" class="unresolved-list" hidden>
-          {% for person in unresolved %}
-          <div data-review-person data-department="{{ person.inferredDepartment }}" data-search="{{ (person.name ~ ' ' ~ person.title ~ ' ' ~ person.inferredDepartment)|lower }}">{{ person_row(person) }}</div>
+          {% for person in company.employees %}
+          <div data-review-person data-unresolved="{{ 'true' if person in unresolved else 'false' }}" data-department="{{ person.inferredDepartment }}" data-search="{{ (person.name ~ ' ' ~ person.title ~ ' ' ~ person.inferredDepartment)|lower }}">{{ person_row(person) }}</div>
           {% endfor %}
         </div>
         <p id="no-people" class="empty-state" hidden>No people match these filters. Try another department or search.</p>
@@ -307,6 +313,8 @@
     </section>
   </main>
 
+  {% elif page == 'schema' %}
+  {% include 'schema.html' %}
   {% elif page == 'approach' %}
   {% set dataset = evaluation.dataset %}
   {% set split = evaluation.split %}

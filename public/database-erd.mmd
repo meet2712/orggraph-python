@@ -1,0 +1,100 @@
+erDiagram
+    companies {
+        TEXT company_id PK
+        TEXT company_name 
+        TEXT industry 
+        TEXT size_band 
+        INTEGER employee_count 
+        TEXT headquarters 
+    }
+    employees {
+        TEXT company_id PK,FK
+        TEXT employee_id PK
+        TEXT full_name 
+        TEXT job_title 
+        TEXT raw_department 
+        TEXT raw_team 
+        TEXT location 
+        TEXT work_email 
+        INTEGER source_row_number 
+    }
+    benchmark_truth {
+        TEXT company_id PK,FK
+        TEXT employee_id PK,FK
+        TEXT manager_employee_id FK
+        TEXT canonical_title 
+        TEXT canonical_department 
+        TEXT canonical_team 
+        TEXT canonical_level 
+        INTEGER is_people_manager 
+        INTEGER is_root 
+    }
+    inference_runs {
+        TEXT run_id PK
+        TEXT source_hash 
+        TEXT model_version 
+        TEXT pipeline_version 
+        TEXT model_type 
+        REAL probability_threshold 
+        REAL margin_threshold 
+        INTEGER source_company_count 
+        INTEGER source_employee_count 
+        INTEGER loaded_company_count 
+        INTEGER loaded_employee_count 
+        INTEGER loaded_prediction_count 
+        INTEGER accepted_prediction_count 
+        TEXT load_status 
+        TEXT loaded_at 
+    }
+    employee_features {
+        TEXT run_id PK,FK
+        TEXT company_id PK,FK
+        TEXT employee_id PK,FK
+        TEXT inferred_department 
+        TEXT inferred_level 
+        INTEGER inferred_rank 
+    }
+    reporting_predictions {
+        TEXT run_id PK,FK
+        TEXT company_id PK,FK
+        TEXT employee_id PK,FK
+        TEXT accepted_manager_id FK
+        TEXT best_candidate_id FK
+        REAL confidence 
+        REAL margin 
+        TEXT decision 
+    }
+    company_run_metrics {
+        TEXT run_id PK,FK
+        TEXT company_id PK,FK
+        INTEGER resolved_count 
+        INTEGER unresolved_count 
+        REAL coverage 
+        REAL precision 
+        REAL average_confidence 
+    }
+    employee_noise {
+        TEXT company_id PK,FK
+        TEXT employee_id PK,FK
+        INTEGER position PK
+        TEXT noise_type 
+    }
+    prediction_reasons {
+        TEXT run_id PK,FK
+        TEXT company_id PK,FK
+        TEXT employee_id PK,FK
+        INTEGER position PK
+        TEXT reason 
+    }
+    companies ||--o{ employees : R1
+    employees ||--o{ benchmark_truth : R2
+    employees ||--o| benchmark_truth : R3
+    employees ||--o{ employee_features : R4
+    inference_runs ||--o{ employee_features : R5
+    employee_features ||--o{ reporting_predictions : R6
+    employee_features ||--o{ reporting_predictions : R7
+    employee_features ||--o| reporting_predictions : R8
+    companies ||--o{ company_run_metrics : R9
+    inference_runs ||--o{ company_run_metrics : R10
+    employees ||--o{ employee_noise : R11
+    reporting_predictions ||--o{ prediction_reasons : R12

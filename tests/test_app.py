@@ -197,6 +197,36 @@ class AppTests(unittest.TestCase):
         self.assertTrue(reused.config["DATABASE_REUSED"])
         self.assertEqual([path.stat().st_mtime_ns for path in paths], before)
 
+    def test_decision_audit_joins_evidence_without_the_answer_key(self):
+        with closing(connect(self.config["DATABASE"])) as connection:
+            rows = connection.execute("SELECT * FROM employee_reporting_audit").fetchall()
+            self.assertEqual(len(rows), 4)
+            report = next(row for row in rows if row["employee_id"] == "report")
+            self.assertEqual(report["inferred_manager"], "manager")
+            self.assertEqual(report["decision_reason"], "cleared_both_checks")
+            self.assertNotIn("groundTruthManagerId", report.keys())
+            self.assertNotIn("manager_employee_id", report.keys())
+            connection.execute("UPDATE reporting_predictions SET confidence=0.5, margin=0.05 WHERE employee_id='unresolved'")
+            reason = connection.execute("SELECT decision_reason FROM employee_reporting_audit WHERE employee_id='unresolved'").fetchone()[0]
+            self.assertEqual(reason, "low_confidence_and_ambiguous_candidates")
+
+    def test_load_rejects_a_summary_that_hides_unresolved_people(self):
+        path = self.config["DATA_DIR"] / "companies" / "cmp_0001.json"
+        payload = json.loads(path.read_text())
+        payload["summary"]["unresolved"] = 0
+        path.write_text(json.dumps(payload))
+        with self.assertRaisesRegex(ValueError, "Company counts"):
+            create_app(self.config)
+        with closing(connect(self.config["DATABASE"], readonly=True)) as connection:
+            self.assertEqual(read_company(connection, self.run_id, "cmp_0001"), self.payload)
+
+    def test_load_rejects_an_accepted_line_below_its_run_threshold(self):
+        payload = json.loads(self.company_file.read_text())
+        payload["employees"][2]["confidence"] = 0.5
+        self.company_file.write_text(json.dumps(payload))
+        with self.assertRaisesRegex(ValueError, "both thresholds"):
+            create_app(self.config)
+
     def test_changed_model_rebuilds_instead_of_reusing_a_stale_snapshot(self):
         self.config["MODEL_PATH"].write_text('{"seed": 2}')
         with patch("database.load_snapshot", wraps=load_snapshot) as loader:

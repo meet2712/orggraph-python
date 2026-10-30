@@ -1,0 +1,723 @@
+{
+  "tables": [
+    {
+      "name": "companies",
+      "grain": "One company",
+      "columns": [
+        {
+          "name": "company_id",
+          "type": "TEXT",
+          "required": true,
+          "pk": 1,
+          "fk": false
+        },
+        {
+          "name": "company_name",
+          "type": "TEXT",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "industry",
+          "type": "TEXT",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "size_band",
+          "type": "TEXT",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "employee_count",
+          "type": "INTEGER",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "headquarters",
+          "type": "TEXT",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        }
+      ]
+    },
+    {
+      "name": "employees",
+      "grain": "One observed employee",
+      "columns": [
+        {
+          "name": "company_id",
+          "type": "TEXT",
+          "required": true,
+          "pk": 1,
+          "fk": true
+        },
+        {
+          "name": "employee_id",
+          "type": "TEXT",
+          "required": true,
+          "pk": 2,
+          "fk": false
+        },
+        {
+          "name": "full_name",
+          "type": "TEXT",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "job_title",
+          "type": "TEXT",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "raw_department",
+          "type": "TEXT",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "raw_team",
+          "type": "TEXT",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "location",
+          "type": "TEXT",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "work_email",
+          "type": "TEXT",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "source_row_number",
+          "type": "INTEGER",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        }
+      ]
+    },
+    {
+      "name": "benchmark_truth",
+      "grain": "One generated answer per employee",
+      "columns": [
+        {
+          "name": "company_id",
+          "type": "TEXT",
+          "required": true,
+          "pk": 1,
+          "fk": true
+        },
+        {
+          "name": "employee_id",
+          "type": "TEXT",
+          "required": true,
+          "pk": 2,
+          "fk": true
+        },
+        {
+          "name": "manager_employee_id",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": true
+        },
+        {
+          "name": "canonical_title",
+          "type": "TEXT",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "canonical_department",
+          "type": "TEXT",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "canonical_team",
+          "type": "TEXT",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "canonical_level",
+          "type": "TEXT",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "is_people_manager",
+          "type": "INTEGER",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "is_root",
+          "type": "INTEGER",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        }
+      ]
+    },
+    {
+      "name": "inference_runs",
+      "grain": "One checked source/model run",
+      "columns": [
+        {
+          "name": "run_id",
+          "type": "TEXT",
+          "required": true,
+          "pk": 1,
+          "fk": false
+        },
+        {
+          "name": "source_hash",
+          "type": "TEXT",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "model_version",
+          "type": "TEXT",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "pipeline_version",
+          "type": "TEXT",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "model_type",
+          "type": "TEXT",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "probability_threshold",
+          "type": "REAL",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "margin_threshold",
+          "type": "REAL",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "source_company_count",
+          "type": "INTEGER",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "source_employee_count",
+          "type": "INTEGER",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "loaded_company_count",
+          "type": "INTEGER",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "loaded_employee_count",
+          "type": "INTEGER",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "loaded_prediction_count",
+          "type": "INTEGER",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "accepted_prediction_count",
+          "type": "INTEGER",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "load_status",
+          "type": "TEXT",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "loaded_at",
+          "type": "TEXT",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        }
+      ]
+    },
+    {
+      "name": "employee_features",
+      "grain": "One employee per run",
+      "columns": [
+        {
+          "name": "run_id",
+          "type": "TEXT",
+          "required": true,
+          "pk": 1,
+          "fk": true
+        },
+        {
+          "name": "company_id",
+          "type": "TEXT",
+          "required": true,
+          "pk": 2,
+          "fk": true
+        },
+        {
+          "name": "employee_id",
+          "type": "TEXT",
+          "required": true,
+          "pk": 3,
+          "fk": true
+        },
+        {
+          "name": "inferred_department",
+          "type": "TEXT",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "inferred_level",
+          "type": "TEXT",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "inferred_rank",
+          "type": "INTEGER",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        }
+      ]
+    },
+    {
+      "name": "reporting_predictions",
+      "grain": "One reporting decision per employee/run",
+      "columns": [
+        {
+          "name": "run_id",
+          "type": "TEXT",
+          "required": true,
+          "pk": 1,
+          "fk": true
+        },
+        {
+          "name": "company_id",
+          "type": "TEXT",
+          "required": true,
+          "pk": 2,
+          "fk": true
+        },
+        {
+          "name": "employee_id",
+          "type": "TEXT",
+          "required": true,
+          "pk": 3,
+          "fk": true
+        },
+        {
+          "name": "accepted_manager_id",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": true
+        },
+        {
+          "name": "best_candidate_id",
+          "type": "TEXT",
+          "required": false,
+          "pk": 0,
+          "fk": true
+        },
+        {
+          "name": "confidence",
+          "type": "REAL",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "margin",
+          "type": "REAL",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "decision",
+          "type": "TEXT",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        }
+      ]
+    },
+    {
+      "name": "company_run_metrics",
+      "grain": "One company summary per run",
+      "columns": [
+        {
+          "name": "run_id",
+          "type": "TEXT",
+          "required": true,
+          "pk": 1,
+          "fk": true
+        },
+        {
+          "name": "company_id",
+          "type": "TEXT",
+          "required": true,
+          "pk": 2,
+          "fk": true
+        },
+        {
+          "name": "resolved_count",
+          "type": "INTEGER",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "unresolved_count",
+          "type": "INTEGER",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "coverage",
+          "type": "REAL",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "precision",
+          "type": "REAL",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        },
+        {
+          "name": "average_confidence",
+          "type": "REAL",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        }
+      ]
+    },
+    {
+      "name": "employee_noise",
+      "grain": "One noise label per employee/position",
+      "columns": [
+        {
+          "name": "company_id",
+          "type": "TEXT",
+          "required": true,
+          "pk": 1,
+          "fk": true
+        },
+        {
+          "name": "employee_id",
+          "type": "TEXT",
+          "required": true,
+          "pk": 2,
+          "fk": true
+        },
+        {
+          "name": "position",
+          "type": "INTEGER",
+          "required": true,
+          "pk": 3,
+          "fk": false
+        },
+        {
+          "name": "noise_type",
+          "type": "TEXT",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        }
+      ]
+    },
+    {
+      "name": "prediction_reasons",
+      "grain": "One signal per decision/position",
+      "columns": [
+        {
+          "name": "run_id",
+          "type": "TEXT",
+          "required": true,
+          "pk": 1,
+          "fk": true
+        },
+        {
+          "name": "company_id",
+          "type": "TEXT",
+          "required": true,
+          "pk": 2,
+          "fk": true
+        },
+        {
+          "name": "employee_id",
+          "type": "TEXT",
+          "required": true,
+          "pk": 3,
+          "fk": true
+        },
+        {
+          "name": "position",
+          "type": "INTEGER",
+          "required": true,
+          "pk": 4,
+          "fk": false
+        },
+        {
+          "name": "reason",
+          "type": "TEXT",
+          "required": true,
+          "pk": 0,
+          "fk": false
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "id": "R1",
+      "parent": "companies",
+      "child": "employees",
+      "parent_columns": [
+        "company_id"
+      ],
+      "child_columns": [
+        "company_id"
+      ],
+      "cardinality": "0..many",
+      "optional": false
+    },
+    {
+      "id": "R2",
+      "parent": "employees",
+      "child": "benchmark_truth",
+      "parent_columns": [
+        "company_id",
+        "employee_id"
+      ],
+      "child_columns": [
+        "company_id",
+        "manager_employee_id"
+      ],
+      "cardinality": "0..many",
+      "optional": true
+    },
+    {
+      "id": "R3",
+      "parent": "employees",
+      "child": "benchmark_truth",
+      "parent_columns": [
+        "company_id",
+        "employee_id"
+      ],
+      "child_columns": [
+        "company_id",
+        "employee_id"
+      ],
+      "cardinality": "0..1",
+      "optional": false
+    },
+    {
+      "id": "R4",
+      "parent": "employees",
+      "child": "employee_features",
+      "parent_columns": [
+        "company_id",
+        "employee_id"
+      ],
+      "child_columns": [
+        "company_id",
+        "employee_id"
+      ],
+      "cardinality": "0..many",
+      "optional": false
+    },
+    {
+      "id": "R5",
+      "parent": "inference_runs",
+      "child": "employee_features",
+      "parent_columns": [
+        "run_id"
+      ],
+      "child_columns": [
+        "run_id"
+      ],
+      "cardinality": "0..many",
+      "optional": false
+    },
+    {
+      "id": "R6",
+      "parent": "employee_features",
+      "child": "reporting_predictions",
+      "parent_columns": [
+        "run_id",
+        "company_id",
+        "employee_id"
+      ],
+      "child_columns": [
+        "run_id",
+        "company_id",
+        "best_candidate_id"
+      ],
+      "cardinality": "0..many",
+      "optional": true
+    },
+    {
+      "id": "R7",
+      "parent": "employee_features",
+      "child": "reporting_predictions",
+      "parent_columns": [
+        "run_id",
+        "company_id",
+        "employee_id"
+      ],
+      "child_columns": [
+        "run_id",
+        "company_id",
+        "accepted_manager_id"
+      ],
+      "cardinality": "0..many",
+      "optional": true
+    },
+    {
+      "id": "R8",
+      "parent": "employee_features",
+      "child": "reporting_predictions",
+      "parent_columns": [
+        "run_id",
+        "company_id",
+        "employee_id"
+      ],
+      "child_columns": [
+        "run_id",
+        "company_id",
+        "employee_id"
+      ],
+      "cardinality": "0..1",
+      "optional": false
+    },
+    {
+      "id": "R9",
+      "parent": "companies",
+      "child": "company_run_metrics",
+      "parent_columns": [
+        "company_id"
+      ],
+      "child_columns": [
+        "company_id"
+      ],
+      "cardinality": "0..many",
+      "optional": false
+    },
+    {
+      "id": "R10",
+      "parent": "inference_runs",
+      "child": "company_run_metrics",
+      "parent_columns": [
+        "run_id"
+      ],
+      "child_columns": [
+        "run_id"
+      ],
+      "cardinality": "0..many",
+      "optional": false
+    },
+    {
+      "id": "R11",
+      "parent": "employees",
+      "child": "employee_noise",
+      "parent_columns": [
+        "company_id",
+        "employee_id"
+      ],
+      "child_columns": [
+        "company_id",
+        "employee_id"
+      ],
+      "cardinality": "0..many",
+      "optional": false
+    },
+    {
+      "id": "R12",
+      "parent": "reporting_predictions",
+      "child": "prediction_reasons",
+      "parent_columns": [
+        "run_id",
+        "company_id",
+        "employee_id"
+      ],
+      "child_columns": [
+        "run_id",
+        "company_id",
+        "employee_id"
+      ],
+      "cardinality": "0..many",
+      "optional": false
+    }
+  ]
+}

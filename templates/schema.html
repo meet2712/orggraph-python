@@ -1,0 +1,43 @@
+<main class="schema-page" id="main-content">
+  <header class="page-heading">
+    <p class="muted">Database design</p>
+    <h1>How the records fit together</h1>
+    <p>Nine tables separate observed employees, inferred decisions, and generated answers. One read-only audit view brings the evidence together without copying it.</p>
+    <p><a href="/data.html">Explore the database &amp; SQL editor →</a></p>
+  </header>
+  <section class="paper-section">
+    <h2>Entity relationship diagram</h2>
+    <p>PK marks a primary key; FK marks a foreign key. Relationship IDs refer to the composite-key reference below. Scroll the diagram to inspect it at full size.</p>
+    <p class="schema-actions"><a href="/database-erd.svg" target="_blank" rel="noopener">Open full-size diagram ↗</a> <a href="/database-erd.svg" download>Download SVG</a> <a href="/database-erd.mmd" download>Download Mermaid source</a></p>
+    <div class="erd-viewport" tabindex="0" role="region" aria-label="Scrollable entity relationship diagram">
+      <img src="/database-erd.svg" width="1250" height="1410" alt="OrgGraph's nine relational tables, primary keys and foreign keys. The complete relationship reference follows below.">
+    </div>
+  </section>
+  <section class="paper-section">
+    <h2>A decision audit, not a second copy of the data</h2>
+    <p><code>employee_reporting_audit</code> joins an employee's raw fields to their inferred features, accepted manager, leading candidate, scores, thresholds and run hashes. Its <code>decision_reason</code> distinguishes low confidence, close candidates, missing candidates and accepted links. The generated answer key is excluded.</p>
+    <pre class="schema-query">SELECT full_name, inferred_manager, leading_candidate,
+       confidence, margin, decision_reason
+FROM employee_reporting_audit
+WHERE company_id = 'cmp_0004';</pre>
+    <p>Open the SQL editor and select “Why a manager was chosen or rejected” to try this on the actual records.</p>
+  </section>
+  <section class="paper-section">
+    <h2>What each table represents</h2>
+    <div class="table-scroll"><table class="simple-table"><thead><tr><th scope="col">Table</th><th scope="col">One row represents</th></tr></thead><tbody>
+      {% for table in schema.tables %}<tr><th scope="row"><code>{{ table.name }}</code></th><td>{{ table.grain }}</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+  <section class="paper-section">
+    <h2>Keys and relationships</h2>
+    <p>One referenced row can have zero, one, or many dependent rows as shown. “Optional” means the dependent foreign key can be empty, as with an unresolved manager. Composite employee keys prevent links across companies or runs.</p>
+    <div class="table-scroll"><table class="simple-table"><thead><tr><th scope="col">ID</th><th scope="col">Dependent key</th><th scope="col">References</th><th scope="col">Dependents per referenced row</th><th scope="col">Foreign key</th></tr></thead><tbody>
+      {% for relation in schema.relationships %}<tr><th scope="row">{{ relation.id }}</th><td><code>{{ relation.child }} ({{ relation.child_columns|join(', ') }})</code></td><td><code>{{ relation.parent }} ({{ relation.parent_columns|join(', ') }})</code></td><td>{{ relation.cardinality }}</td><td>{{ 'Optional' if relation.optional else 'Required' }}</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+  <section class="paper-section">
+    <h2>What the database checks before serving</h2>
+    <p>Every source employee needs a prediction record. Keys, headcounts, accepted lines, unresolved decisions and company coverage must reconcile. Self-management, cross-company links, cycles and invalid scores fail validation. A failed import leaves the previous snapshot intact.</p>
+    <p>This demo keeps one checked dataset snapshot. The hashes identify its inputs and model; historical employee versions and comparisons between stored runs would be the next extension.</p>
+  </section>
+</main>
