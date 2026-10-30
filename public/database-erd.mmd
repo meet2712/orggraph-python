@@ -22,6 +22,9 @@ flowchart TB
     employee_classification -.-> employee_features
     employee_classification -.-> manager_candidates
     employee_features -.-> manager_candidates
+    employee_text -.-> manager_candidates
+    employee_classification -.-> candidate_scores
+    employee_text -.-> candidate_scores
     employee_features -.-> candidate_scores
     manager_candidates -.-> candidate_scores
     employees -.-> employee_top_candidates

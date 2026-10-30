@@ -43,6 +43,29 @@ class SchemaViewTests(unittest.TestCase):
             self.add(f'report_{index}', 'Senior Engineer', team)
         self.assertEqual(self.db.execute('SELECT count(*) FROM manager_candidates').fetchone()[0], 0)
 
+    def test_missing_team_specialist_fallback_requires_a_unique_manager(self):
+        self.add('qa_manager', 'QA Manager', 'Engineering / QA')
+        self.add('qa_report', 'Junior QA Engineer', '')
+        self.add('security_manager', 'Security Engineering Manager', 'Engineering / Security')
+        self.add('security_report', 'Security Engineer', 'n/a')
+
+        query = (ROOT / 'sql/company_predictions.sql').read_text()
+        def decision(sql):
+            return self.db.execute(sql, {'company_id': 'example'}).fetchall()
+
+        public = self.db.execute("SELECT accepted_manager_id, decision FROM reporting_predictions WHERE employee_id='qa_report'").fetchone()
+        self.assertEqual(public, ('qa_manager', 'accepted'))
+        security = self.db.execute("SELECT accepted_manager_id, decision FROM reporting_predictions WHERE employee_id='security_report'").fetchone()
+        self.assertEqual(security, ('security_manager', 'accepted'))
+        self.assertEqual(sorted(decision(query)), sorted(self.db.execute('SELECT * FROM reporting_predictions').fetchall()))
+
+        self.add('second_qa_manager', 'QA Engineering Manager', 'Engineering / Quality')
+        public = self.db.execute("SELECT accepted_manager_id, decision FROM reporting_predictions WHERE employee_id='qa_report'").fetchone()
+        self.assertEqual(public, (None, 'unresolved'))
+        security = self.db.execute("SELECT accepted_manager_id, decision FROM reporting_predictions WHERE employee_id='security_report'").fetchone()
+        self.assertEqual(security, ('security_manager', 'accepted'))
+        self.assertEqual(sorted(decision(query)), sorted(self.db.execute('SELECT * FROM reporting_predictions').fetchall()))
+
     def test_company_query_and_public_views_agree(self):
         self.add('ceo', 'CEO', 'Company')
         self.add('manager', 'Engineering Manager', 'Company / 100%_Ops')

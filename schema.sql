@@ -205,6 +205,8 @@ FROM employee_classification r
 JOIN employee_features rf USING(company_id, employee_id)
 JOIN employee_classification c ON c.company_id = r.company_id
 JOIN employee_features cf ON cf.company_id = c.company_id AND cf.employee_id = c.employee_id
+JOIN employee_text rt ON rt.company_id = r.company_id AND rt.employee_id = r.employee_id
+JOIN employee_text ct ON ct.company_id = c.company_id AND ct.employee_id = c.employee_id
 WHERE r.employee_id <> c.employee_id
   AND cf.inferred_level IN ('CEO','C-Suite','VP / Head','Senior Director',
         'Director','Senior Manager','Manager','Team Lead / Supervisor')
@@ -219,6 +221,14 @@ WHERE r.employee_id <> c.employee_id
       (r.team_path = c.team_path AND r.team_path NOT IN ('','n/a','unknown','-'))
       OR (c.team_path NOT IN ('','n/a','unknown','-') AND substr(r.team_path, 1, length(c.team_path) + 1) = c.team_path || '/')
       OR cf.inferred_level = 'CEO'
+      -- A missing report team can still have one explicit specialist lead.
+      OR (r.team_path IN ('','n/a','unknown','-')
+          AND rf.inferred_level IN ('Junior IC','Individual Contributor','Senior IC','Principal / Staff IC')
+          AND cf.inferred_level IN ('Manager','Team Lead / Supervisor')
+          AND rf.inferred_department = cf.inferred_department
+          AND rf.inferred_department <> 'Unclassified'
+          AND ((rt.title_text LIKE '% qa %' AND ct.title_text LIKE '% qa %')
+            OR (rt.title_text LIKE '% security %' AND ct.title_text LIKE '% security %')))
   );
 
 -- Scores represent strength of visible hierarchy evidence, not a learned
@@ -227,6 +237,25 @@ CREATE VIEW candidate_scores AS
 SELECT m.company_id, m.employee_id, m.candidate_id,
        m.candidate_rank, m.candidate_team,
        CASE
+         -- Accept this fallback only when the specialist manager is unique.
+         WHEN report_level IN ('Junior IC','Individual Contributor','Senior IC','Principal / Staff IC')
+              AND candidate_level IN ('Manager','Team Lead / Supervisor')
+              AND team_relation = 'other'
+              AND rt.team_path IN ('','n/a','unknown','-')
+              AND report_department = candidate_department
+              AND report_department <> 'Unclassified'
+              AND ((rt.title_text LIKE '% qa %' AND ct.title_text LIKE '% qa %')
+                OR (rt.title_text LIKE '% security %' AND ct.title_text LIKE '% security %'))
+              AND NOT EXISTS (
+                  SELECT 1 FROM employee_classification other
+                  JOIN employee_text ot USING(company_id, employee_id)
+                  WHERE other.company_id = m.company_id
+                    AND other.employee_id <> m.candidate_id
+                    AND other.inferred_level IN ('Manager','Team Lead / Supervisor')
+                    AND other.inferred_department = m.report_department
+                    AND ((rt.title_text LIKE '% qa %' AND ot.title_text LIKE '% qa %')
+                      OR (rt.title_text LIKE '% security %' AND ot.title_text LIKE '% security %'))
+              ) THEN 0.99
          WHEN report_level = 'C-Suite' AND candidate_level = 'CEO' THEN 0.995
          WHEN report_level = 'VP / Head' AND candidate_level = 'CEO'
               AND team_relation = 'parent_team' THEN 0.94
@@ -296,7 +325,9 @@ SELECT m.company_id, m.employee_id, m.candidate_id,
          ELSE 0.20 END
          + CASE WHEN same_location = 1 THEN 0.002 ELSE 0 END
          AS evidence_score
-FROM manager_candidates m;
+FROM manager_candidates m
+JOIN employee_text rt ON rt.company_id = m.company_id AND rt.employee_id = m.employee_id
+JOIN employee_text ct ON ct.company_id = m.company_id AND ct.employee_id = m.candidate_id;
 
 -- Correlate the shortlist to one employee so a company-page lookup does not
 -- rank every employee in the database. JSON is only an internal way to fetch
