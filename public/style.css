@@ -6,6 +6,8 @@
   --line: #e1e6e0;
   --paper: #fff;
   --canvas: #f8f9f6;
+  --page-gutter: clamp(16px, 2vw, 48px);
+  --header-height: 78px;
 }
 
 * {
@@ -25,6 +27,9 @@ button { font-family: inherit; }
 .skip-link:focus { top: 10px; }
 body {
   margin: 0;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
   color: var(--ink);
   background: var(--canvas);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -88,11 +93,12 @@ h3 {
 }
 
 .site-header {
+  flex: none;
   height: 78px;
   display: flex;
   align-items: center;
   gap: 64px;
-  padding: 0 42px;
+  padding: 0 var(--page-gutter);
   border-bottom: 1px solid var(--line);
   background: var(--paper);
 }
@@ -148,12 +154,14 @@ h3 {
 }
 .workspace {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
-  max-width: 1440px;
-  margin: 0 auto;
-  min-height: calc(100vh - 130px);
+  grid-template-columns: clamp(230px, 17vw, 320px) minmax(0, 1fr);
+  width: 100%;
+  height: calc(100dvh - var(--header-height));
+  min-height: 800px;
+  flex: none;
 }
 .company-sidebar {
+  min-height: 0;
   display: flex;
   flex-direction: column;
   padding: 32px 20px 20px 26px;
@@ -217,8 +225,8 @@ h3 {
   color: var(--muted);
 }
 .company-list {
-  max-height: 530px;
-  min-height: 200px;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   scrollbar-width: thin;
   margin: 0 -8px;
@@ -274,28 +282,12 @@ h3 {
   font-size: 10px;
   color: var(--muted);
 }
-.directory-footer {
-  margin-top: auto;
-  padding: 25px 0 0;
-  font-size: 11px;
-  color: var(--muted);
-}
-.directory-footer p {
-  margin: 5px 0 0;
-  font-size: 10px;
-}
-.small-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  margin-right: 7px;
-  border-radius: 50%;
-  background: #729575;
-  vertical-align: middle;
-}
 .company-workspace {
   min-width: 0;
-  padding: 24px 32px 26px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 24px var(--page-gutter) 20px;
 }
 .company-context {
   display: flex;
@@ -303,6 +295,8 @@ h3 {
   justify-content: space-between;
   gap: 28px;
   padding-bottom: 20px;
+  flex: none;
+  flex-wrap: wrap;
 }
 .company-heading {
   min-width: 0;
@@ -352,12 +346,17 @@ h3 {
   line-height: 1.2;
 }
 .chart-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
   background: var(--paper);
   border: 1px solid var(--line);
   border-radius: 7px;
 }
 .chart-tabs {
+  flex: none;
   display: flex;
   align-items: center;
   gap: 25px;
@@ -385,6 +384,8 @@ h3 {
   font-size: 10px;
 }
 .chart-toolbar {
+  flex: none;
+  flex-wrap: wrap;
   display: flex;
   gap: 10px;
   align-items: center;
@@ -447,6 +448,7 @@ h3 {
   font-size: 10px;
 }
 .chart-explanation {
+  flex: none;
   margin: 11px 20px 13px;
   font-size: 11px;
   line-height: 1.7;
@@ -454,10 +456,15 @@ h3 {
 }
 .chart-stage {
   position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
 }
 .chart-viewport {
   position: relative;
-  height: clamp(400px, calc(100dvh - 370px), 610px);
+  flex: 1;
+  min-width: 0;
+  min-height: 260px;
   overflow: auto;
   padding: 12px;
   border-top: 1px solid #e7ebe5;
@@ -734,6 +741,7 @@ h3 {
   line-height: 1;
 }
 .chart-bottom {
+  flex: none;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -755,13 +763,14 @@ input[type="checkbox"] {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-height: 610px;
-  min-height: 280px;
+  flex: 1;
+  min-height: 260px;
   overflow-y: auto;
   scrollbar-width: thin;
   padding: 0 23px 22px;
 }
 .person-row {
+  flex-wrap: wrap;
   display: flex;
   align-items: center;
   gap: 11px;
@@ -793,6 +802,7 @@ input[type="checkbox"] {
   flex-direction: column;
   gap: 3px;
   min-width: 0;
+  flex: 1 1 160px;
 }
 .person-name strong {
   font-size: 12px;
@@ -801,14 +811,12 @@ input[type="checkbox"] {
 .person-name small {
   font-size: 11px;
   color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 270px;
+  overflow-wrap: anywhere;
 }
 .person-status {
   margin-left: auto;
-  flex-shrink: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   font-size: 10px;
 }
 .person-status.accepted {
@@ -829,21 +837,12 @@ input[type="checkbox"] {
   flex-shrink: 0;
 }
 .company-footnote {
+  flex: none;
   margin: 17px 1px 0;
   color: var(--muted);
-  max-width: 720px;
+  max-width: 110ch;
   font-size: 10px;
   line-height: 1.7;
-}
-.site-footer {
-  display: flex;
-  justify-content: space-between;
-  gap: 15px;
-  padding: 18px 42px;
-  border-top: 1px solid var(--line);
-  color: var(--muted);
-  font-size: 10px;
-  background: var(--paper);
 }
 .empty-state {
   padding: 50px 15px;
@@ -1008,10 +1007,10 @@ input[type="checkbox"] {
 }
 
 .document-page {
-  max-width: 980px;
-  margin: 0 auto;
-  padding: 48px 40px 65px;
-  min-height: calc(100vh - 131px);
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  padding: 40px var(--page-gutter) 60px;
 }
 .page-heading {
   margin-bottom: 30px;
@@ -1067,6 +1066,7 @@ input[type="checkbox"] {
   margin-bottom: 12px;
 }
 .paper-section p {
+  max-width: 100ch;
   color: var(--muted);
   font-size: 13px;
   line-height: 1.8;
@@ -1187,23 +1187,21 @@ input[type="checkbox"] {
   margin-top: 20px;
 }
 
-@media (min-width: 1500px) {
-  .workspace {
-    border-left: 1px solid var(--line);
-    border-right: 1px solid var(--line);
-  }
-}
 @media (max-width: 1100px) {
   .company-workspace {
     padding: 34px 26px 24px;
   }
   .workspace {
-    grid-template-columns: 248px minmax(0, 1fr);
+    grid-template-columns: 230px minmax(0, 1fr);
+    min-height: 900px;
   }
   .site-header {
-    padding: 0 26px;
-    gap: 40px;
+    padding: 16px var(--page-gutter) 0;
+    gap: 12px 28px;
+    height: auto;
+    flex-wrap: wrap;
   }
+  .site-header nav { order: 3; flex: 1 0 100%; min-height: 43px; }
   .chart-toolbar {
     flex-wrap: wrap;
   }
@@ -1241,6 +1239,8 @@ input[type="checkbox"] {
   }
   .workspace {
     display: block;
+    height: auto;
+    min-height: 0;
   }
   .company-sidebar {
     border-right: 0;
@@ -1256,7 +1256,7 @@ input[type="checkbox"] {
   }
   .company-list {
     display: flex;
-    max-height: 180px;
+    max-height: clamp(120px, 22dvh, 220px);
     min-height: 0;
     flex-wrap: wrap;
     margin: 0;
@@ -1276,14 +1276,12 @@ input[type="checkbox"] {
     width: 25px;
     height: 29px;
   }
-  .directory-footer {
-    display: none;
-  }
-  .result-count {
+    .result-count {
     margin-bottom: 9px;
   }
   .company-workspace {
     padding: 27px 18px;
+    display: block;
   }
   .company-context {
     display: block;
@@ -1314,6 +1312,7 @@ input[type="checkbox"] {
     padding: 17px 15px 0;
     gap: 9px;
   }
+  .chart-toolbar:has(.group-toolbar[hidden]) { grid-template-columns: minmax(0, 1fr); }
   .department-filter {
     grid-column: 1;
     grid-row: 1;
@@ -1343,7 +1342,8 @@ input[type="checkbox"] {
   .desktop-break {
     display: none;
   }
-  .chart-viewport { height: 460px; padding: 12px; }
+  .chart-viewport { height: max(320px, 60dvh); padding: 12px; }
+  .unresolved-list { max-height: max(320px, 60dvh); }
   .chart-canvas { min-width: 620px; padding: 8px 16px 28px; }
   .canvas-controls { top: auto; right: 10px; bottom: 10px; padding: 0; justify-content: flex-end; }
   .canvas-controls > span { display: none; }
@@ -1365,14 +1365,6 @@ input[type="checkbox"] {
   .unresolved-list .person-row {
     gap: 8px;
     padding: 10px;
-  }
-  .unresolved-list .person-name small {
-    max-width: 130px;
-  }
-  .site-footer {
-    padding: 17px 20px;
-    flex-direction: column;
-    gap: 5px;
   }
   .document-page {
     padding: 33px 22px;
@@ -1399,18 +1391,21 @@ input[type="checkbox"] {
   }
 }
 
-@media (max-width: 760px) {
-  .department-filter { flex-basis: 100%; }
-  .people-search { flex-basis: 60%; }
-  .expand-button { margin-left: auto; }
+@media (max-width: 420px) {
+  .site-header nav { display: grid; grid-template-columns: 1fr 1fr; height: auto; min-height: 0; gap: 0 18px; overflow: visible; white-space: normal; }
+  .site-header nav a { min-height: 38px; }
 }
 
 /* Schema details stay readable; the full diagram scrolls inside its own frame. */
-.schema-page { max-width: 1250px; width: calc(100% - 48px); margin: 0 auto; padding: 38px 0 64px; }
+.schema-page { flex: 1; min-width: 0; width: 100%; padding: 38px var(--page-gutter) 64px; }
 .schema-page .page-heading { max-width: 850px; }
 .schema-actions { display: flex; flex-wrap: wrap; gap: 12px 24px; }
 .erd-viewport { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: #fafbf8; }
-.erd-viewport img { display: block; width: 100%; min-width: 1080px; height: auto; }
+.erd-viewport img { display: block; width: 100%; height: auto; }
+.erd-viewport[data-size="actual"] img { width: 1200px; max-width: none; }
+.diagram-size-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.diagram-size-controls button { padding: 7px 12px; border: 1px solid var(--line); border-radius: 4px; background: white; font-size: 12px; }
+.diagram-size-controls button[aria-pressed="true"] { background: #eaf1e5; border-color: #a9bda2; }
 .diagram-hint { color: var(--muted); font-size: 13px; }
 .schema-tables { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .schema-entity { min-width: 0; border: 1px solid var(--line); border-radius: 6px; background: white; }
@@ -1426,7 +1421,6 @@ input[type="checkbox"] {
 .schema-page .schema-entity .table-scroll { margin-top: 0; }
 .schema-entity summary:focus-visible { outline: 2px solid #426149; outline-offset: 3px; }
 @media (max-width: 600px) {
-  .schema-page { width: calc(100% - 32px); }
   .schema-page .schema-entity > summary { padding: 14px 12px; gap: 10px; }
   .schema-entity .simple-table { min-width: 520px; }
 }

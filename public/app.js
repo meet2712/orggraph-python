@@ -1,4 +1,23 @@
 // The Python app renders the data and chart. These controls only change the view.
+const siteHeader = document.querySelector(".site-header");
+if (siteHeader) {
+  new ResizeObserver(() => {
+    document.documentElement.style.setProperty("--header-height", `${siteHeader.offsetHeight}px`);
+  }).observe(siteHeader);
+}
+
+const diagram = document.querySelector(".erd-viewport");
+if (diagram) {
+  const sizeButtons = [...document.querySelectorAll("[data-diagram-size]")];
+  for (const button of sizeButtons) {
+    button.addEventListener("click", () => {
+      diagram.dataset.size = button.dataset.diagramSize;
+      diagram.scrollLeft = 0;
+      for (const other of sizeButtons) other.setAttribute("aria-pressed", String(other === button));
+    });
+  }
+}
+
 const companySearch = document.querySelector("#company-search");
 
 if (companySearch) {
@@ -43,6 +62,7 @@ if (chartView) {
   const explanation = document.querySelector("#chart-explanation");
   const canvas = document.querySelector("#chart-canvas");
   const scaleBox = document.querySelector("#chart-scale");
+  const chartStage = document.querySelector(".chart-stage");
   const canvasControls = document.querySelector("#canvas-controls");
   const zoomLevel = document.querySelector("#zoom-level");
   const zoomOut = document.querySelector("#zoom-out");
@@ -52,6 +72,7 @@ if (chartView) {
   let zoom = 1;
   let layoutFrame = 0;
   let centerPending = false;
+  let fitActive = false;
 
   if (!groupFilter.querySelector("option[selected]") && groups.length) {
     groupFilter.value = groups[0].dataset.rootId;
@@ -69,7 +90,7 @@ if (chartView) {
     scaleBox.style.width = `${Math.ceil(canvas.offsetWidth * zoom)}px`;
     scaleBox.style.height = `${Math.ceil(canvas.offsetHeight * zoom)}px`;
     zoomLevel.textContent = `${Math.round(zoom * 100)}%`;
-    zoomOut.disabled = zoom <= 0.4;
+    zoomOut.disabled = zoom <= 0.1;
     zoomIn.disabled = zoom >= 1.5;
   }
 
@@ -78,6 +99,13 @@ if (chartView) {
     if (layoutFrame) return;
     layoutFrame = requestAnimationFrame(() => {
       layoutFrame = 0;
+      if (fitActive && !chartView.hidden) {
+        const visibleGroups = groups.filter((group) => !group.hidden).length;
+        const widthScale = (chartView.clientWidth - 24) / canvas.offsetWidth;
+        const heightScale = visibleGroups === 1
+          ? (chartView.clientHeight - 24) / canvas.offsetHeight : 1;
+        zoom = Math.max(0.01, Math.min(1, widthScale, heightScale));
+      }
       updateCanvasSize();
       if (centerPending && !chartView.hidden) {
         chartView.scrollLeft = Math.max(0, (scaleBox.offsetWidth - chartView.clientWidth) / 2);
@@ -88,9 +116,10 @@ if (chartView) {
   }
 
   function setZoom(value, keepPosition = true) {
+    fitActive = false;
     const centerX = (chartView.scrollLeft + chartView.clientWidth / 2) / zoom;
     const centerY = (chartView.scrollTop + chartView.clientHeight / 2) / zoom;
-    zoom = Math.min(1.5, Math.max(0.4, value));
+    zoom = Math.min(1.5, Math.max(0.1, value));
     updateCanvasSize();
     if (keepPosition) {
       chartView.scrollLeft = centerX * zoom - chartView.clientWidth / 2;
@@ -100,11 +129,7 @@ if (chartView) {
 
   function fitChart() {
     if (chartView.hidden) return;
-    const visibleGroups = groups.filter((group) => !group.hidden).length;
-    const widthScale = (chartView.clientWidth - 24) / canvas.offsetWidth;
-    const heightScale = visibleGroups === 1
-      ? (chartView.clientHeight - 24) / canvas.offsetHeight : 1;
-    setZoom(Math.min(1, widthScale, heightScale), false);
+    fitActive = true;
     requestLayout(true);
   }
 
@@ -179,6 +204,7 @@ if (chartView) {
       reviewView.hidden = true;
       canvasControls.hidden = true;
     }
+    chartStage.hidden = chartView.hidden;
 
     if (view === "review") {
       resultCount.textContent = `${reviewMatches} ${reviewMatches === 1 ? "person needs" : "people need"} review`;
@@ -273,7 +299,8 @@ if (chartView) {
   });
 
   new ResizeObserver(() => requestLayout()).observe(canvas);
-  window.addEventListener("resize", () => requestLayout());
+  new ResizeObserver(() => requestLayout(true)).observe(chartView);
+  window.addEventListener("resize", () => requestLayout(true));
   updatePeople();
   requestAnimationFrame(() => {
     // Start at a readable size. Fit can show a wider team in one view when needed.

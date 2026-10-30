@@ -8,8 +8,12 @@
   <section class="paper-section">
     <h2>Entity relationship diagram</h2>
     <p class="schema-actions"><a href="/database-erd.svg" target="_blank" rel="noopener">Open full-size ER diagram ↗</a> <a href="/database-erd.svg" download>Download SVG</a> <a href="/database-erd.mmd" download>Download Mermaid source</a></p>
-    <p class="diagram-hint">All columns and SQL types. PK = primary key · FK = foreign key. Crow’s-foot notation: circle = optional, bar = one, fork = many. Scroll sideways on smaller screens.</p>
-    <div class="erd-viewport" tabindex="0" role="region" aria-label="Scrollable entity relationship diagram">
+    <p class="diagram-hint">All columns and SQL types. PK = primary key · FK = foreign key. Crow’s-foot notation: circle = optional, bar = one, fork = many. Use actual size to read the details on a small screen.</p>
+    <div class="diagram-size-controls" aria-label="Diagram size">
+      <button type="button" data-diagram-size="fit" aria-pressed="true" aria-controls="database-diagram">Fit width</button>
+      <button type="button" data-diagram-size="actual" aria-pressed="false" aria-controls="database-diagram">Actual size</button>
+    </div>
+    <div class="erd-viewport" id="database-diagram" data-size="fit" tabindex="0" role="region" aria-label="Scrollable entity relationship diagram">
       <img src="/database-erd.svg" width="1200" alt="Database ER diagram showing all columns, SQL types, primary keys, foreign keys and relationship cardinalities for nine tables.">
     </div>
   </section>

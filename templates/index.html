@@ -106,7 +106,7 @@
         {% endfor %}
       </div>
       <p id="no-companies" class="empty-state" hidden>No companies match this search.</p>
-      <div class="directory-footer"><span class="small-dot"></span>Synthetic dataset<p>{{ index.summary.employeeCount|count }} people across {{ index.summary.companyCount }} companies</p></div>
+
     </aside>
 
     <main class="company-workspace" id="main-content">
@@ -332,11 +332,10 @@
     </section>
     <section class="paper-section"><h2>Why some people have no manager</h2><p>Two managers can have the same title, and missing team information can make them indistinguishable. Picking one would make the chart look more complete without making it more reliable. Those cases stay visible under “Needs review,” along with the leading candidate and its score.</p><p>The chart uses inferred reporting lines. The generated answer is available separately in each person’s details, so you can inspect good matches and mistakes.</p></section>
     <section class="paper-section"><h2>What this version can tell us</h2><p>It shows how the approach handles messy generated records. It does not establish accuracy on real companies, where titles, reporting customs, and data quality will differ. The current model also misses many reporting lines in the generated data. Precision and coverage are shown together to make that tradeoff visible.</p></section>
-    <section class="paper-section"><h2>Built in Python</h2><p>Python generates the dataset and trains the inference model. The hosted app runs Flask and Jinja on Render and reads from SQLite. A separate script can export static HTML pages. A small browser script handles search, filters, and person details.</p></section>
+    <section class="paper-section"><h2>Built in Python</h2><p>Python generates the dataset, trains the inference model and renders the pages with Flask and Jinja. GitHub Pages serves the exported pages and a SQLite snapshot. Search, filters, person details and read-only SQL run in the browser. The same source can also run as a Flask server.</p></section>
     <section class="paper-section"><h2>Try it yourself</h2><p>The dataset package includes input records, generated answers, and the generator. The source package includes the Python app, inference pipeline, and instructions to run the checks.</p><div class="download-row"><a class="button" href="/downloads/firmable-org-chart-dataset.zip" download>Download dataset</a><a class="button" href="/downloads/orggraph-source.zip" download>Download source</a></div></section>
   </main>
   {% endif %}
 
-  <footer class="site-footer"><span>OrgGraph · Firmable data take-home</span><span>Synthetic data · {{ index.summary.companyCount }} companies · {{ index.summary.employeeCount|count }} people</span></footer>
 </body>
 </html>
