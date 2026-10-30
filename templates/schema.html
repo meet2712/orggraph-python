@@ -7,10 +7,11 @@
   </header>
   <section class="paper-section">
     <h2>Entity relationship diagram</h2>
-    <p>PK marks a primary key; FK marks a foreign key. Relationship IDs refer to the composite-key reference below. Scroll the diagram to inspect it at full size.</p>
-    <p class="schema-actions"><a href="/database-erd.svg" target="_blank" rel="noopener">Open full-size diagram ↗</a> <a href="/database-erd.svg" download>Download SVG</a> <a href="/database-erd.mmd" download>Download Mermaid source</a></p>
+    <p>Start with <code>employees</code>, follow its inferred <code>employee_features</code>, then <code>reporting_predictions</code>. The overview shows the keys; open a table below for its full column list.</p>
+    <p class="schema-actions"><a href="/database-erd.svg" target="_blank" rel="noopener">Open overview ↗</a> <a href="/database-erd-full.svg" target="_blank" rel="noopener">Open all columns ↗</a> <a href="/database-erd-full.svg" download>Download full SVG</a> <a href="/database-erd.mmd" download>Download Mermaid source</a></p>
+    <p class="diagram-hint">PK = primary key · FK = foreign key · Arrows point to the dependent table. On smaller screens, scroll sideways to follow the connections.</p>
     <div class="erd-viewport" tabindex="0" role="region" aria-label="Scrollable entity relationship diagram">
-      <img src="/database-erd.svg" width="1250" height="1410" alt="OrgGraph's nine relational tables, primary keys and foreign keys. The complete relationship reference follows below.">
+      <img src="/database-erd.svg" width="1200" alt="Nine tables arranged around the employee, feature and prediction path. Each card shows its primary and foreign keys. Exact composite keys and cardinalities are listed below.">
     </div>
   </section>
   <section class="paper-section">
@@ -23,10 +24,24 @@ WHERE company_id = 'cmp_0004';</pre>
     <p>Open the SQL editor and select “Why a manager was chosen or rejected” to try this on the actual records.</p>
   </section>
   <section class="paper-section">
-    <h2>What each table represents</h2>
-    <div class="table-scroll"><table class="simple-table"><thead><tr><th scope="col">Table</th><th scope="col">One row represents</th></tr></thead><tbody>
-      {% for table in schema.tables %}<tr><th scope="row"><code>{{ table.name }}</code></th><td>{{ table.grain }}</td></tr>{% endfor %}
-    </tbody></table></div>
+    <h2>Tables and columns</h2>
+    <p>Each table states what one row represents. Expand it to see every column, its type and its key membership.</p>
+    <div class="schema-tables">
+      {% for table in schema.tables %}
+      <details class="schema-entity">
+        <summary><span><code>{{ table.name }}</code><span class="schema-grain">{{ table.grain }}</span></span><span class="muted">{{ table.columns|length }} columns</span></summary>
+        <div class="table-scroll"><table class="simple-table"><thead><tr><th scope="col">Column</th><th scope="col">Type</th><th scope="col">Key</th><th scope="col">Nullable</th></tr></thead><tbody>
+          {% for column in table.columns %}<tr><th scope="row"><code>{{ column.name }}</code></th><td>{{ column.type }}</td><td>{{ 'PK' if column.pk else '' }}{{ ', ' if column.pk and column.fk else '' }}{{ 'FK' if column.fk else '' }}{{ '—' if not column.pk and not column.fk else '' }}</td><td>{{ 'No' if column.required else 'Yes' }}</td></tr>{% endfor %}
+        </tbody></table></div>
+      </details>
+      {% endfor %}
+    </div>
+  </section>
+  <section class="paper-section" id="local-database">
+    <h2>Open the database locally</h2>
+    <p>Download the same checked SQLite snapshot used by the portal. Extract the <code>.gz</code> file, then open the resulting <code>.sqlite</code> file in your SQLite client. Choose read-only mode to explore it without changing your copy.</p>
+    <p><a href="/database/snapshot.sqlite.gz" download="orggraph.sqlite.gz">Download database snapshot (.sqlite.gz)</a></p>
+    <p class="muted">This is a local copy of the hosted data, not a live server connection. It needs no database username or password; local changes do not affect the website. Download it again to get a newer published snapshot.</p>
   </section>
   <section class="paper-section">
     <h2>Keys and relationships</h2>

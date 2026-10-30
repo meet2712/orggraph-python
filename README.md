@@ -42,8 +42,11 @@ SQLite read-only mode. This keeps a public demo separate from data loading.
   confidence, the runner-up gap and rejection reasons without joining the answer key.
 - A public read-only SQL workspace, with table keys, relationships and company
   coverage. Queries run in a browser copy rather than on a server SQL endpoint.
-- A schema-backed ER diagram in the portal, with downloadable SVG and Mermaid
-  source for walking a reviewer through the design.
+- A schema-backed ER overview with separate full-column SVG and Mermaid downloads,
+  expandable column definitions, and exact composite-key references.
+- A downloadable SQLite snapshot for local SQL inspection. Extract the `.gz` file
+  and open the `.sqlite` file in a SQLite client. This is a copy of the published
+  snapshot, not a live network connection; local changes cannot update the portal.
 - Checked loads, source/model lineage and a reproducibility test that compares
   regenerated CSVs with the shipped benchmark. These make the result inspectable
   rather than relying on a complete-looking chart.

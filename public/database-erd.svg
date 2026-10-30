@@ -1,121 +1,128 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1250" height="1410" viewBox="0 0 1250 1410" role="img" aria-labelledby="title desc">
-<title id="title">OrgGraph entity relationship diagram</title>
-<desc id="desc">Nine relational tables. PK marks primary keys and FK marks foreign keys. Relationship IDs match the key reference below the diagram.</desc>
-<rect width="1250" height="1410" fill="#f6f8f3"/>
-<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="#829282"/></marker></defs>
-<path d="M395,105 L445,105" stroke="#829282" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
-<text x="420.0" y="96" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#426149">R1</text>
-<path d="M805,105 L855,105" stroke="#829282" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
-<text x="830.0" y="96" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#426149">R2,R3</text>
-<path d="M625.0,348 V364 H425 V427 H625.0 V445" stroke="#829282" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
-<text x="437" y="396.5" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#426149">R4</text>
-<path d="M395,485 L445,485" stroke="#829282" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
-<text x="420.0" y="476" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#426149">R5</text>
-<path d="M805,485 L855,485" stroke="#829282" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
-<text x="830.0" y="476" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#426149">R6,R7,R8</text>
-<path d="M215.0,279 V295 H15 V992 H215.0 V1010" stroke="#829282" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
-<text x="27" y="644.5" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#426149">R9</text>
-<path d="M215.0,866 V882 H15 V992 H215.0 V1010" stroke="#829282" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
-<text x="27" y="938.0" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#426149">R10</text>
-<path d="M625.0,348 V364 H425 V992 H625.0 V1010" stroke="#829282" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
-<text x="437" y="679.0" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#426149">R11</text>
-<path d="M1035.0,705 V721 H835 V992 H1035.0 V1010" stroke="#829282" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
-<text x="847" y="857.5" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#426149">R12</text>
-<rect x="35" y="65" width="360" height="214" rx="6" fill="white" stroke="#cbd6c8"/>
-<text x="51" y="93" font-family="sans-serif" font-size="18" font-weight="600" fill="#283c32">companies</text>
-<text x="51" y="114" font-family="sans-serif" font-size="11" fill="#637063">One company</text>
-<text x="51" y="142" font-family="monospace" font-size="12" fill="#344439">PK    company_id</text>
-<text x="51" y="165" font-family="monospace" font-size="12" fill="#344439">      company_name</text>
-<text x="51" y="188" font-family="monospace" font-size="12" fill="#344439">      industry</text>
-<text x="51" y="211" font-family="monospace" font-size="12" fill="#344439">      size_band</text>
-<text x="51" y="234" font-family="monospace" font-size="12" fill="#344439">      employee_count</text>
-<text x="51" y="257" font-family="monospace" font-size="12" fill="#344439">      headquarters</text>
-<rect x="445" y="65" width="360" height="283" rx="6" fill="white" stroke="#cbd6c8"/>
-<text x="461" y="93" font-family="sans-serif" font-size="18" font-weight="600" fill="#283c32">employees</text>
-<text x="461" y="114" font-family="sans-serif" font-size="11" fill="#637063">One observed employee</text>
-<text x="461" y="142" font-family="monospace" font-size="12" fill="#344439">PK,FK company_id</text>
-<text x="461" y="165" font-family="monospace" font-size="12" fill="#344439">PK    employee_id</text>
-<text x="461" y="188" font-family="monospace" font-size="12" fill="#344439">      full_name</text>
-<text x="461" y="211" font-family="monospace" font-size="12" fill="#344439">      job_title</text>
-<text x="461" y="234" font-family="monospace" font-size="12" fill="#344439">      raw_department</text>
-<text x="461" y="257" font-family="monospace" font-size="12" fill="#344439">      raw_team</text>
-<text x="461" y="280" font-family="monospace" font-size="12" fill="#344439">      location</text>
-<text x="461" y="303" font-family="monospace" font-size="12" fill="#344439">      work_email</text>
-<text x="461" y="326" font-family="monospace" font-size="12" fill="#344439">      source_row_number</text>
-<rect x="855" y="65" width="360" height="283" rx="6" fill="white" stroke="#cbd6c8"/>
-<text x="871" y="93" font-family="sans-serif" font-size="18" font-weight="600" fill="#283c32">benchmark_truth</text>
-<text x="871" y="114" font-family="sans-serif" font-size="11" fill="#637063">One generated answer per employee</text>
-<text x="871" y="142" font-family="monospace" font-size="12" fill="#344439">PK,FK company_id</text>
-<text x="871" y="165" font-family="monospace" font-size="12" fill="#344439">PK,FK employee_id</text>
-<text x="871" y="188" font-family="monospace" font-size="12" fill="#344439">FK    manager_employee_id</text>
-<text x="871" y="211" font-family="monospace" font-size="12" fill="#344439">      canonical_title</text>
-<text x="871" y="234" font-family="monospace" font-size="12" fill="#344439">      canonical_department</text>
-<text x="871" y="257" font-family="monospace" font-size="12" fill="#344439">      canonical_team</text>
-<text x="871" y="280" font-family="monospace" font-size="12" fill="#344439">      canonical_level</text>
-<text x="871" y="303" font-family="monospace" font-size="12" fill="#344439">      is_people_manager</text>
-<text x="871" y="326" font-family="monospace" font-size="12" fill="#344439">      is_root</text>
-<rect x="35" y="445" width="360" height="421" rx="6" fill="white" stroke="#cbd6c8"/>
-<text x="51" y="473" font-family="sans-serif" font-size="18" font-weight="600" fill="#283c32">inference_runs</text>
-<text x="51" y="494" font-family="sans-serif" font-size="11" fill="#637063">One checked source/model run</text>
-<text x="51" y="522" font-family="monospace" font-size="12" fill="#344439">PK    run_id</text>
-<text x="51" y="545" font-family="monospace" font-size="12" fill="#344439">      source_hash</text>
-<text x="51" y="568" font-family="monospace" font-size="12" fill="#344439">      model_version</text>
-<text x="51" y="591" font-family="monospace" font-size="12" fill="#344439">      pipeline_version</text>
-<text x="51" y="614" font-family="monospace" font-size="12" fill="#344439">      model_type</text>
-<text x="51" y="637" font-family="monospace" font-size="12" fill="#344439">      probability_threshold</text>
-<text x="51" y="660" font-family="monospace" font-size="12" fill="#344439">      margin_threshold</text>
-<text x="51" y="683" font-family="monospace" font-size="12" fill="#344439">      source_company_count</text>
-<text x="51" y="706" font-family="monospace" font-size="12" fill="#344439">      source_employee_count</text>
-<text x="51" y="729" font-family="monospace" font-size="12" fill="#344439">      loaded_company_count</text>
-<text x="51" y="752" font-family="monospace" font-size="12" fill="#344439">      loaded_employee_count</text>
-<text x="51" y="775" font-family="monospace" font-size="12" fill="#344439">      loaded_prediction_count</text>
-<text x="51" y="798" font-family="monospace" font-size="12" fill="#344439">      accepted_prediction_count</text>
-<text x="51" y="821" font-family="monospace" font-size="12" fill="#344439">      load_status</text>
-<text x="51" y="844" font-family="monospace" font-size="12" fill="#344439">      loaded_at</text>
-<rect x="445" y="445" width="360" height="214" rx="6" fill="white" stroke="#cbd6c8"/>
-<text x="461" y="473" font-family="sans-serif" font-size="18" font-weight="600" fill="#283c32">employee_features</text>
-<text x="461" y="494" font-family="sans-serif" font-size="11" fill="#637063">One employee per run</text>
-<text x="461" y="522" font-family="monospace" font-size="12" fill="#344439">PK,FK run_id</text>
-<text x="461" y="545" font-family="monospace" font-size="12" fill="#344439">PK,FK company_id</text>
-<text x="461" y="568" font-family="monospace" font-size="12" fill="#344439">PK,FK employee_id</text>
-<text x="461" y="591" font-family="monospace" font-size="12" fill="#344439">      inferred_department</text>
-<text x="461" y="614" font-family="monospace" font-size="12" fill="#344439">      inferred_level</text>
-<text x="461" y="637" font-family="monospace" font-size="12" fill="#344439">      inferred_rank</text>
-<rect x="855" y="445" width="360" height="260" rx="6" fill="white" stroke="#cbd6c8"/>
-<text x="871" y="473" font-family="sans-serif" font-size="18" font-weight="600" fill="#283c32">reporting_predictions</text>
-<text x="871" y="494" font-family="sans-serif" font-size="11" fill="#637063">One reporting decision per employee/run</text>
-<text x="871" y="522" font-family="monospace" font-size="12" fill="#344439">PK,FK run_id</text>
-<text x="871" y="545" font-family="monospace" font-size="12" fill="#344439">PK,FK company_id</text>
-<text x="871" y="568" font-family="monospace" font-size="12" fill="#344439">PK,FK employee_id</text>
-<text x="871" y="591" font-family="monospace" font-size="12" fill="#344439">FK    accepted_manager_id</text>
-<text x="871" y="614" font-family="monospace" font-size="12" fill="#344439">FK    best_candidate_id</text>
-<text x="871" y="637" font-family="monospace" font-size="12" fill="#344439">      confidence</text>
-<text x="871" y="660" font-family="monospace" font-size="12" fill="#344439">      margin</text>
-<text x="871" y="683" font-family="monospace" font-size="12" fill="#344439">      decision</text>
-<rect x="35" y="1010" width="360" height="237" rx="6" fill="white" stroke="#cbd6c8"/>
-<text x="51" y="1038" font-family="sans-serif" font-size="18" font-weight="600" fill="#283c32">company_run_metrics</text>
-<text x="51" y="1059" font-family="sans-serif" font-size="11" fill="#637063">One company summary per run</text>
-<text x="51" y="1087" font-family="monospace" font-size="12" fill="#344439">PK,FK run_id</text>
-<text x="51" y="1110" font-family="monospace" font-size="12" fill="#344439">PK,FK company_id</text>
-<text x="51" y="1133" font-family="monospace" font-size="12" fill="#344439">      resolved_count</text>
-<text x="51" y="1156" font-family="monospace" font-size="12" fill="#344439">      unresolved_count</text>
-<text x="51" y="1179" font-family="monospace" font-size="12" fill="#344439">      coverage</text>
-<text x="51" y="1202" font-family="monospace" font-size="12" fill="#344439">      precision</text>
-<text x="51" y="1225" font-family="monospace" font-size="12" fill="#344439">      average_confidence</text>
-<rect x="445" y="1010" width="360" height="168" rx="6" fill="white" stroke="#cbd6c8"/>
-<text x="461" y="1038" font-family="sans-serif" font-size="18" font-weight="600" fill="#283c32">employee_noise</text>
-<text x="461" y="1059" font-family="sans-serif" font-size="11" fill="#637063">One noise label per employee/position</text>
-<text x="461" y="1087" font-family="monospace" font-size="12" fill="#344439">PK,FK company_id</text>
-<text x="461" y="1110" font-family="monospace" font-size="12" fill="#344439">PK,FK employee_id</text>
-<text x="461" y="1133" font-family="monospace" font-size="12" fill="#344439">PK    position</text>
-<text x="461" y="1156" font-family="monospace" font-size="12" fill="#344439">      noise_type</text>
-<rect x="855" y="1010" width="360" height="191" rx="6" fill="white" stroke="#cbd6c8"/>
-<text x="871" y="1038" font-family="sans-serif" font-size="18" font-weight="600" fill="#283c32">prediction_reasons</text>
-<text x="871" y="1059" font-family="sans-serif" font-size="11" fill="#637063">One signal per decision/position</text>
-<text x="871" y="1087" font-family="monospace" font-size="12" fill="#344439">PK,FK run_id</text>
-<text x="871" y="1110" font-family="monospace" font-size="12" fill="#344439">PK,FK company_id</text>
-<text x="871" y="1133" font-family="monospace" font-size="12" fill="#344439">PK,FK employee_id</text>
-<text x="871" y="1156" font-family="monospace" font-size="12" fill="#344439">PK    position</text>
-<text x="871" y="1179" font-family="monospace" font-size="12" fill="#344439">      reason</text>
-<text x="35" y="1360" font-family="sans-serif" font-size="14" fill="#344439">Arrow: referenced table → dependent table. Full cardinality and composite keys are listed in the portal.</text>
-<text x="35" y="1385" font-family="sans-serif" font-size="13" fill="#637063">employee_reporting_audit is a read-only view over raw records, features, predictions and run metadata.</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="920" viewBox="0 0 1200 920" role="img" aria-labelledby="title desc">
+<title id="title">OrgGraph entity relationship diagram — Keys and relationships</title>
+<desc id="desc">Nine tables with non-overlapping connections. Arrows point from referenced to dependent tables. R1 through R12 identify the complete foreign keys listed in the portal.</desc>
+<rect width="1200" height="100%" fill="#fafbf8"/>
+<style>text{font-family:system-ui,sans-serif;fill:#283c32}.field{font-family:ui-monospace,monospace;font-size:13px}.key{font-family:ui-monospace,monospace;font-size:10px;fill:#4c624e}.edge{font-size:12px;font-weight:600;paint-order:stroke;stroke:#fafbf8;stroke-width:6px;stroke-linejoin:round}.note{font-size:12px;fill:#5c6c5e}</style>
+<defs><marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7" fill="#718776"/></marker></defs>
+<text x="40" y="30" class="note">PK  Primary key     FK  Foreign key     Arrow  Referenced → dependent table</text>
+<path d="M200.0,340 V300 H520 V236" stroke="#718776" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<text x="360.0" y="290" text-anchor="middle" class="edge">R1</text>
+<path d="M440,156 H360" stroke="#718776" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<text x="400.0" y="144" text-anchor="middle" class="edge">R2, R3</text>
+<path d="M680,236 V340" stroke="#718776" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<text x="704" y="288.0" text-anchor="middle" class="edge">R4</text>
+<path d="M600.0,664 V560" stroke="#718776" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<text x="624.0" y="612.0" text-anchor="middle" class="edge">R5</text>
+<path d="M760,432 H840" stroke="#718776" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<text x="800.0" y="420" text-anchor="middle" class="edge">R6, R7, R8</text>
+<path d="M200.0,560 V664" stroke="#718776" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<text x="224.0" y="612.0" text-anchor="middle" class="edge">R9</text>
+<path d="M440,756 H360" stroke="#718776" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<text x="400.0" y="744" text-anchor="middle" class="edge">R10</text>
+<path d="M760,156 H840" stroke="#718776" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<text x="800.0" y="144" text-anchor="middle" class="edge">R11</text>
+<path d="M1000.0,560 V664" stroke="#718776" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<text x="1024.0" y="612.0" text-anchor="middle" class="edge">R12</text>
+<g aria-label="companies">
+<rect x="40" y="340" width="320" height="220" rx="6" fill="white" stroke="#b9c8b9"/>
+<path d="M40,402 H360" stroke="#e1e8dd"/>
+<text x="56" y="366" font-size="17" font-weight="650">companies</text>
+<text x="56" y="387" class="note">One company</text>
+<text x="56" y="425" class="key">PK</text>
+<text x="104" y="425" class="field">company_id</text>
+<text x="56" y="547" class="note">6 columns · all attributes listed below</text></g>
+<g aria-label="employees">
+<rect x="440" y="64" width="320" height="172" rx="6" fill="white" stroke="#b9c8b9"/>
+<path d="M440,126 H760" stroke="#e1e8dd"/>
+<text x="456" y="90" font-size="17" font-weight="650">employees</text>
+<text x="456" y="111" class="note">One observed employee</text>
+<text x="456" y="149" class="key">PK,FK</text>
+<text x="504" y="149" class="field">company_id</text>
+<text x="456" y="173" class="key">PK</text>
+<text x="504" y="173" class="field">employee_id</text>
+<text x="456" y="223" class="note">9 columns · all attributes listed below</text></g>
+<g aria-label="benchmark_truth">
+<rect x="40" y="64" width="320" height="172" rx="6" fill="white" stroke="#b9c8b9"/>
+<path d="M40,126 H360" stroke="#e1e8dd"/>
+<text x="56" y="90" font-size="17" font-weight="650">benchmark_truth</text>
+<text x="56" y="111" class="note">One generated answer per employee</text>
+<text x="56" y="149" class="key">PK,FK</text>
+<text x="104" y="149" class="field">company_id</text>
+<text x="56" y="173" class="key">PK,FK</text>
+<text x="104" y="173" class="field">employee_id</text>
+<text x="56" y="197" class="key">FK</text>
+<text x="104" y="197" class="field">manager_employee_id</text>
+<text x="56" y="223" class="note">9 columns · all attributes listed below</text></g>
+<g aria-label="inference_runs">
+<rect x="440" y="664" width="320" height="196" rx="6" fill="white" stroke="#b9c8b9"/>
+<path d="M440,726 H760" stroke="#e1e8dd"/>
+<text x="456" y="690" font-size="17" font-weight="650">inference_runs</text>
+<text x="456" y="711" class="note">One checked source/model run</text>
+<text x="456" y="749" class="key">PK</text>
+<text x="504" y="749" class="field">run_id</text>
+<text x="456" y="847" class="note">15 columns · all attributes listed below</text></g>
+<g aria-label="employee_features">
+<rect x="440" y="340" width="320" height="220" rx="6" fill="white" stroke="#b9c8b9"/>
+<path d="M440,402 H760" stroke="#e1e8dd"/>
+<text x="456" y="366" font-size="17" font-weight="650">employee_features</text>
+<text x="456" y="387" class="note">One employee per run</text>
+<text x="456" y="425" class="key">PK,FK</text>
+<text x="504" y="425" class="field">run_id</text>
+<text x="456" y="449" class="key">PK,FK</text>
+<text x="504" y="449" class="field">company_id</text>
+<text x="456" y="473" class="key">PK,FK</text>
+<text x="504" y="473" class="field">employee_id</text>
+<text x="456" y="547" class="note">6 columns · all attributes listed below</text></g>
+<g aria-label="reporting_predictions">
+<rect x="840" y="340" width="320" height="220" rx="6" fill="white" stroke="#b9c8b9"/>
+<path d="M840,402 H1160" stroke="#e1e8dd"/>
+<text x="856" y="366" font-size="17" font-weight="650">reporting_predictions</text>
+<text x="856" y="387" class="note">One reporting decision per employee/run</text>
+<text x="856" y="425" class="key">PK,FK</text>
+<text x="904" y="425" class="field">run_id</text>
+<text x="856" y="449" class="key">PK,FK</text>
+<text x="904" y="449" class="field">company_id</text>
+<text x="856" y="473" class="key">PK,FK</text>
+<text x="904" y="473" class="field">employee_id</text>
+<text x="856" y="497" class="key">FK</text>
+<text x="904" y="497" class="field">accepted_manager_id</text>
+<text x="856" y="521" class="key">FK</text>
+<text x="904" y="521" class="field">best_candidate_id</text>
+<text x="856" y="547" class="note">8 columns · all attributes listed below</text></g>
+<g aria-label="company_run_metrics">
+<rect x="40" y="664" width="320" height="196" rx="6" fill="white" stroke="#b9c8b9"/>
+<path d="M40,726 H360" stroke="#e1e8dd"/>
+<text x="56" y="690" font-size="17" font-weight="650">company_run_metrics</text>
+<text x="56" y="711" class="note">One company summary per run</text>
+<text x="56" y="749" class="key">PK,FK</text>
+<text x="104" y="749" class="field">run_id</text>
+<text x="56" y="773" class="key">PK,FK</text>
+<text x="104" y="773" class="field">company_id</text>
+<text x="56" y="847" class="note">7 columns · all attributes listed below</text></g>
+<g aria-label="employee_noise">
+<rect x="840" y="64" width="320" height="172" rx="6" fill="white" stroke="#b9c8b9"/>
+<path d="M840,126 H1160" stroke="#e1e8dd"/>
+<text x="856" y="90" font-size="17" font-weight="650">employee_noise</text>
+<text x="856" y="111" class="note">One noise label per employee/position</text>
+<text x="856" y="149" class="key">PK,FK</text>
+<text x="904" y="149" class="field">company_id</text>
+<text x="856" y="173" class="key">PK,FK</text>
+<text x="904" y="173" class="field">employee_id</text>
+<text x="856" y="197" class="key">PK</text>
+<text x="904" y="197" class="field">position</text>
+<text x="856" y="223" class="note">4 columns · all attributes listed below</text></g>
+<g aria-label="prediction_reasons">
+<rect x="840" y="664" width="320" height="196" rx="6" fill="white" stroke="#b9c8b9"/>
+<path d="M840,726 H1160" stroke="#e1e8dd"/>
+<text x="856" y="690" font-size="17" font-weight="650">prediction_reasons</text>
+<text x="856" y="711" class="note">One signal per decision/position</text>
+<text x="856" y="749" class="key">PK,FK</text>
+<text x="904" y="749" class="field">run_id</text>
+<text x="856" y="773" class="key">PK,FK</text>
+<text x="904" y="773" class="field">company_id</text>
+<text x="856" y="797" class="key">PK,FK</text>
+<text x="904" y="797" class="field">employee_id</text>
+<text x="856" y="821" class="key">PK</text>
+<text x="904" y="821" class="field">position</text>
+<text x="856" y="847" class="note">5 columns · all attributes listed below</text></g>
+<text x="40" y="900" class="note">Parallel references share one connector. The relationship reference lists each composite key and its cardinality.</text></svg>

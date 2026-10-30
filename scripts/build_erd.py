@@ -7,11 +7,11 @@ from pathlib import Path
 import sqlite3
 
 ROOT = Path(__file__).resolve().parents[1]
-POSITIONS = {
-    'companies': (35, 65), 'employees': (445, 65), 'benchmark_truth': (855, 65),
-    'inference_runs': (35, 445), 'employee_features': (445, 445),
-    'reporting_predictions': (855, 445), 'company_run_metrics': (35, 1010),
-    'employee_noise': (445, 1010), 'prediction_reasons': (855, 1010),
+GRID = {
+    'companies': (0, 1), 'employees': (1, 0), 'benchmark_truth': (0, 0),
+    'inference_runs': (1, 2), 'employee_features': (1, 1),
+    'reporting_predictions': (2, 1), 'company_run_metrics': (0, 2),
+    'employee_noise': (2, 0), 'prediction_reasons': (2, 2),
 }
 GRAINS = {
     'companies': 'One company', 'employees': 'One observed employee',
@@ -25,12 +25,96 @@ GRAINS = {
 }
 
 
+def render_svg(tables, relationships, *, all_columns=False):
+    """Keep connectors in the gutters, with the inference path down the middle."""
+    card_width = 320
+    columns = {
+        table['name']: [column for column in table['columns']
+                        if all_columns or column['pk'] or column['fk']]
+        for table in tables
+    }
+    row_heights = [max(100 + len(columns[name]) * 24
+                       for name, (_, y) in GRID.items() if y == row)
+                   for row in range(3)]
+    row_tops = [64]
+    for height in row_heights[:-1]:
+        row_tops.append(row_tops[-1] + height + 104)
+    positions = {name: (40 + x * 400, row_tops[y]) for name, (x, y) in GRID.items()}
+    heights = {name: row_heights[row] for name, (_, row) in GRID.items()}
+    canvas_height = row_tops[-1] + row_heights[-1] + 60
+    title = 'All columns' if all_columns else 'Keys and relationships'
+    svg = [f'<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="{canvas_height}" viewBox="0 0 1200 {canvas_height}" role="img" aria-labelledby="title desc">',
+           f'<title id="title">OrgGraph entity relationship diagram — {title}</title>',
+           '<desc id="desc">Nine tables with non-overlapping connections. Arrows point from referenced to dependent tables. R1 through R12 identify the complete foreign keys listed in the portal.</desc>',
+           '<rect width="1200" height="100%" fill="#fafbf8"/>',
+           '<style>text{font-family:system-ui,sans-serif;fill:#283c32}.field{font-family:ui-monospace,monospace;font-size:13px}.key{font-family:ui-monospace,monospace;font-size:10px;fill:#4c624e}.edge{font-size:12px;font-weight:600;paint-order:stroke;stroke:#fafbf8;stroke-width:6px;stroke-linejoin:round}.note{font-size:12px;fill:#5c6c5e}</style>',
+           '<defs><marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7" fill="#718776"/></marker></defs>',
+           '<text x="40" y="30" class="note">PK  Primary key     FK  Foreign key     Arrow  Referenced → dependent table</text>']
+
+    edges = defaultdict(list)
+    for relation in relationships:
+        edges[(relation['parent'], relation['child'])].append(relation['id'])
+    for (parent, child), labels in edges.items():
+        px, py = positions[parent]
+        cx, cy = positions[child]
+        if parent == 'companies' and child == 'employees':
+            # Enter the employee card to the left of its separate feature link.
+            x1, y1 = px + card_width / 2, py
+            x2, y2 = cx + 80, cy + heights[child]
+            bend = py - 40
+            path = f'M{x1},{y1} V{bend} H{x2} V{y2}'
+            tx, ty = (x1 + x2) / 2, bend - 10
+        elif py == cy:
+            x1 = px + card_width if px < cx else px
+            x2 = cx if px < cx else cx + card_width
+            y = py + 92
+            path = f'M{x1},{y} H{x2}'
+            tx, ty = (x1 + x2) / 2, y - 12
+        else:
+            # Two distinct ports keep the employee and run references apart.
+            offset = 240 if parent == 'employees' else card_width / 2
+            x = px + offset
+            y1 = py + heights[parent] if py < cy else py
+            y2 = cy if py < cy else cy + heights[child]
+            path = f'M{x},{y1} V{y2}'
+            tx, ty = x + 24, (y1 + y2) / 2
+        label = ', '.join(labels)
+        svg.extend([
+            f'<path d="{path}" stroke="#718776" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>',
+            f'<text x="{tx}" y="{ty}" text-anchor="middle" class="edge">{escape(label)}</text>',
+        ])
+
+    for table in tables:
+        name = table['name']
+        x, y = positions[name]
+        height = heights[name]
+        svg.extend([
+            f'<g aria-label="{name}">',
+            f'<rect x="{x}" y="{y}" width="{card_width}" height="{height}" rx="6" fill="white" stroke="#b9c8b9"/>',
+            f'<path d="M{x},{y+62} H{x+card_width}" stroke="#e1e8dd"/>',
+            f'<text x="{x+16}" y="{y+26}" font-size="17" font-weight="650">{name}</text>',
+            f'<text x="{x+16}" y="{y+47}" class="note">{escape(table["grain"])}</text>',
+        ])
+        for index, column in enumerate(columns[name]):
+            keys = ','.join(label for label, condition in [('PK', column['pk']), ('FK', column['fk'])] if condition)
+            baseline = y + 85 + index * 24
+            svg.extend([
+                f'<text x="{x+16}" y="{baseline}" class="key">{keys}</text>',
+                f'<text x="{x+64}" y="{baseline}" class="field">{escape(column["name"])}</text>',
+            ])
+        count = len(table['columns'])
+        footer = f'{count} columns' if all_columns else f'{count} columns · all attributes listed below'
+        svg.append(f'<text x="{x+16}" y="{y+height-13}" class="note">{footer}</text></g>')
+    svg.append(f'<text x="40" y="{canvas_height-20}" class="note">Parallel references share one connector. The relationship reference lists each composite key and its cardinality.</text></svg>')
+    return '\n'.join(svg)
+
+
 def build_diagram():
     connection = sqlite3.connect(':memory:')
     connection.executescript((ROOT / 'schema.sql').read_text())
     tables = []
     relationships = []
-    for name in POSITIONS:
+    for name in GRID:
         columns = connection.execute(f'PRAGMA table_info("{name}")').fetchall()
         groups = defaultdict(list)
         for row in connection.execute(f'PRAGMA foreign_key_list("{name}")'):
@@ -50,55 +134,8 @@ def build_diagram():
                 'optional': any(not row[3] for row in columns if row[1] in child_columns),
             })
     connection.close()
-    width = 360
-    heights = {table['name']: 76 + len(table['columns']) * 23 for table in tables}
-    svg = ['<svg xmlns="http://www.w3.org/2000/svg" width="1250" height="1410" viewBox="0 0 1250 1410" role="img" aria-labelledby="title desc">',
-           '<title id="title">OrgGraph entity relationship diagram</title>',
-           '<desc id="desc">Nine relational tables. PK marks primary keys and FK marks foreign keys. Relationship IDs match the key reference below the diagram.</desc>',
-           '<rect width="1250" height="1410" fill="#f6f8f3"/>',
-           '<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8" fill="#829282"/></marker></defs>']
-    # Bundle parallel relationships; the reference lists every composite key separately.
-    edges = defaultdict(list)
-    for relation in relationships:
-        edges[(relation['parent'], relation['child'])].append(relation['id'])
-    for (parent, child), labels in edges.items():
-        px, py = POSITIONS[parent]
-        cx, cy = POSITIONS[child]
-        if py == cy and px < cx:
-            x1, y1 = px + width, py + 40
-            x2, y2 = cx, cy + 40
-            path = f'M{x1},{y1} L{x2},{y2}'
-            tx, ty = (x1 + x2) / 2, y1 - 9
-        elif py == cy:
-            # A long same-row link goes around the row, never through another table.
-            bottom = max(y + heights[name] for name, (x, y) in POSITIONS.items() if y == py) + 24
-            x1, y1 = px + width / 2, py + heights[parent]
-            x2, y2 = cx + width, cy + 40
-            path = f'M{x1},{y1} V{bottom} H1235 V{y2} H{x2}'
-            tx, ty = (x1 + 1235) / 2, bottom - 8
-        else:
-            x1, y1 = px + width / 2, py + heights[parent]
-            x2, y2 = cx + width / 2, cy
-            gutter = px - 20
-            path = f'M{x1},{y1} V{y1+16} H{gutter} V{y2-18} H{x2} V{y2}'
-            tx, ty = gutter + 12, (y1 + y2) / 2
-        svg.append(f'<path d="{path}" stroke="#829282" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>')
-        svg.append(f'<text x="{tx}" y="{ty}" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#426149">{escape(",".join(labels))}</text>')
-    for table in tables:
-        name = table['name']
-        x, y = POSITIONS[name]
-        svg.extend([
-            f'<rect x="{x}" y="{y}" width="{width}" height="{heights[name]}" rx="6" fill="white" stroke="#cbd6c8"/>',
-            f'<text x="{x+16}" y="{y+28}" font-family="sans-serif" font-size="18" font-weight="600" fill="#283c32">{name}</text>',
-            f'<text x="{x+16}" y="{y+49}" font-family="sans-serif" font-size="11" fill="#637063">{escape(table["grain"])}</text>',
-        ])
-        for index, column in enumerate(table['columns']):
-            keys = ','.join(label for label, condition in [('PK', column['pk']), ('FK', column['fk'])] if condition)
-            label = f'{keys:5} {column["name"]}'
-            svg.append(f'<text x="{x+16}" y="{y+77+index*23}" font-family="monospace" font-size="12" fill="#344439">{escape(label)}</text>')
-    svg.append('<text x="35" y="1360" font-family="sans-serif" font-size="14" fill="#344439">Arrow: referenced table → dependent table. Full cardinality and composite keys are listed in the portal.</text>')
-    svg.append('<text x="35" y="1385" font-family="sans-serif" font-size="13" fill="#637063">employee_reporting_audit is a read-only view over raw records, features, predictions and run metadata.</text></svg>')
-    (ROOT / 'public/database-erd.svg').write_text('\n'.join(svg))
+    (ROOT / 'public/database-erd.svg').write_text(render_svg(tables, relationships))
+    (ROOT / 'public/database-erd-full.svg').write_text(render_svg(tables, relationships, all_columns=True))
     metadata = {'tables': tables, 'relationships': relationships}
     (ROOT / 'public/database-schema.json').write_text(json.dumps(metadata, indent=2))
     mermaid = ['erDiagram']

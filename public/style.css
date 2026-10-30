@@ -1409,7 +1409,26 @@ input[type="checkbox"] {
 .schema-page { max-width: 1250px; width: calc(100% - 48px); margin: 0 auto; padding: 38px 0 64px; }
 .schema-page .page-heading { max-width: 850px; }
 .schema-actions { display: flex; flex-wrap: wrap; gap: 12px 24px; }
-.erd-viewport { max-height: 750px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; background: #f6f8f3; }
-.erd-viewport img { display: block; width: 1250px; max-width: none; height: auto; }
+.erd-viewport { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: #fafbf8; }
+.erd-viewport img { display: block; width: 100%; min-width: 1080px; height: auto; }
+.diagram-hint { color: var(--muted); font-size: 13px; }
+.schema-tables { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.schema-entity { min-width: 0; border: 1px solid var(--line); border-radius: 6px; background: white; }
+.schema-page .schema-entity > summary { cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 20px; list-style: none; }
+.schema-entity summary::-webkit-details-marker { display: none; }
+.schema-entity summary::before { content: "+"; font-size: 20px; color: var(--muted); }
+.schema-entity[open] summary::before { content: "−"; }
+.schema-entity summary > span:first-of-type { flex: 1; min-width: 0; }
+.schema-grain { display: block; margin-top: 4px; color: var(--muted); font-size: 13px; }
+.schema-entity summary > .muted { white-space: nowrap; font-size: 12px; }
+.schema-entity[open] summary { border-bottom: 1px solid var(--line); }
+.schema-entity .simple-table { margin: 0; }
+.schema-page .schema-entity .table-scroll { margin-top: 0; }
+.schema-entity summary:focus-visible { outline: 2px solid #426149; outline-offset: 3px; }
+@media (max-width: 600px) {
+  .schema-page { width: calc(100% - 32px); }
+  .schema-page .schema-entity > summary { padding: 14px 12px; gap: 10px; }
+  .schema-entity .simple-table { min-width: 520px; }
+}
 .schema-query { padding: 20px; overflow: auto; background: #f3f6ef; border: 1px solid var(--line); font-size: 12px; line-height: 1.7; }
 .schema-page code { overflow-wrap: anywhere; }

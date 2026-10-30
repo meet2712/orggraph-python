@@ -1,0 +1,218 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1400" viewBox="0 0 1200 1400" role="img" aria-labelledby="title desc">
+<title id="title">OrgGraph entity relationship diagram — All columns</title>
+<desc id="desc">Nine tables with non-overlapping connections. Arrows point from referenced to dependent tables. R1 through R12 identify the complete foreign keys listed in the portal.</desc>
+<rect width="1200" height="100%" fill="#fafbf8"/>
+<style>text{font-family:system-ui,sans-serif;fill:#283c32}.field{font-family:ui-monospace,monospace;font-size:13px}.key{font-family:ui-monospace,monospace;font-size:10px;fill:#4c624e}.edge{font-size:12px;font-weight:600;paint-order:stroke;stroke:#fafbf8;stroke-width:6px;stroke-linejoin:round}.note{font-size:12px;fill:#5c6c5e}</style>
+<defs><marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7" fill="#718776"/></marker></defs>
+<text x="40" y="30" class="note">PK  Primary key     FK  Foreign key     Arrow  Referenced → dependent table</text>
+<path d="M200.0,484 V444 H520 V380" stroke="#718776" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<text x="360.0" y="434" text-anchor="middle" class="edge">R1</text>
+<path d="M440,156 H360" stroke="#718776" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<text x="400.0" y="144" text-anchor="middle" class="edge">R2, R3</text>
+<path d="M680,380 V484" stroke="#718776" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<text x="704" y="432.0" text-anchor="middle" class="edge">R4</text>
+<path d="M600.0,880 V776" stroke="#718776" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<text x="624.0" y="828.0" text-anchor="middle" class="edge">R5</text>
+<path d="M760,576 H840" stroke="#718776" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<text x="800.0" y="564" text-anchor="middle" class="edge">R6, R7, R8</text>
+<path d="M200.0,776 V880" stroke="#718776" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<text x="224.0" y="828.0" text-anchor="middle" class="edge">R9</text>
+<path d="M440,972 H360" stroke="#718776" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<text x="400.0" y="960" text-anchor="middle" class="edge">R10</text>
+<path d="M760,156 H840" stroke="#718776" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<text x="800.0" y="144" text-anchor="middle" class="edge">R11</text>
+<path d="M1000.0,776 V880" stroke="#718776" stroke-width="1.5" fill="none" marker-end="url(#arrow)"/>
+<text x="1024.0" y="828.0" text-anchor="middle" class="edge">R12</text>
+<g aria-label="companies">
+<rect x="40" y="484" width="320" height="292" rx="6" fill="white" stroke="#b9c8b9"/>
+<path d="M40,546 H360" stroke="#e1e8dd"/>
+<text x="56" y="510" font-size="17" font-weight="650">companies</text>
+<text x="56" y="531" class="note">One company</text>
+<text x="56" y="569" class="key">PK</text>
+<text x="104" y="569" class="field">company_id</text>
+<text x="56" y="593" class="key"></text>
+<text x="104" y="593" class="field">company_name</text>
+<text x="56" y="617" class="key"></text>
+<text x="104" y="617" class="field">industry</text>
+<text x="56" y="641" class="key"></text>
+<text x="104" y="641" class="field">size_band</text>
+<text x="56" y="665" class="key"></text>
+<text x="104" y="665" class="field">employee_count</text>
+<text x="56" y="689" class="key"></text>
+<text x="104" y="689" class="field">headquarters</text>
+<text x="56" y="763" class="note">6 columns</text></g>
+<g aria-label="employees">
+<rect x="440" y="64" width="320" height="316" rx="6" fill="white" stroke="#b9c8b9"/>
+<path d="M440,126 H760" stroke="#e1e8dd"/>
+<text x="456" y="90" font-size="17" font-weight="650">employees</text>
+<text x="456" y="111" class="note">One observed employee</text>
+<text x="456" y="149" class="key">PK,FK</text>
+<text x="504" y="149" class="field">company_id</text>
+<text x="456" y="173" class="key">PK</text>
+<text x="504" y="173" class="field">employee_id</text>
+<text x="456" y="197" class="key"></text>
+<text x="504" y="197" class="field">full_name</text>
+<text x="456" y="221" class="key"></text>
+<text x="504" y="221" class="field">job_title</text>
+<text x="456" y="245" class="key"></text>
+<text x="504" y="245" class="field">raw_department</text>
+<text x="456" y="269" class="key"></text>
+<text x="504" y="269" class="field">raw_team</text>
+<text x="456" y="293" class="key"></text>
+<text x="504" y="293" class="field">location</text>
+<text x="456" y="317" class="key"></text>
+<text x="504" y="317" class="field">work_email</text>
+<text x="456" y="341" class="key"></text>
+<text x="504" y="341" class="field">source_row_number</text>
+<text x="456" y="367" class="note">9 columns</text></g>
+<g aria-label="benchmark_truth">
+<rect x="40" y="64" width="320" height="316" rx="6" fill="white" stroke="#b9c8b9"/>
+<path d="M40,126 H360" stroke="#e1e8dd"/>
+<text x="56" y="90" font-size="17" font-weight="650">benchmark_truth</text>
+<text x="56" y="111" class="note">One generated answer per employee</text>
+<text x="56" y="149" class="key">PK,FK</text>
+<text x="104" y="149" class="field">company_id</text>
+<text x="56" y="173" class="key">PK,FK</text>
+<text x="104" y="173" class="field">employee_id</text>
+<text x="56" y="197" class="key">FK</text>
+<text x="104" y="197" class="field">manager_employee_id</text>
+<text x="56" y="221" class="key"></text>
+<text x="104" y="221" class="field">canonical_title</text>
+<text x="56" y="245" class="key"></text>
+<text x="104" y="245" class="field">canonical_department</text>
+<text x="56" y="269" class="key"></text>
+<text x="104" y="269" class="field">canonical_team</text>
+<text x="56" y="293" class="key"></text>
+<text x="104" y="293" class="field">canonical_level</text>
+<text x="56" y="317" class="key"></text>
+<text x="104" y="317" class="field">is_people_manager</text>
+<text x="56" y="341" class="key"></text>
+<text x="104" y="341" class="field">is_root</text>
+<text x="56" y="367" class="note">9 columns</text></g>
+<g aria-label="inference_runs">
+<rect x="440" y="880" width="320" height="460" rx="6" fill="white" stroke="#b9c8b9"/>
+<path d="M440,942 H760" stroke="#e1e8dd"/>
+<text x="456" y="906" font-size="17" font-weight="650">inference_runs</text>
+<text x="456" y="927" class="note">One checked source/model run</text>
+<text x="456" y="965" class="key">PK</text>
+<text x="504" y="965" class="field">run_id</text>
+<text x="456" y="989" class="key"></text>
+<text x="504" y="989" class="field">source_hash</text>
+<text x="456" y="1013" class="key"></text>
+<text x="504" y="1013" class="field">model_version</text>
+<text x="456" y="1037" class="key"></text>
+<text x="504" y="1037" class="field">pipeline_version</text>
+<text x="456" y="1061" class="key"></text>
+<text x="504" y="1061" class="field">model_type</text>
+<text x="456" y="1085" class="key"></text>
+<text x="504" y="1085" class="field">probability_threshold</text>
+<text x="456" y="1109" class="key"></text>
+<text x="504" y="1109" class="field">margin_threshold</text>
+<text x="456" y="1133" class="key"></text>
+<text x="504" y="1133" class="field">source_company_count</text>
+<text x="456" y="1157" class="key"></text>
+<text x="504" y="1157" class="field">source_employee_count</text>
+<text x="456" y="1181" class="key"></text>
+<text x="504" y="1181" class="field">loaded_company_count</text>
+<text x="456" y="1205" class="key"></text>
+<text x="504" y="1205" class="field">loaded_employee_count</text>
+<text x="456" y="1229" class="key"></text>
+<text x="504" y="1229" class="field">loaded_prediction_count</text>
+<text x="456" y="1253" class="key"></text>
+<text x="504" y="1253" class="field">accepted_prediction_count</text>
+<text x="456" y="1277" class="key"></text>
+<text x="504" y="1277" class="field">load_status</text>
+<text x="456" y="1301" class="key"></text>
+<text x="504" y="1301" class="field">loaded_at</text>
+<text x="456" y="1327" class="note">15 columns</text></g>
+<g aria-label="employee_features">
+<rect x="440" y="484" width="320" height="292" rx="6" fill="white" stroke="#b9c8b9"/>
+<path d="M440,546 H760" stroke="#e1e8dd"/>
+<text x="456" y="510" font-size="17" font-weight="650">employee_features</text>
+<text x="456" y="531" class="note">One employee per run</text>
+<text x="456" y="569" class="key">PK,FK</text>
+<text x="504" y="569" class="field">run_id</text>
+<text x="456" y="593" class="key">PK,FK</text>
+<text x="504" y="593" class="field">company_id</text>
+<text x="456" y="617" class="key">PK,FK</text>
+<text x="504" y="617" class="field">employee_id</text>
+<text x="456" y="641" class="key"></text>
+<text x="504" y="641" class="field">inferred_department</text>
+<text x="456" y="665" class="key"></text>
+<text x="504" y="665" class="field">inferred_level</text>
+<text x="456" y="689" class="key"></text>
+<text x="504" y="689" class="field">inferred_rank</text>
+<text x="456" y="763" class="note">6 columns</text></g>
+<g aria-label="reporting_predictions">
+<rect x="840" y="484" width="320" height="292" rx="6" fill="white" stroke="#b9c8b9"/>
+<path d="M840,546 H1160" stroke="#e1e8dd"/>
+<text x="856" y="510" font-size="17" font-weight="650">reporting_predictions</text>
+<text x="856" y="531" class="note">One reporting decision per employee/run</text>
+<text x="856" y="569" class="key">PK,FK</text>
+<text x="904" y="569" class="field">run_id</text>
+<text x="856" y="593" class="key">PK,FK</text>
+<text x="904" y="593" class="field">company_id</text>
+<text x="856" y="617" class="key">PK,FK</text>
+<text x="904" y="617" class="field">employee_id</text>
+<text x="856" y="641" class="key">FK</text>
+<text x="904" y="641" class="field">accepted_manager_id</text>
+<text x="856" y="665" class="key">FK</text>
+<text x="904" y="665" class="field">best_candidate_id</text>
+<text x="856" y="689" class="key"></text>
+<text x="904" y="689" class="field">confidence</text>
+<text x="856" y="713" class="key"></text>
+<text x="904" y="713" class="field">margin</text>
+<text x="856" y="737" class="key"></text>
+<text x="904" y="737" class="field">decision</text>
+<text x="856" y="763" class="note">8 columns</text></g>
+<g aria-label="company_run_metrics">
+<rect x="40" y="880" width="320" height="460" rx="6" fill="white" stroke="#b9c8b9"/>
+<path d="M40,942 H360" stroke="#e1e8dd"/>
+<text x="56" y="906" font-size="17" font-weight="650">company_run_metrics</text>
+<text x="56" y="927" class="note">One company summary per run</text>
+<text x="56" y="965" class="key">PK,FK</text>
+<text x="104" y="965" class="field">run_id</text>
+<text x="56" y="989" class="key">PK,FK</text>
+<text x="104" y="989" class="field">company_id</text>
+<text x="56" y="1013" class="key"></text>
+<text x="104" y="1013" class="field">resolved_count</text>
+<text x="56" y="1037" class="key"></text>
+<text x="104" y="1037" class="field">unresolved_count</text>
+<text x="56" y="1061" class="key"></text>
+<text x="104" y="1061" class="field">coverage</text>
+<text x="56" y="1085" class="key"></text>
+<text x="104" y="1085" class="field">precision</text>
+<text x="56" y="1109" class="key"></text>
+<text x="104" y="1109" class="field">average_confidence</text>
+<text x="56" y="1327" class="note">7 columns</text></g>
+<g aria-label="employee_noise">
+<rect x="840" y="64" width="320" height="316" rx="6" fill="white" stroke="#b9c8b9"/>
+<path d="M840,126 H1160" stroke="#e1e8dd"/>
+<text x="856" y="90" font-size="17" font-weight="650">employee_noise</text>
+<text x="856" y="111" class="note">One noise label per employee/position</text>
+<text x="856" y="149" class="key">PK,FK</text>
+<text x="904" y="149" class="field">company_id</text>
+<text x="856" y="173" class="key">PK,FK</text>
+<text x="904" y="173" class="field">employee_id</text>
+<text x="856" y="197" class="key">PK</text>
+<text x="904" y="197" class="field">position</text>
+<text x="856" y="221" class="key"></text>
+<text x="904" y="221" class="field">noise_type</text>
+<text x="856" y="367" class="note">4 columns</text></g>
+<g aria-label="prediction_reasons">
+<rect x="840" y="880" width="320" height="460" rx="6" fill="white" stroke="#b9c8b9"/>
+<path d="M840,942 H1160" stroke="#e1e8dd"/>
+<text x="856" y="906" font-size="17" font-weight="650">prediction_reasons</text>
+<text x="856" y="927" class="note">One signal per decision/position</text>
+<text x="856" y="965" class="key">PK,FK</text>
+<text x="904" y="965" class="field">run_id</text>
+<text x="856" y="989" class="key">PK,FK</text>
+<text x="904" y="989" class="field">company_id</text>
+<text x="856" y="1013" class="key">PK,FK</text>
+<text x="904" y="1013" class="field">employee_id</text>
+<text x="856" y="1037" class="key">PK</text>
+<text x="904" y="1037" class="field">position</text>
+<text x="856" y="1061" class="key"></text>
+<text x="904" y="1061" class="field">reason</text>
+<text x="856" y="1327" class="note">5 columns</text></g>
+<text x="40" y="1380" class="note">Parallel references share one connector. The relationship reference lists each composite key and its cardinality.</text></svg>
