@@ -330,6 +330,95 @@
         <li><h3>Test on companies the model has not seen</h3><p>The split uses whole companies: {{ split.trainCompanies }} for training, {{ split.validationCompanies }} for calibration and threshold selection, and {{ split.testCompanies }} for the final test. People from one company never appear in different splits. Predictions are compared with the generated direct manager.</p></li>
       </ol>
     </section>
+    <section class="paper-section score-explainer" aria-labelledby="score-explainer-title">
+      <h2 id="score-explainer-title">How one reporting-line score is calculated</h2>
+      <p>The model compares one employee with each plausible manager in the same company. It scores the pairs, ranks them, and only publishes the leading pair when both acceptance checks pass.</p>
+      <div class="score-flow" role="list" aria-label="Reporting-line scoring flow">
+        <article class="score-stage" role="listitem">
+          <span class="score-step">01 · Input</span>
+          <h3>Read the observed row</h3>
+          <p>Title, department, team and location are used exactly as supplied. The generated answer key is not an input.</p>
+        </article>
+        <article class="score-stage" role="listitem">
+          <span class="score-step">02 · Interpret</span>
+          <h3>Infer function and level</h3>
+          <p>Abbreviations and noisy titles are normalized into a department, role family and seniority level.</p>
+        </article>
+        <article class="score-stage" role="listitem">
+          <span class="score-step">03 · Shortlist</span>
+          <h3>Build manager candidates</h3>
+          <p>Only more-senior, explicit leadership titles are eligible. Hierarchy, function and team scope narrow the list.</p>
+        </article>
+        <article class="score-stage" role="listitem">
+          <span class="score-step">04 · Compare</span>
+          <h3>Create 19 pair signals</h3>
+          <p>Each employee–candidate pair is compared on team, parent team, function, role family, location, rank gap and missing data.</p>
+        </article>
+        <article class="score-stage" role="listitem">
+          <span class="score-step">05 · Decide</span>
+          <h3>Score, calibrate and check</h3>
+          <p>The model produces comparable probabilities. The top score and its lead over second place determine the decision.</p>
+        </article>
+      </div>
+
+      <div class="score-formula-grid">
+        <article class="formula-card">
+          <span class="formula-label">Candidate score</span>
+          <code>z = bias + Σ(weight × standardized signal)</code>
+          <p>The logistic model learns the signal weights from the training companies.</p>
+        </article>
+        <article class="formula-card">
+          <span class="formula-label">Confidence</span>
+          <code>confidence = calibrated sigmoid(z)</code>
+          <p>This is the calibrated score for the leading employee–manager pair. A unique validated hierarchy match is raised to at least 99.5%.</p>
+        </article>
+        <article class="formula-card">
+          <span class="formula-label">Lead over next candidate</span>
+          <code>lead = top confidence − second confidence</code>
+          <p>A high top score is not enough when another manager has a nearly equal score. Candidate probabilities are independent; they do not add up to 100%.</p>
+        </article>
+      </div>
+
+      <div class="worked-score" aria-labelledby="worked-score-title">
+        <div class="worked-score-copy">
+          <p class="muted">Published example · <a class="text-link" href="/companies/cmp_0001.html">Nimbus Grid</a></p>
+          <h3 id="worked-score-title">Sofia Martin · “Sr., Eng Mgr”</h3>
+          <dl class="raw-row-example">
+            <div><dt>Raw department</dt><dd>Engineering</dd></div>
+            <div><dt>Raw team</dt><dd>Product Engineering</dd></div>
+            <div><dt>Inferred level</dt><dd>Senior Manager</dd></div>
+          </dl>
+          <p>The leading candidate shares the department, exact team, location and is one hierarchy level above.</p>
+        </div>
+        <div class="candidate-scores" aria-label="Candidate confidence comparison">
+          <div class="candidate-score top-candidate">
+            <div><strong>Kabir Kim</strong><span>Director of Product Engineering</span></div>
+            <b>91.9%</b>
+            <span class="score-bar" aria-hidden="true"><span style="width:91.9%"></span></span>
+          </div>
+          <div class="candidate-score">
+            <div><strong>Akira Shah</strong><span>Director, Quality &amp; Reliability</span></div>
+            <b>58.2%</b>
+            <span class="score-bar" aria-hidden="true"><span style="width:58.2%"></span></span>
+          </div>
+          <div class="decision-math">
+            <div><span>Confidence</span><strong>91.9% ≥ {{ model.threshold.probability|percent }}</strong><small>passes</small></div>
+            <div><span>Lead over next</span><strong>91.9 − 58.2 = 33.7 points</strong><small>needs {{ model.threshold.margin|points }}</small></div>
+            <p><strong>Accepted:</strong> Kabir Kim is published as Sofia Martin’s inferred manager.</p>
+          </div>
+        </div>
+      </div>
+
+      <details class="signal-details">
+        <summary>See all 19 comparison signals</summary>
+        <div class="signal-groups">
+          <div><h3>Scope match</h3><p>Same inferred department, raw department match, same team, parent-team match, same role family and same location.</p></div>
+          <div><h3>Hierarchy</h3><p>One-level, two-level or larger rank gap; candidate is a leader, executive or Team Lead; scaled employee and candidate ranks.</p></div>
+          <div><h3>Data quality</h3><p>Missing employee title, department or team, plus confidence in the inferred employee and candidate departments.</p></div>
+        </div>
+      </details>
+      <p class="note"><strong>Final guardrail:</strong> the title must be present, QA and Team Lead safeguards must pass, confidence must be at least {{ model.threshold.probability|percent }}, and the lead must be at least {{ model.threshold.margin|points }} percentage points. If any check fails, the manager remains unresolved.</p>
+    </section>
     <section class="paper-section"><h2>Why some people have no manager</h2><p>Two managers can have the same title, and missing team information can make them indistinguishable. Picking one would make the chart look more complete without making it more reliable. Those cases stay visible under “Needs review,” along with the leading candidate and its score.</p><p>The chart uses inferred reporting lines. The generated answer is available separately in each person’s details, so you can inspect good matches and mistakes.</p></section>
     <section class="paper-section"><h2>What this version can tell us</h2><p>It shows how the approach handles messy generated records. It does not establish accuracy on real companies, where titles, reporting customs, and data quality will differ. The current model also misses many reporting lines in the generated data. Precision and coverage are shown together to make that tradeoff visible.</p></section>
     <section class="paper-section"><h2>Built in Python</h2><p>Python generates the dataset, trains the inference model and renders the pages with Flask and Jinja. GitHub Pages serves the exported pages and a SQLite snapshot. Search, filters, person details and read-only SQL run in the browser. The same source can also run as a Flask server.</p></section>
