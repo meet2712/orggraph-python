@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS employee_features (
     employee_id TEXT NOT NULL,
     inferred_department TEXT NOT NULL,
     inferred_level TEXT NOT NULL,
-    inferred_rank INTEGER NOT NULL CHECK (inferred_rank BETWEEN 0 AND 8),
+    inferred_rank INTEGER NOT NULL CHECK (inferred_rank BETWEEN 0 AND 10),
     PRIMARY KEY (run_id, company_id, employee_id),
     FOREIGN KEY (run_id) REFERENCES inference_runs (run_id),
     FOREIGN KEY (company_id, employee_id) REFERENCES employees (company_id, employee_id)

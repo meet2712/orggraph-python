@@ -5,11 +5,11 @@ from dataclasses import replace
 
 from pipeline.train_and_infer import (
     FEATURE_NAMES, ParsedEmployee, build_candidates, infer_department, infer_rank,
-    infer_role_family, prediction_reasons,
+    infer_role_family, is_people_manager_level, prediction_reasons,
 )
 
 
-def person(employee_id: str, rank: int) -> ParsedEmployee:
+def person(employee_id: str, rank: int, manager: bool | None = None) -> ParsedEmployee:
     return ParsedEmployee(
         employee_id=employee_id,
         company_id="cmp_0001",
@@ -24,6 +24,7 @@ def person(employee_id: str, rank: int) -> ParsedEmployee:
         role_family="Software Engineering",
         rank=rank,
         rank_label="Example level",
+        people_manager_cue=rank >= 4 if manager is None else manager,
         title_missing=False,
         department_missing=False,
         team_missing=False,
@@ -45,6 +46,8 @@ class InferenceParsingTests(unittest.TestCase):
             "Senior, Account Manager": 2,
             "Lead Account Manager": 3,
             "Principal Account Mgr": 3,
+            "Staff Product Manager": 3,
+            "Staff Customer Success Manager": 3,
             "Customer Success Manager - Singapore": 1,
             "Cust Success Mgr - Sydney": 1,
             "Senior Customer Success Manager": 2,
@@ -58,6 +61,16 @@ class InferenceParsingTests(unittest.TestCase):
         for title in ("Engineering Manager", "Group Product Manager", "Customer Success Team Manager"):
             with self.subTest(title=title):
                 self.assertEqual(infer_rank(title)[0], 4)
+
+    def test_management_ladder_order(self) -> None:
+        titles = [
+            "Chief Executive Officer", "Chief Technology Officer", "VP of Engineering",
+            "Senior Director of Engineering", "Director of Engineering",
+            "Senior Engineering Manager", "Engineering Manager", "Engineering Team Lead",
+        ]
+        ranks = [infer_rank(title)[0] for title in titles]
+        self.assertEqual(ranks, [10, 9, 8, 7, 6, 5, 4, 3])
+        self.assertTrue(all(is_people_manager_level(infer_rank(title)[1]) for title in titles))
 
     def test_specific_functions_override_generic_title_words(self) -> None:
         cases = [
@@ -73,10 +86,18 @@ class InferenceParsingTests(unittest.TestCase):
             with self.subTest(title=title):
                 self.assertEqual(infer_department(title, raw_department)[0], expected)
 
-    def test_same_team_senior_can_be_a_technical_manager_candidate(self) -> None:
+    def test_senior_ic_is_not_a_manager_candidate(self) -> None:
         people = [person("report", 0), person("senior_ic", 2), person("manager", 4)]
         candidate_ids = {candidate.manager_id for candidate in build_candidates(people)["report"]}
-        self.assertEqual(candidate_ids, {"senior_ic", "manager"})
+        self.assertEqual(candidate_ids, {"manager"})
+
+    def test_explicit_team_lead_is_a_manager_candidate_for_junior(self) -> None:
+        people = [
+            person("report", 0), person("team_lead", 3, manager=True),
+            person("principal_ic", 3, manager=False), person("manager", 4),
+        ]
+        candidate_ids = {candidate.manager_id for candidate in build_candidates(people)["report"]}
+        self.assertEqual(candidate_ids, {"team_lead"})
 
     def test_senior_from_another_function_is_not_a_manager_candidate(self) -> None:
         report = person("report", 0)

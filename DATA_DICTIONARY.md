@@ -46,7 +46,7 @@ when the model scores a reporting line.
 | `canonical_title` | Clean generated title. |
 | `canonical_department` | True department. |
 | `canonical_team` | Clean team label, kept in the answer key. |
-| `canonical_level` | True seniority level. |
+| `canonical_level` | True level on the management or IC track; see `docs/HIERARCHY.md`. |
 | `manager_employee_id` | True direct manager; blank only for the CEO/root. |
 | `is_people_manager` | `1` when the employee has direct reports. |
 | `noise_profile` | Changes applied to the title, used to compare results for different kinds of messy input. |

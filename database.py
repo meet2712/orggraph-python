@@ -18,8 +18,9 @@ from tempfile import NamedTemporaryFile
 ROOT = Path(__file__).resolve().parent
 RANKS = {
     "Unknown": 1, "Junior IC": 0, "Individual Contributor": 1, "Senior IC": 2,
-    "Lead / Principal IC": 3, "Manager": 4, "Director": 5, "VP / Head": 6,
-    "C-Suite": 7, "CEO": 8,
+    "Lead / Principal IC": 3, "Principal / Staff IC": 3, "Team Lead / Supervisor": 3,
+    "Manager": 4, "Senior Manager": 5, "Director": 6,
+    "Senior Director": 7, "VP / Head": 8, "C-Suite": 9, "CEO": 10,
 }
 
 

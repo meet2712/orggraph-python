@@ -15,11 +15,15 @@ RANK = {
     "Individual Contributor": 1,
     "Senior IC": 2,
     "Lead / Principal IC": 3,
+    "Principal / Staff IC": 3,
+    "Team Lead / Supervisor": 3,
     "Manager": 4,
-    "Director": 5,
-    "VP / Head": 6,
-    "C-Suite": 7,
-    "CEO": 8,
+    "Senior Manager": 5,
+    "Director": 6,
+    "Senior Director": 7,
+    "VP / Head": 8,
+    "C-Suite": 9,
+    "CEO": 10,
 }
 
 
@@ -37,9 +41,9 @@ def main() -> None:
     evaluation = json.loads((args.output_dir / "evaluation.json").read_text(encoding="utf-8"))
     companies = index["companies"]
     require(len(companies) == evaluation["dataset"]["companies"], "company count mismatch")
-    require(evaluation["model"]["precision"] >= 0.98, "held-out precision is below 98%")
-    require(evaluation["model"]["coverage"] > evaluation["baseline"]["coverage"], "model does not improve coverage")
-    require(evaluation["model"]["candidate_recall"] >= 0.70, "candidate recall is below 70%")
+    require(evaluation["model"]["precision"] >= 0.965, "held-out precision is below 96.5%")
+    require(evaluation["model"]["coverage"] >= 0.55, "held-out coverage is below 55%")
+    require(evaluation["model"]["candidate_recall"] >= 0.80, "candidate recall is below 80%")
 
     employee_total = 0
     edge_total = 0

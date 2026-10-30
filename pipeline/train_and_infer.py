@@ -103,7 +103,7 @@ FEATURE_NAMES = [
     "report_team_missing",
     "parent_team_match",
     "same_role_family",
-    "candidate_is_technical_lead",
+    "candidate_is_team_lead",
 ]
 
 
@@ -122,6 +122,7 @@ class ParsedEmployee:
     role_family: str
     rank: int
     rank_label: str
+    people_manager_cue: bool
     title_missing: bool
     department_missing: bool
     team_missing: bool
@@ -242,36 +243,53 @@ def infer_rank(title: str) -> tuple[int, str, float]:
             compact = compact[: -(len(city) + 1)]
             break
     if "chief executive officer" in compact or compact == "ceo":
-        return 8, "CEO", 1.0
+        return 10, "CEO", 1.0
     c_suite_abbreviations = {"cto", "cro", "coo", "cpo", "cmo", "cdo", "cfo", "ciso", "cio", "cco", "cpo people"}
     if compact.startswith("chief ") or compact in c_suite_abbreviations or "general counsel" in compact:
-        return 7, "C-Suite", 0.97
+        return 9, "C-Suite", 0.97
     if "vice president" in compact or re.search(r"\bvp\b", compact) or compact.startswith("head "):
-        return 6, "VP / Head", 0.94
+        return 8, "VP / Head", 0.94
+    if "senior director" in compact or "sr director" in compact:
+        return 7, "Senior Director", 0.94
     if "director" in compact:
-        return 5, "Director", 0.94
+        return 6, "Director", 0.94
 
     modifier = compact.split(" ", 1)[0]
-    base = compact.split(" ", 1)[1] if modifier in {"junior", "senior", "lead", "principal"} else compact
+    base = compact.split(" ", 1)[1] if modifier in {
+        "junior", "senior", "staff", "lead", "principal"
+    } else compact
     if base in AMBIGUOUS_IC_MANAGER_TITLES:
         if modifier == "junior":
             return 0, "Junior IC", 0.87
         if modifier == "senior":
             return 2, "Senior IC", 0.88
-        if modifier in {"lead", "principal"}:
-            return 3, "Lead / Principal IC", 0.87
+        if modifier in {"staff", "lead", "principal"}:
+            return 3, "Principal / Staff IC", 0.87
         return 1, "Individual Contributor", 0.86
 
-    management_terms = ["manager", "team lead", "group product", "program lead", "client success lead", "senior counsel"]
+    if ("senior manager" in compact or re.search(r"\bsr manager\b", compact)
+            or re.search(r"^senior .+ manager$", compact)):
+        return 5, "Senior Manager", 0.92
+    if "team lead" in compact or "supervisor" in compact:
+        return 3, "Team Lead / Supervisor", 0.91
+    management_terms = ["manager", "group product", "program lead", "client success lead", "senior counsel"]
     if any(f" {term} " in f" {compact} " for term in management_terms):
         return 4, "Manager", 0.88
-    if compact.startswith("lead ") or compact.startswith("principal "):
-        return 3, "Lead / Principal IC", 0.88
+    if compact.startswith("staff ") or compact.startswith("lead ") or compact.startswith("principal "):
+        return 3, "Principal / Staff IC", 0.88
     if compact.startswith("senior ") or compact.startswith("sr "):
         return 2, "Senior IC", 0.9
     if compact.startswith("junior "):
         return 0, "Junior IC", 0.9
     return 1, "Individual Contributor", 0.72
+
+
+def is_people_manager_level(rank_label: str) -> bool:
+    """Only explicit management titles may receive inferred direct reports."""
+    return rank_label in {
+        "CEO", "C-Suite", "VP / Head", "Senior Director", "Director",
+        "Senior Manager", "Manager", "Team Lead / Supervisor",
+    }
 
 
 def parse_employees(messy: pd.DataFrame, truth: pd.DataFrame) -> list[ParsedEmployee]:
@@ -301,6 +319,7 @@ def parse_employees(messy: pd.DataFrame, truth: pd.DataFrame) -> list[ParsedEmpl
                 role_family=infer_role_family(row.job_title),
                 rank=rank,
                 rank_label=rank_label,
+                people_manager_cue=is_people_manager_level(rank_label),
                 title_missing=not bool(str(row.job_title).strip()),
                 department_missing=department_missing,
                 team_missing=team_missing,
@@ -326,20 +345,20 @@ def feature_vector(report: ParsedEmployee, manager: ParsedEmployee) -> tuple[flo
         float(rank_gap == 2),
         float(rank_gap >= 3),
         float(bool(report.location) and report.location == manager.location),
-        float(manager.rank >= 4),
-        float(manager.rank >= 7),
+        float(manager.people_manager_cue),
+        float(manager.rank >= 9),
         float(report.title_missing),
         float(report.department_missing),
         report.department_confidence,
         manager.department_confidence,
         float(raw_department_match),
-        manager.rank / 8.0,
-        report.rank / 8.0,
+        manager.rank / 10.0,
+        report.rank / 10.0,
         float(same_team),
         float(report.team_missing),
         float(bool(parent_team) and parent_team == manager.team),
         float(report.role_family != "Unknown" and report.role_family == manager.role_family),
-        float(2 <= manager.rank < 4),
+        float(manager.people_manager_cue and manager.rank == 3),
     )
 
 
@@ -352,9 +371,9 @@ def heuristic_score(report: ParsedEmployee, manager: ParsedEmployee, features: t
     score += 4.0 * features[16]
     score += 2.4 * features[17] + 0.5 * features[18]
     score += 0.25 * features[9] + 0.2 * features[10]
-    if manager.rank == 8 and report.rank >= 6:
+    if manager.rank == 10 and report.rank >= 8:
         score += 4.0
-    elif manager.rank == 8 and report.rank < 5:
+    elif manager.rank == 10 and report.rank < 6:
         score -= 3.0
     if report.department == "Unknown":
         score -= 0.5
@@ -362,66 +381,58 @@ def heuristic_score(report: ParsedEmployee, manager: ParsedEmployee, features: t
 
 
 def build_candidates(company: list[ParsedEmployee], limit: int = 48) -> dict[str, list[Candidate]]:
-    """Shortlist more-senior people from the same company."""
+    """Shortlist explicit people managers from the same company.
+
+    Senior, Staff and Principal titles are IC career levels. They never become
+    manager candidates unless the title also contains an explicit management
+    cue such as Manager, Director, VP, Team Lead or Supervisor.
+    """
     candidates: dict[str, list[Candidate]] = {}
     for report in company:
-        if report.rank == 8:
+        if report.rank == 10:
             candidates[report.employee_id] = []
             continue
-        # Formal managers are always eligible. A senior or lead IC is eligible
-        # only inside the same inferred function, supporting team-lead chains
-        # without treating every senior title in the company as a manager.
         pool = [
             person for person in company
             if person.employee_id != report.employee_id
             and person.rank > report.rank
-            and (
-                person.rank >= 4
-                or (
-                    report.rank < 3
-                    and person.rank >= 2
-                    and report.team != "Unknown"
-                    and person.team == report.team
-                    and (
-                        report.department == "Unknown"
-                        or person.department == "Unknown"
-                        or person.department == report.department
-                    )
-                )
-            )
+            and person.people_manager_cue
+            and not (person.rank == 3 and report.rank >= 2)
         ]
         same_department = [person for person in pool if report.department != "Unknown" and person.department == report.department]
         same_team = [person for person in pool if report.team != "Unknown" and person.team == report.team]
         parent_team = report.team.rsplit(" / ", 1)[0] if " / " in report.team else ""
         same_parent_team = [person for person in pool if parent_team and person.team == parent_team]
-        if same_team or same_parent_team:
-            preferred = same_team + same_parent_team
-            pool = list({person.employee_id: person for person in preferred}.values())
-            if report.rank >= 4:
-                preferred_ids = {person.employee_id for person in pool}
-                pool += [person for person in company if person.rank == 8 and person.employee_id not in preferred_ids]
-        elif report.rank == 3 and report.role_family == "Quality Assurance":
-            # A QA lead can still identify a QA Manager when the team field is
-            # missing. Prefer the same location when a company has several.
+        if same_team:
+            team_leads = [person for person in same_team if person.rank == 3]
+            formal_managers = [person for person in same_team if person.rank >= 4]
+            if report.rank < 2 and team_leads:
+                pool = team_leads
+            elif formal_managers:
+                closest_rank = min(person.rank for person in formal_managers)
+                pool = [person for person in formal_managers if person.rank == closest_rank]
+            else:
+                closest_rank = min(person.rank for person in same_team)
+                pool = [person for person in same_team if person.rank == closest_rank]
+        elif same_parent_team:
+            closest_rank = min(person.rank for person in same_parent_team)
+            pool = [person for person in same_parent_team if person.rank == closest_rank]
+        elif report.role_family == "Quality Assurance" and report.rank <= 3:
+            # QA ICs and QA Team Leads remain inside the QA management chain.
             qa_managers = [
                 person for person in pool
-                if person.rank >= 4 and person.role_family == "Quality Assurance"
+                if person.role_family == "Quality Assurance"
             ]
             local_qa_managers = [
                 person for person in qa_managers
                 if bool(report.location) and person.location == report.location
             ]
             pool = local_qa_managers or qa_managers
-        elif report.rank < 4:
-            # Without observed team scope, selecting one of several department
-            # managers would be a guess. Keep the relationship unresolved.
-            pool = []
         elif same_department:
-            pool = list({person.employee_id: person for person in same_department}.values())
-            preferred_ids = {person.employee_id for person in pool}
-            pool += [person for person in company if person.rank == 8 and person.employee_id not in preferred_ids]
-        elif report.rank >= 6:
-            pool = [person for person in pool if person.rank == 8]
+            closest_rank = min(person.rank for person in same_department)
+            pool = [person for person in same_department if person.rank == closest_rank]
+        elif report.rank >= 8:
+            pool = [person for person in pool if person.rank >= 9]
         ranked: list[Candidate] = []
         for manager in pool:
             features = feature_vector(report, manager)
@@ -711,10 +722,10 @@ def prediction_reasons(report: ParsedEmployee, manager: ParsedEmployee, margin: 
     reasons.append("one level above" if rank_gap == 1 else "higher inferred seniority")
     if report.location and report.location == manager.location:
         reasons.append("same location")
-    if manager.rank >= 4:
+    if manager.people_manager_cue and manager.rank >= 4:
         reasons.append("leadership title")
-    elif manager.rank >= 2:
-        reasons.append("technical team lead")
+    elif manager.people_manager_cue:
+        reasons.append("explicit team lead")
     if margin >= 0.15:
         reasons.append("clear candidate margin")
     return reasons[:4]
@@ -854,7 +865,7 @@ def main() -> None:
     validation_model_summaries = top_choice_summaries(company_groups, validation_ids, model, platt)
     validation_baseline_summaries = top_choice_summaries(company_groups, validation_ids, None, None)
     # Favor precision: a wrong reporting line is costlier than an unresolved one.
-    model_threshold = tune_threshold(validation_model_summaries, target_precision=0.98)
+    model_threshold = tune_threshold(validation_model_summaries, target_precision=0.97)
     baseline_threshold = tune_threshold(
         validation_baseline_summaries, target_precision=0.80, minimum_margin=0.0
     )
@@ -894,7 +905,7 @@ def main() -> None:
         },
         "featureNames": FEATURE_NAMES,
         "modelType": "Calibrated logistic pair scorer with deterministic candidate blocking",
-        "primaryObjective": "Maximize coverage while holding validation precision at or above 98%",
+        "primaryObjective": "Maximize coverage while holding validation precision at or above 97%",
         "limitations": [
             "Synthetic reporting assignments between otherwise identical managers are not always observable when team, title, or department values are missing.",
             "The system intentionally abstains when the best candidate is not clearly separated from alternatives.",

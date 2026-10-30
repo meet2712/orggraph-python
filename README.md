@@ -9,7 +9,7 @@ plausible, the person stays unresolved.
 [Browse the database and run SQL](https://meet2712.github.io/orggraph-python/data.html) ·
 [Database ER diagram](https://meet2712.github.io/orggraph-python/schema.html)
 
-The dataset is generated: 500 companies, 86,982 employees and ten industries.
+The dataset is generated: 500 companies, 87,160 employees and ten industries.
 Every company has 100–250 employees. Names, emails and reporting lines are made
 up; the clean hierarchy is kept separately so the predictions can be measured.
 
@@ -74,18 +74,24 @@ team values. Some observed team names contain a hierarchy such as
 `Engineering / Platform / Core Services`. The clean manager IDs and canonical
 fields stay in a separate answer key.
 
-The pipeline normalizes titles and infers function and seniority. A generated
-delivery team follows a visible chain such as QA Manager → Lead QA Engineer →
-Senior QA Engineer → QA Engineer. Manager and employee titles are aligned with
-their team, so QA roles stay in the Quality branch rather than being placed
-under a software team.
+The generator separates the people-management ladder from the individual-
+contributor ladder. Its management path is CEO → C-suite → VP/Head → Director →
+Senior Manager → Manager → optional Team Lead/Supervisor. Junior, intermediate,
+Senior, Staff and Principal are IC career levels; a senior title alone does not
+make someone a people manager. An explicit Team Lead can supervise junior and
+intermediate ICs. Senior, Staff and Principal ICs report to a formal Manager.
 
-Formal managers are considered within the same company. A senior or lead IC is
-considered only when the observed team scope matches; without that evidence the
-relationship stays unresolved. A small logistic model scores the remaining
-pairs. Department, team scope, role family, seniority gap, location and
-missing-field signals contribute to the score. Titles such as Product Manager
-and Account Manager are still treated as individual contributor roles.
+Manager and employee titles are aligned with their function. QA Engineers and
+QA Team Leads stay under a QA Manager before the branch joins broader
+Engineering leadership. The hierarchy policy and external references are in
+[`docs/HIERARCHY.md`](docs/HIERARCHY.md).
+
+Only titles with an explicit management cue—such as Team Lead, Supervisor,
+Manager, Director, VP, Head or Chief—are considered as manager candidates.
+Department, team scope, role family, seniority gap, location and missing-field
+signals contribute to the score. Titles such as Product Manager, Account
+Manager and Customer Success Manager remain IC roles unless another explicit
+management cue is present.
 
 Training uses generated manager labels. Calibration and threshold selection
 use separate validation companies. At scoring time, the model uses only the
@@ -93,7 +99,7 @@ messy observed fields; it cannot read the answer key as an input feature.
 
 A line needs at least 80% calibrated confidence and a 10 percentage-point lead
 over the next candidate. Both checks must pass. These cutoffs were chosen to
-reach 98% validation precision with at least 50 accepted examples. If no pair
+reach 97% validation precision with at least 50 accepted examples. If no pair
 of cutoffs meets that target, the pipeline accepts no lines.
 
 A person has at most one accepted manager. Managers must be more senior, which
@@ -107,15 +113,15 @@ final test. All employees from a company stay in the same split.
 
 | Method, on the 75 test companies | Precision | Coverage | Recall | F1 |
 |---|---:|---:|---:|---:|
-| Rules baseline | 82.29% | 29.02% | 23.88% | 37.01% |
-| Learned pair scores | 99.24% | 50.30% | 49.92% | 66.43% |
+| Rules baseline | 83.37% | 97.64% | 81.40% | 82.37% |
+| Learned pair scores | 96.67% | 55.47% | 53.62% | 68.98% |
 
 Precision measures how many accepted lines are correct. Coverage measures how
 many employees with a true manager received an accepted prediction. Recall
 measures how many true reporting lines were recovered correctly.
 
-Across all 500 companies, the published run has 44,498 accepted lines, 41,991
-unresolved decisions and 493 people identified as company roots from their
+Across all 500 companies, the published run has 47,579 accepted lines, 39,097
+unresolved decisions and 484 people identified as company roots from their
 observed titles. These operational counts are kept separate from the test
 metrics above.
 
@@ -193,7 +199,9 @@ python pipeline/validate_hierarchy.py --data-dir data --output-dir public/data -
 
 The checks cover relational integrity, safe database replacement, read-only
 connections, decision counts and inference thresholds. The hierarchy audit
-uses the 75 held-out companies to verify senior/lead layers and QA ownership.
+uses the 75 held-out companies to verify every management level, prevent IC
+titles from receiving direct reports, enforce QA ownership and measure manager
+span.
 A reproducibility test
 regenerates the input CSVs and compares them with the committed files.
 
@@ -211,6 +219,7 @@ python pipeline/train_and_infer.py --data-dir data --output-dir public/data --mo
 | `app.py`, `templates/` | Flask routes and rendered pages |
 | `database.py`, `schema.sql` | Import, validation, tables and SQL reads |
 | `pipeline/` | Dataset generation, inference and evaluation |
+| `docs/HIERARCHY.md` | Management ladder, IC policy and research references |
 | `data/`, `model/`, `public/data/` | Inputs, fitted model and published predictions |
 | `public/app.js`, `public/style.css` | Browser interactions and layout |
 | `public/sql-worker.js` | Browser SQLite execution and query limits |

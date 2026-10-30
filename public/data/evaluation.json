@@ -1,7 +1,7 @@
 {
   "dataset": {
     "companies": 500,
-    "employees": 86982,
+    "employees": 87160,
     "industries": 10,
     "minimumCompanySize": 100,
     "maximumCompanySize": 250
@@ -13,263 +13,270 @@
     "unit": "company"
   },
   "baseline": {
-    "eligible_edges": 12606,
-    "predicted_edges": 3658,
-    "correct_edges": 3010,
-    "unresolved_edges": 8948,
-    "precision": 0.8229,
-    "recall": 0.2388,
-    "coverage": 0.2902,
-    "f1": 0.3701,
-    "candidate_recall": 0.7623,
-    "brier_score_top_choice": 0.1974,
-    "expected_calibration_error": 0.1862,
+    "eligible_edges": 13372,
+    "predicted_edges": 13057,
+    "correct_edges": 10885,
+    "unresolved_edges": 315,
+    "precision": 0.8337,
+    "recall": 0.814,
+    "coverage": 0.9764,
+    "f1": 0.8237,
+    "candidate_recall": 0.8633,
+    "brier_score_top_choice": 0.1529,
+    "expected_calibration_error": 0.1392,
     "calibration_bins": [
       {
         "low": 0.0,
         "high": 0.1,
         "confidence": 0.0,
         "accuracy": 0.0,
-        "count": 1341
+        "count": 20
       },
       {
         "low": 0.1,
         "high": 0.2,
-        "confidence": 0.1227,
-        "accuracy": 0.0,
-        "count": 3
+        "confidence": 0.1406,
+        "accuracy": 0.1538,
+        "count": 13
       },
       {
         "low": 0.2,
         "high": 0.3,
-        "confidence": 0.2236,
-        "accuracy": 0.0,
-        "count": 9
+        "confidence": 0.2218,
+        "accuracy": 0.2,
+        "count": 10
       },
       {
         "low": 0.3,
         "high": 0.4,
-        "confidence": 0.3693,
-        "accuracy": 0.8182,
-        "count": 11
-      },
-      {
-        "low": 0.5,
-        "high": 0.6,
-        "confidence": 0.5688,
-        "accuracy": 0.7447,
-        "count": 47
-      },
-      {
-        "low": 0.6,
-        "high": 0.7,
-        "confidence": 0.6307,
-        "accuracy": 0.8947,
-        "count": 19
-      },
-      {
-        "low": 0.7,
-        "high": 0.8,
-        "confidence": 0.7663,
-        "accuracy": 0.7606,
-        "count": 401
-      },
-      {
-        "low": 0.8,
-        "high": 0.9,
-        "confidence": 0.8753,
-        "accuracy": 0.884,
-        "count": 543
-      },
-      {
-        "low": 0.9,
-        "high": 1.0,
-        "confidence": 0.995,
-        "accuracy": 0.7683,
-        "count": 10232
-      }
-    ],
-    "by_noise_type": {
-      "abbreviation": {
-        "population": 1557,
-        "precision": 0.8843,
-        "coverage": 0.4053
-      },
-      "case": {
-        "population": 672,
-        "precision": 0.8073,
-        "coverage": 0.2857
-      },
-      "clean": {
-        "population": 7324,
-        "precision": 0.802,
-        "coverage": 0.2717
-      },
-      "missing_title": {
-        "population": 175,
-        "precision": 0.0,
-        "coverage": 0.0
-      },
-      "punctuation": {
-        "population": 1386,
-        "precision": 0.8282,
-        "coverage": 0.3066
-      },
-      "regional_suffix": {
-        "population": 787,
-        "precision": 0.8687,
-        "coverage": 0.2516
-      },
-      "removed_connector": {
-        "population": 129,
-        "precision": 1.0,
-        "coverage": 0.9845
-      },
-      "spacing": {
-        "population": 1572,
-        "precision": 0.8182,
-        "coverage": 0.2869
-      },
-      "typo": {
-        "population": 108,
-        "precision": 0.9296,
-        "coverage": 0.6574
-      }
-    },
-    "threshold": {
-      "probability": 0.45,
-      "margin": 0.025
-    }
-  },
-  "model": {
-    "eligible_edges": 12606,
-    "predicted_edges": 6341,
-    "correct_edges": 6293,
-    "unresolved_edges": 6265,
-    "precision": 0.9924,
-    "recall": 0.4992,
-    "coverage": 0.503,
-    "f1": 0.6643,
-    "candidate_recall": 0.7623,
-    "brier_score_top_choice": 0.0646,
-    "expected_calibration_error": 0.0543,
-    "calibration_bins": [
-      {
-        "low": 0.0,
-        "high": 0.1,
-        "confidence": 0.0108,
-        "accuracy": 0.0018,
-        "count": 1641
-      },
-      {
-        "low": 0.1,
-        "high": 0.2,
-        "confidence": 0.1698,
-        "accuracy": 0.0021,
-        "count": 485
-      },
-      {
-        "low": 0.2,
-        "high": 0.3,
-        "confidence": 0.249,
-        "accuracy": 0.4528,
-        "count": 53
-      },
-      {
-        "low": 0.3,
-        "high": 0.4,
-        "confidence": 0.3192,
-        "accuracy": 1.0,
-        "count": 116
+        "confidence": 0.3694,
+        "accuracy": 0.5758,
+        "count": 33
       },
       {
         "low": 0.4,
         "high": 0.5,
-        "confidence": 0.4555,
-        "accuracy": 0.2727,
-        "count": 22
+        "confidence": 0.4516,
+        "accuracy": 0.6786,
+        "count": 28
       },
       {
         "low": 0.5,
         "high": 0.6,
-        "confidence": 0.5532,
-        "accuracy": 0.2132,
-        "count": 136
+        "confidence": 0.5533,
+        "accuracy": 0.6779,
+        "count": 149
       },
       {
         "low": 0.6,
         "high": 0.7,
-        "confidence": 0.6565,
-        "accuracy": 0.5697,
-        "count": 244
+        "confidence": 0.6407,
+        "accuracy": 0.6403,
+        "count": 139
       },
       {
         "low": 0.7,
         "high": 0.8,
-        "confidence": 0.745,
-        "accuracy": 0.8331,
-        "count": 3409
+        "confidence": 0.7608,
+        "accuracy": 0.4778,
+        "count": 406
       },
       {
         "low": 0.8,
         "high": 0.9,
-        "confidence": 0.866,
-        "accuracy": 0.9942,
-        "count": 695
+        "confidence": 0.8671,
+        "accuracy": 0.673,
+        "count": 740
       },
       {
         "low": 0.9,
         "high": 1.0,
-        "confidence": 0.9799,
-        "accuracy": 0.9866,
-        "count": 5805
+        "confidence": 0.988,
+        "accuracy": 0.8553,
+        "count": 11834
       }
     ],
     "by_noise_type": {
       "abbreviation": {
-        "population": 1557,
-        "precision": 0.9937,
-        "coverage": 0.5061
+        "population": 2107,
+        "precision": 0.854,
+        "coverage": 0.9881
       },
       "case": {
-        "population": 672,
-        "precision": 0.9855,
-        "coverage": 0.5134
+        "population": 702,
+        "precision": 0.8264,
+        "coverage": 0.9929
       },
       "clean": {
-        "population": 7324,
-        "precision": 0.993,
-        "coverage": 0.5048
+        "population": 7420,
+        "precision": 0.8313,
+        "coverage": 0.9915
       },
       "missing_title": {
-        "population": 175,
+        "population": 203,
         "precision": 0.0,
         "coverage": 0.0
       },
       "punctuation": {
-        "population": 1386,
-        "precision": 0.993,
-        "coverage": 0.5159
+        "population": 1408,
+        "precision": 0.8408,
+        "coverage": 0.995
       },
       "regional_suffix": {
-        "population": 787,
-        "precision": 0.9877,
-        "coverage": 0.5146
+        "population": 822,
+        "precision": 0.8132,
+        "coverage": 0.9964
       },
       "removed_connector": {
-        "population": 129,
-        "precision": 1.0,
-        "coverage": 0.9845
+        "population": 159,
+        "precision": 0.8981,
+        "coverage": 0.9874
       },
       "spacing": {
-        "population": 1572,
-        "precision": 0.9939,
-        "coverage": 0.5178
+        "population": 1705,
+        "precision": 0.8293,
+        "coverage": 0.993
       },
       "typo": {
-        "population": 108,
-        "precision": 0.9697,
-        "coverage": 0.3056
+        "population": 149,
+        "precision": 0.8784,
+        "coverage": 0.9933
+      }
+    },
+    "threshold": {
+      "probability": 0.45,
+      "margin": 0.0
+    }
+  },
+  "model": {
+    "eligible_edges": 13372,
+    "predicted_edges": 7417,
+    "correct_edges": 7170,
+    "unresolved_edges": 5955,
+    "precision": 0.9667,
+    "recall": 0.5362,
+    "coverage": 0.5547,
+    "f1": 0.6898,
+    "candidate_recall": 0.8633,
+    "brier_score_top_choice": 0.1202,
+    "expected_calibration_error": 0.0917,
+    "calibration_bins": [
+      {
+        "low": 0.0,
+        "high": 0.1,
+        "confidence": 0.0475,
+        "accuracy": 0.1964,
+        "count": 56
+      },
+      {
+        "low": 0.1,
+        "high": 0.2,
+        "confidence": 0.162,
+        "accuracy": 0.5161,
+        "count": 155
+      },
+      {
+        "low": 0.2,
+        "high": 0.3,
+        "confidence": 0.254,
+        "accuracy": 0.593,
+        "count": 489
+      },
+      {
+        "low": 0.3,
+        "high": 0.4,
+        "confidence": 0.3568,
+        "accuracy": 0.4496,
+        "count": 803
+      },
+      {
+        "low": 0.4,
+        "high": 0.5,
+        "confidence": 0.454,
+        "accuracy": 0.499,
+        "count": 1036
+      },
+      {
+        "low": 0.5,
+        "high": 0.6,
+        "confidence": 0.5427,
+        "accuracy": 0.7267,
+        "count": 1299
+      },
+      {
+        "low": 0.6,
+        "high": 0.7,
+        "confidence": 0.6515,
+        "accuracy": 0.7709,
+        "count": 838
+      },
+      {
+        "low": 0.7,
+        "high": 0.8,
+        "confidence": 0.7623,
+        "accuracy": 0.8601,
+        "count": 1215
+      },
+      {
+        "low": 0.8,
+        "high": 0.9,
+        "confidence": 0.8515,
+        "accuracy": 0.8999,
+        "count": 2718
+      },
+      {
+        "low": 0.9,
+        "high": 1.0,
+        "confidence": 0.9389,
+        "accuracy": 0.999,
+        "count": 4763
+      }
+    ],
+    "by_noise_type": {
+      "abbreviation": {
+        "population": 2107,
+        "precision": 0.9743,
+        "coverage": 0.5543
+      },
+      "case": {
+        "population": 702,
+        "precision": 0.9767,
+        "coverage": 0.5513
+      },
+      "clean": {
+        "population": 7420,
+        "precision": 0.9638,
+        "coverage": 0.566
+      },
+      "missing_title": {
+        "population": 203,
+        "precision": 0.0,
+        "coverage": 0.0
+      },
+      "punctuation": {
+        "population": 1408,
+        "precision": 0.9873,
+        "coverage": 0.5597
+      },
+      "regional_suffix": {
+        "population": 822,
+        "precision": 0.9512,
+        "coverage": 0.6229
+      },
+      "removed_connector": {
+        "population": 159,
+        "precision": 1.0,
+        "coverage": 0.3585
+      },
+      "spacing": {
+        "population": 1705,
+        "precision": 0.9695,
+        "coverage": 0.5572
+      },
+      "typo": {
+        "population": 149,
+        "precision": 0.9818,
+        "coverage": 0.3691
       }
     },
     "threshold": {
@@ -278,9 +285,9 @@
     }
   },
   "candidateRecall": {
-    "train": 0.777,
-    "validation": 0.7622,
-    "test": 0.7623
+    "train": 0.8643,
+    "validation": 0.8575,
+    "test": 0.8633
   },
   "structuralChecks": {
     "oneManagerPerResolvedEmployee": true,
@@ -308,10 +315,10 @@
     "report_team_missing",
     "parent_team_match",
     "same_role_family",
-    "candidate_is_technical_lead"
+    "candidate_is_team_lead"
   ],
   "modelType": "Calibrated logistic pair scorer with deterministic candidate blocking",
-  "primaryObjective": "Maximize coverage while holding validation precision at or above 98%",
+  "primaryObjective": "Maximize coverage while holding validation precision at or above 97%",
   "limitations": [
     "Synthetic reporting assignments between otherwise identical managers are not always observable when team, title, or department values are missing.",
     "The system intentionally abstains when the best candidate is not clearly separated from alternatives.",

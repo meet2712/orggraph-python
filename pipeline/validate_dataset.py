@@ -10,12 +10,16 @@ from pathlib import Path
 
 
 LEVEL_RANK = {
-    "CEO": 8,
-    "C-Suite": 7,
-    "VP": 6,
-    "Director": 5,
+    "CEO": 10,
+    "C-Suite": 9,
+    "VP": 8,
+    "Senior Director": 7,
+    "Director": 6,
+    "Senior Manager": 5,
     "Manager": 4,
-    "Lead": 3,
+    "Team Lead": 3,
+    "Principal": 3,
+    "Staff": 3,
     "Senior": 2,
     "Individual Contributor": 1,
     "Junior": 0,

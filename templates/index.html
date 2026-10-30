@@ -281,7 +281,7 @@
           </tbody>
         </table>
       </div>
-      <p class="note">Of {{ model.eligible_edges|count }} possible test reporting lines, the model accepted {{ model.predicted_edges|count }} and got {{ model.correct_edges|count }} right. It accepts {{ '%.1f'|format(model.predicted_edges / baseline.predicted_edges) }} times as many lines as the baseline, with higher precision. Real company data still needs its own evaluation.</p>
+      <p class="note">Of {{ model.eligible_edges|count }} possible test reporting lines, the model accepted {{ model.predicted_edges|count }} and got {{ model.correct_edges|count }} right. The simple baseline accepts almost every line but makes more incorrect assignments. The learned model abstains more often to achieve higher precision. Real company data still needs its own evaluation.</p>
     </section>
     <section class="paper-section">
       <h2>Where it struggles</h2>
@@ -325,7 +325,7 @@
       <h2>How it works</h2>
       <ol class="steps">
         <li><h3>Generate companies with a known hierarchy</h3><p>The Python generator creates {{ dataset.companies|count }} companies and {{ dataset.employees|count }} people across {{ dataset.industries }} industries, with {{ dataset.minimumCompanySize }}–{{ dataset.maximumCompanySize }} people per company. It adds abbreviations, typos, inconsistent casing, and missing fields. Clean reporting lines are saved separately to check predictions.</p></li>
-        <li><h3>Find plausible managers and score the matches</h3><p>Titles are cleaned up to infer function and seniority. Candidates must be in the same company and more senior. Formal managers remain eligible; senior and lead ICs require matching observed team scope. The model scores each pair using department, role family, team scope, location, and seniority gap. When team evidence is missing, weak links stay unresolved. Validation examples calibrate the scores.</p></li>
+        <li><h3>Find plausible managers and score the matches</h3><p>Titles are cleaned up to infer function and seniority. Candidates must be in the same company, more senior, and have an explicit people-management title such as Team Lead, Supervisor, Manager, Director, VP, Head or Chief. Senior, Staff and Principal IC titles are not treated as managers. The model scores each pair using department, role family, team scope, location, and seniority gap. When evidence is missing, weak links stay unresolved.</p></li>
         <li><h3>Keep a reporting line only when it clears both checks</h3><p>The leading candidate needs at least {{ model.threshold.probability|percent }} confidence and a {{ model.threshold.margin|points }} percentage point lead over the next candidate. Otherwise the manager stays unresolved. Each person has at most one inferred manager. Requiring a more senior manager prevents circular reporting chains.</p></li>
         <li><h3>Test on companies the model has not seen</h3><p>The split uses whole companies: {{ split.trainCompanies }} for training, {{ split.validationCompanies }} for calibration and threshold selection, and {{ split.testCompanies }} for the final test. People from one company never appear in different splits. Predictions are compared with the generated direct manager.</p></li>
       </ol>

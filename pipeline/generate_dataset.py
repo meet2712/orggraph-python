@@ -72,24 +72,106 @@ INDUSTRY_ADJUSTMENTS = {
     "EdTech": {"Customer Success": 1.3, "Product": 1.2},
 }
 
-LEADER_TITLES = {
-    "Engineering": ["Chief Technology Officer", "VP of Engineering", "Head of Engineering"],
-    "Sales": ["Chief Revenue Officer", "VP of Sales", "Head of Sales"],
-    "Customer Success": ["Chief Customer Officer", "VP of Customer Success", "Head of Customer Success"],
-    "Operations": ["Chief Operating Officer", "VP of Operations", "Head of Operations"],
-    "Product": ["Chief Product Officer", "VP of Product", "Head of Product"],
-    "Marketing": ["Chief Marketing Officer", "VP of Marketing", "Head of Marketing"],
-    "Data & Analytics": ["Chief Data Officer", "VP of Data", "Head of Data & Analytics"],
-    "Finance": ["Chief Financial Officer", "VP of Finance", "Head of Finance"],
-    "People": ["Chief People Officer", "VP of People", "Head of People"],
-    "Security": ["Chief Information Security Officer", "VP of Security", "Head of Security"],
-    "IT": ["Chief Information Officer", "VP of IT", "Head of IT"],
-    "Legal": ["General Counsel", "VP of Legal", "Head of Legal"],
+EXECUTIVE_PORTFOLIOS = {
+    "Technology": {
+        "title": "Chief Technology Officer",
+        "departments": ["Engineering", "Product", "Data & Analytics", "Security", "IT"],
+    },
+    "Revenue": {
+        "title": "Chief Revenue Officer",
+        "departments": ["Sales", "Marketing", "Customer Success"],
+    },
+    "Operations": {
+        "title": "Chief Operating Officer",
+        "departments": ["Operations"],
+    },
+    "Finance & Risk": {
+        "title": "Chief Financial Officer",
+        "departments": ["Finance", "Legal"],
+    },
+    "People": {
+        "title": "Chief People Officer",
+        "departments": ["People"],
+    },
 }
 
-DIRECTOR_TITLES = {
-    department: [f"Director of {department}", f"Senior Director of {department}"]
-    for department in DEPARTMENT_WEIGHTS
+DEPARTMENT_HEAD_TITLES = {
+    "Engineering": ["VP of Engineering", "Head of Engineering"],
+    "Sales": ["VP of Sales", "Head of Sales"],
+    "Customer Success": ["VP of Customer Success", "Head of Customer Success"],
+    "Operations": ["VP of Operations", "Head of Operations"],
+    "Product": ["VP of Product", "Head of Product"],
+    "Marketing": ["VP of Marketing", "Head of Marketing"],
+    "Data & Analytics": ["VP of Data", "Head of Data & Analytics"],
+    "Finance": ["VP of Finance", "Head of Finance"],
+    "People": ["VP of People", "Head of People"],
+    "Security": ["VP of Security", "Head of Security"],
+    "IT": ["VP of IT", "Head of IT"],
+    "Legal": ["VP of Legal", "Head of Legal"],
+}
+
+# Teams are grouped into real functional areas. Directors own a function,
+# managers own a team, and IC seniority remains a career level rather than an
+# automatic people-management relationship.
+TEAM_CLUSTERS = {
+    "Engineering": {
+        "Platform": "Product Engineering", "Core Services": "Product Engineering",
+        "Applications": "Product Engineering", "Mobile": "Product Engineering",
+        "Web": "Product Engineering", "Quality": "Quality & Reliability",
+        "Infrastructure": "Quality & Reliability",
+        "Developer Experience": "Quality & Reliability",
+    },
+    "Sales": {
+        "Enterprise": "Segment Sales", "Mid-Market": "Segment Sales",
+        "SMB": "Segment Sales", "Partnerships": "Partnerships",
+        "APAC": "Regional Sales", "EMEA": "Regional Sales",
+        "Americas": "Regional Sales",
+    },
+    "Customer Success": {
+        "Enterprise Success": "Customer Success", "Commercial Success": "Customer Success",
+        "Onboarding": "Customer Delivery", "Support": "Customer Support",
+        "Implementations": "Customer Delivery",
+    },
+    "Operations": {
+        "Business Operations": "Business Operations", "Revenue Operations": "Business Operations",
+        "Programs": "Program Delivery", "Delivery": "Program Delivery",
+        "Strategy": "Strategy",
+    },
+    "Product": {
+        "Core Product": "Product Management", "Growth Product": "Product Management",
+        "Platform Product": "Product Management", "Design": "Design & Research",
+        "Research": "Design & Research",
+    },
+    "Marketing": {
+        "Growth": "Growth Marketing", "Demand Generation": "Growth Marketing",
+        "Content": "Brand & Content", "Brand": "Brand & Content",
+        "Product Marketing": "Product Marketing",
+    },
+    "Data & Analytics": {
+        "Data Platform": "Data Engineering", "ML Platform": "Data Engineering",
+        "Analytics": "Analytics & BI", "Business Intelligence": "Analytics & BI",
+        "Data Science": "Data Science",
+    },
+    "Finance": {
+        "Financial Planning": "Planning & Analysis", "Commercial Finance": "Planning & Analysis",
+        "Accounting": "Controllership", "Payroll": "Controllership",
+    },
+    "People": {
+        "People Operations": "People Operations", "Business Partners": "People Operations",
+        "Talent": "Talent", "Learning": "Talent",
+    },
+    "Security": {
+        "Security Engineering": "Security Engineering", "Identity": "Security Engineering",
+        "GRC": "Risk & Compliance", "Security Operations": "Security Operations",
+    },
+    "IT": {
+        "Infrastructure": "Infrastructure & Cloud", "Cloud Operations": "Infrastructure & Cloud",
+        "Service Desk": "IT Services", "Enterprise Applications": "IT Services",
+    },
+    "Legal": {
+        "Commercial Legal": "Commercial Legal", "Legal Operations": "Legal Operations",
+        "Compliance": "Risk & Compliance", "Privacy": "Risk & Compliance",
+    },
 }
 
 MANAGER_TITLES = {
@@ -107,6 +189,15 @@ MANAGER_TITLES = {
     "Legal": ["Legal Operations Manager", "Senior Counsel", "Compliance Manager"],
 }
 
+SENIOR_MANAGER_TITLES = {
+    "Engineering": "Senior Engineering Manager", "Sales": "Senior Sales Manager",
+    "Customer Success": "Senior Customer Success Manager", "Operations": "Senior Operations Manager",
+    "Product": "Senior Product Operations Manager", "Marketing": "Senior Marketing Manager",
+    "Data & Analytics": "Senior Data & Analytics Manager", "Finance": "Senior Finance Manager",
+    "People": "Senior People Operations Manager", "Security": "Senior Security Manager",
+    "IT": "Senior IT Manager", "Legal": "Senior Legal Operations Manager",
+}
+
 # Keep a manager's title consistent with the team they own.  The earlier
 # generator selected a random department-level manager title, which could put
 # a QA Manager over a platform team and QA Engineers under a software manager.
@@ -122,15 +213,20 @@ TEAM_MANAGER_TITLES = {
         "Web": ["Software Development Manager", "Engineering Manager"],
     },
     "Sales": {
+        "Enterprise": ["Enterprise Sales Manager"],
+        "Mid-Market": ["Mid-Market Sales Manager"],
+        "SMB": ["SMB Sales Manager"],
         "Partnerships": ["Business Development Manager"],
         "APAC": ["Regional Sales Manager"],
         "EMEA": ["Regional Sales Manager"],
         "Americas": ["Regional Sales Manager"],
     },
     "Customer Success": {
+        "Enterprise Success": ["Enterprise Customer Success Manager"],
+        "Commercial Success": ["Commercial Customer Success Manager"],
         "Support": ["Support Manager"],
         "Onboarding": ["Customer Success Team Manager"],
-        "Implementations": ["Client Success Lead"],
+        "Implementations": ["Implementation Manager"],
     },
     "Operations": {
         "Business Operations": ["Business Operations Manager"],
@@ -143,12 +239,15 @@ TEAM_MANAGER_TITLES = {
         "Core Product": ["Group Product Manager"],
         "Growth Product": ["Group Product Manager"],
         "Platform Product": ["Group Product Manager"],
-        "Design": ["Product Team Lead"],
-        "Research": ["Product Team Lead"],
+        "Design": ["Product Design Manager"],
+        "Research": ["User Research Manager"],
     },
     "Marketing": {
         "Growth": ["Growth Marketing Manager"],
         "Demand Generation": ["Demand Generation Manager"],
+        "Content": ["Content Marketing Manager"],
+        "Brand": ["Brand Marketing Manager"],
+        "Product Marketing": ["Product Marketing Manager"],
     },
     "Data & Analytics": {
         "Data Platform": ["Data Engineering Manager"],
@@ -161,10 +260,13 @@ TEAM_MANAGER_TITLES = {
         "Financial Planning": ["FP&A Manager"],
         "Accounting": ["Accounting Manager"],
         "Payroll": ["Accounting Manager"],
+        "Commercial Finance": ["Commercial Finance Manager"],
     },
     "People": {
         "People Operations": ["People Operations Manager"],
         "Talent": ["Talent Acquisition Manager"],
+        "Business Partners": ["HR Business Partner Manager"],
+        "Learning": ["Learning and Development Manager"],
     },
     "Security": {
         "Security Engineering": ["Security Engineering Manager"],
@@ -179,9 +281,32 @@ TEAM_MANAGER_TITLES = {
         "Cloud Operations": ["Infrastructure Manager"],
     },
     "Legal": {
+        "Commercial Legal": ["Commercial Legal Manager"],
         "Legal Operations": ["Legal Operations Manager"],
         "Compliance": ["Compliance Manager"],
+        "Privacy": ["Privacy Manager"],
     },
+}
+
+TEAM_LEAD_TITLES = {
+    "Engineering": {
+        "Quality": "QA Team Lead", "Infrastructure": "Infrastructure Team Lead",
+        "Developer Experience": "Developer Experience Team Lead",
+        "Platform": "Platform Engineering Team Lead", "Core Services": "Core Services Team Lead",
+        "Applications": "Application Engineering Team Lead", "Mobile": "Mobile Engineering Team Lead",
+        "Web": "Web Engineering Team Lead",
+    },
+    "Sales": {"default": "Sales Team Lead"},
+    "Customer Success": {"Support": "Support Team Lead", "default": "Customer Success Team Lead"},
+    "Operations": {"default": "Operations Team Lead"},
+    "Product": {"Design": "Design Team Lead", "Research": "Research Team Lead", "default": "Product Team Lead"},
+    "Marketing": {"default": "Marketing Team Lead"},
+    "Data & Analytics": {"default": "Data & Analytics Team Lead"},
+    "Finance": {"default": "Finance Team Lead"},
+    "People": {"default": "People Operations Team Lead"},
+    "Security": {"default": "Security Team Lead"},
+    "IT": {"Service Desk": "Service Desk Supervisor", "default": "IT Team Lead"},
+    "Legal": {"default": "Legal Operations Team Lead"},
 }
 
 IC_TITLES = {
@@ -211,10 +336,17 @@ TEAM_IC_TITLES = {
         "Web": ["Frontend Developer", "Software Engineer"],
     },
     "Sales": {
+        "Enterprise": ["Account Executive", "Sales Development Representative"],
+        "Mid-Market": ["Account Executive", "Sales Development Representative"],
         "Partnerships": ["Business Development Representative", "Account Executive"],
         "SMB": ["Sales Development Representative", "Account Executive"],
+        "APAC": ["Account Executive", "Sales Development Representative"],
+        "EMEA": ["Account Executive", "Sales Development Representative"],
+        "Americas": ["Account Executive", "Sales Development Representative"],
     },
     "Customer Success": {
+        "Enterprise Success": ["Customer Success Manager"],
+        "Commercial Success": ["Customer Success Manager"],
         "Support": ["Support Specialist"],
         "Onboarding": ["Onboarding Specialist"],
         "Implementations": ["Implementation Consultant"],
@@ -224,8 +356,12 @@ TEAM_IC_TITLES = {
         "Revenue Operations": ["Business Operations Specialist", "Operations Analyst"],
         "Programs": ["Program Coordinator"],
         "Delivery": ["Project Coordinator", "Operations Analyst"],
+        "Strategy": ["Operations Analyst", "Business Operations Specialist"],
     },
     "Product": {
+        "Core Product": ["Product Manager", "Product Analyst"],
+        "Growth Product": ["Product Manager", "Product Analyst"],
+        "Platform Product": ["Product Manager", "Product Analyst"],
         "Design": ["Product Designer"],
         "Research": ["UX Researcher"],
     },
@@ -233,6 +369,8 @@ TEAM_IC_TITLES = {
         "Growth": ["Growth Marketer"],
         "Demand Generation": ["Demand Generation Specialist"],
         "Content": ["Content Strategist"],
+        "Brand": ["Content Strategist", "Marketing Analyst"],
+        "Product Marketing": ["Marketing Analyst", "Content Strategist"],
     },
     "Data & Analytics": {
         "Data Platform": ["Data Engineer"],
@@ -245,10 +383,13 @@ TEAM_IC_TITLES = {
         "Financial Planning": ["FP&A Analyst", "Financial Analyst"],
         "Accounting": ["Accountant"],
         "Payroll": ["Payroll Specialist"],
+        "Commercial Finance": ["Financial Analyst", "FP&A Analyst"],
     },
     "People": {
         "People Operations": ["People Partner", "HR Coordinator"],
         "Talent": ["Recruiter", "Talent Specialist"],
+        "Business Partners": ["People Partner"],
+        "Learning": ["Talent Specialist", "HR Coordinator"],
     },
     "Security": {
         "Security Engineering": ["Security Engineer"],
@@ -380,11 +521,10 @@ def unique_person_name(rng: random.Random, used: set[str]) -> str:
             return name
 
 
-def leader_title(department: str, size: int, rng: random.Random) -> tuple[str, str]:
-    titles = LEADER_TITLES[department]
-    if size >= 190 and rng.random() < 0.5:
-        return titles[0], "C-Suite"
-    return (titles[1], "VP") if size >= 135 or rng.random() < 0.55 else (titles[2], "VP")
+def department_head_title(department: str, department_size: int, rng: random.Random) -> str:
+    """Choose a VP or Head title; C-suite roles are created separately."""
+    titles = DEPARTMENT_HEAD_TITLES[department]
+    return titles[0] if department_size >= 18 or rng.random() < 0.55 else titles[1]
 
 
 def plain_team_name(team: str) -> str:
@@ -399,6 +539,23 @@ def manager_title(department: str, team: str, rng: random.Random) -> str:
     return rng.choice(choices)
 
 
+def team_cluster(department: str, team: str) -> str:
+    leaf = plain_team_name(team)
+    return TEAM_CLUSTERS[department].get(leaf, department)
+
+
+def director_title(department: str, cluster: str) -> str:
+    if cluster == department:
+        return f"Director of {department}"
+    return f"Director of {cluster}"
+
+
+def team_lead_title(department: str, team: str) -> str:
+    titles = TEAM_LEAD_TITLES[department]
+    leaf = plain_team_name(team)
+    return titles[leaf] if leaf in titles else titles["default"]
+
+
 def ic_title(
     department: str, team: str, level: str, rng: random.Random,
 ) -> tuple[str, str]:
@@ -411,9 +568,10 @@ def ic_title(
         return f"Junior {base}", level
     if level == "Senior":
         return f"Senior {base}", level
-    if level == "Lead":
-        prefix = "Lead" if rng.random() < 0.72 else "Principal"
-        return f"{prefix} {base}", level
+    if level == "Staff":
+        return f"Staff {base}", level
+    if level == "Principal":
+        return f"Principal {base}", level
     return base, "Individual Contributor"
 
 
@@ -544,117 +702,185 @@ def main() -> None:
         ceo_id = next_employee_id()
         company_employees.append(employee_record(
             ceo_id, company_id, unique_person_name(rng, used_names),
-            "Chief Executive Officer", "Executive", "Executive", "CEO", "", headquarters,
+            "Chief Executive Officer", "Executive", "Company", "CEO", "", headquarters,
         ))
         departments = active_departments(target_size, industry)
-        allocations = allocate_department_counts(target_size - 1, departments, industry)
+        active_portfolios = {
+            portfolio: spec for portfolio, spec in EXECUTIVE_PORTFOLIOS.items()
+            if any(department in departments for department in spec["departments"])
+        }
+        allocations = allocate_department_counts(
+            target_size - 1 - len(active_portfolios), departments, industry
+        )
+
+        # The CEO owns a small executive team. Department VPs/Heads report to
+        # the appropriate executive instead of every function reporting to the
+        # CEO directly.
+        portfolio_ids: dict[str, str] = {}
+        portfolio_locations: dict[str, str] = {}
+        department_portfolio: dict[str, str] = {}
+        for portfolio, spec in active_portfolios.items():
+            executive_id = next_employee_id()
+            executive_location = (
+                rng.choice(LOCATIONS) if rng.random() < 0.18 else headquarters
+            )
+            company_employees.append(employee_record(
+                executive_id, company_id, unique_person_name(rng, used_names),
+                str(spec["title"]), "Executive", f"Company / {portfolio}", "C-Suite", ceo_id,
+                executive_location,
+            ))
+            portfolio_ids[portfolio] = executive_id
+            portfolio_locations[portfolio] = executive_location
+            for department in spec["departments"]:
+                if department in departments:
+                    department_portfolio[department] = portfolio
 
         for department, department_count in allocations.items():
+            portfolio = department_portfolio[department]
+            executive_id = portfolio_ids[portfolio]
+            department_path = (
+                f"Company / {department}" if portfolio == department
+                else f"Company / {portfolio} / {department}"
+            )
             leader_id = next_employee_id()
-            title, level = leader_title(department, target_size, rng)
-            leader_team = department
+            leader_location = (
+                rng.choice(LOCATIONS)
+                if rng.random() < 0.22 else portfolio_locations[portfolio]
+            )
             leader = employee_record(
-                leader_id, company_id, unique_person_name(rng, used_names), title,
-                department, leader_team, level, ceo_id,
-                rng.choice(LOCATIONS) if rng.random() < 0.28 else headquarters,
+                leader_id, company_id, unique_person_name(rng, used_names),
+                department_head_title(department, department_count, rng),
+                department, department_path, "VP", executive_id, leader_location,
             )
             company_employees.append(leader)
+
             remaining = department_count - 1
-            director_count = min(4, max(0, remaining // 32))
-            manager_count = min(14, max(0 if remaining < 5 else 1, round((remaining - director_count) / 8)))
-            if director_count and manager_count < director_count:
-                manager_count = director_count
-
-            directors: list[str] = []
-            director_teams: dict[str, str] = {}
-            for director_index in range(director_count):
-                director_id = next_employee_id()
-                director_team = f"{department} / {DEPARTMENT_TEAMS[department][director_index]}"
-                director_title = DIRECTOR_TITLES[department][
-                    1 if director_index == 0 and rng.random() < 0.35 else 0
-                ]
-                company_employees.append(employee_record(
-                    director_id, company_id, unique_person_name(rng, used_names),
-                    director_title, department, director_team,
-                    "Director", leader_id, leader["location"],
-                ))
-                directors.append(director_id)
-                director_teams[director_id] = director_team
-
-            managers: list[str] = []
+            manager_count = max(1, min(14, round(remaining / 9)))
+            team_specs: list[tuple[str, str, str]] = []
+            team_names = DEPARTMENT_TEAMS[department]
             for manager_index in range(manager_count):
-                manager_id = next_employee_id()
-                parent_id = directors[manager_index % len(directors)] if directors else leader_id
-                parent_team = director_teams.get(parent_id, leader_team)
-                team_names = [
-                    value for value in DEPARTMENT_TEAMS[department]
-                    if value != parent_team.split(" / ")[-1]
-                ]
-                team_base = team_names[manager_index % len(team_names)]
-                team_cycle = manager_index // len(team_names)
-                if team_cycle:
-                    team_base = f"{team_base} {team_cycle + 1}"
-                manager_team = f"{parent_team} / {team_base}"
-                company_employees.append(employee_record(
-                    manager_id, company_id, unique_person_name(rng, used_names),
-                    manager_title(department, manager_team, rng), department, manager_team,
-                    "Manager", parent_id,
-                    rng.choice(LOCATIONS) if rng.random() < 0.2 else leader["location"],
-                ))
-                managers.append(manager_id)
+                base_team = team_names[manager_index % len(team_names)]
+                cycle = manager_index // len(team_names)
+                display_team = f"{base_team} {cycle + 1}" if cycle else base_team
+                team_specs.append((display_team, base_team, team_cluster(department, base_team)))
 
-            parents = managers or directors or [leader_id]
-            parent_locations = {row["employee_id"]: row["location"] for row in company_employees}
-            parent_teams = {row["employee_id"]: row["canonical_team"] for row in company_employees}
-            group_sizes = {parent_id: 0 for parent_id in parents}
-            for ic_index in range(remaining - director_count - manager_count):
-                group_sizes[parents[ic_index % len(parents)]] += 1
+            # Small departments can report managers directly to the VP/Head.
+            # Larger departments add directors; very large functions separate
+            # directors by functional cluster.
+            distinct_clusters = list(dict.fromkeys(spec[2] for spec in team_specs))
+            if department_count < 24:
+                director_clusters: list[str] = []
+            elif department_count < 45 or len(distinct_clusters) == 1:
+                director_clusters = [department]
+            else:
+                director_clusters = distinct_clusters[:3]
 
-            # Each delivery team has an observable leadership chain.  A senior
-            # or lead reports to the formal manager, while junior and regular
-            # ICs report to that technical lead instead of bypassing them.
-            for formal_manager_id in parents:
-                group_size = group_sizes[formal_manager_id]
-                if not group_size:
-                    continue
-                team = parent_teams[formal_manager_id]
-                # A lead title is an observable management cue. Teams with
-                # enough people also include a senior layer beneath that lead.
-                anchor_level = "Lead"
-                anchor_id = next_employee_id()
-                anchor_title, _ = ic_title(department, team, anchor_level, rng)
-                anchor_location = (
-                    rng.choice(LOCATIONS)
-                    if rng.random() < 0.12 else parent_locations[formal_manager_id]
+            directors_by_cluster: dict[str, str] = {}
+            director_teams: dict[str, str] = {}
+            for cluster in director_clusters:
+                director_id = next_employee_id()
+                director_team = (
+                    department_path if cluster == department
+                    else f"{department_path} / {cluster}"
                 )
                 company_employees.append(employee_record(
-                    anchor_id, company_id, unique_person_name(rng, used_names),
-                    anchor_title, department, team, anchor_level, formal_manager_id,
-                    anchor_location,
+                    director_id, company_id, unique_person_name(rng, used_names),
+                    director_title(department, cluster), department, director_team,
+                    "Director", leader_id, leader_location,
                 ))
+                directors_by_cluster[cluster] = director_id
+                director_teams[director_id] = director_team
 
-                delivery_manager_id = anchor_id
-                delivery_location = anchor_location
-                remaining_ics = group_size - 1
-                if remaining_ics >= 2:
-                    senior_id = next_employee_id()
-                    senior_title, _ = ic_title(department, team, "Senior", rng)
+            # A senior-manager layer appears only when one leader would
+            # otherwise have an unrealistically wide manager span.
+            senior_managers_by_parent: dict[str, str] = {}
+            if manager_count >= 5 and directors_by_cluster:
+                for director_id in directors_by_cluster.values():
+                    senior_manager_id = next_employee_id()
+                    senior_team = director_teams[director_id]
                     company_employees.append(employee_record(
-                        senior_id, company_id, unique_person_name(rng, used_names),
-                        senior_title, department, team, "Senior", anchor_id,
-                        anchor_location,
+                        senior_manager_id, company_id, unique_person_name(rng, used_names),
+                        SENIOR_MANAGER_TITLES[department], department, senior_team,
+                        "Senior Manager", director_id, leader_location,
                     ))
-                    delivery_manager_id = senior_id
-                    remaining_ics -= 1
+                    senior_managers_by_parent[director_id] = senior_manager_id
 
-                for member_index in range(remaining_ics):
-                    employee_id = next_employee_id()
-                    member_level = "Junior" if member_index % 3 == 0 else "Individual Contributor"
+            managers: list[str] = []
+            manager_teams: dict[str, str] = {}
+            manager_locations: dict[str, str] = {}
+            for display_team, _base_team, cluster in team_specs:
+                if department in directors_by_cluster:
+                    director_id = directors_by_cluster[department]
+                else:
+                    director_id = directors_by_cluster.get(cluster, "")
+                parent_id = senior_managers_by_parent.get(
+                    director_id, director_id or leader_id
+                )
+                parent_team = (
+                    director_teams.get(director_id, department_path)
+                )
+                manager_team = f"{parent_team} / {display_team}"
+                manager_id = next_employee_id()
+                manager_location = (
+                    rng.choice(LOCATIONS) if rng.random() < 0.16 else leader_location
+                )
+                company_employees.append(employee_record(
+                    manager_id, company_id, unique_person_name(rng, used_names),
+                    manager_title(department, manager_team, rng), department,
+                    manager_team, "Manager", parent_id, manager_location,
+                ))
+                managers.append(manager_id)
+                manager_teams[manager_id] = manager_team
+                manager_locations[manager_id] = manager_location
+
+            overhead = (
+                len(directors_by_cluster) + len(senior_managers_by_parent) + len(managers)
+            )
+            individual_count = remaining - overhead
+            if individual_count < len(managers) * 2:
+                raise AssertionError(f"insufficient IC capacity in {company_id} {department}")
+            group_sizes = {manager_id: 0 for manager_id in managers}
+            for ic_index in range(individual_count):
+                group_sizes[managers[ic_index % len(managers)]] += 1
+
+            for formal_manager_id in managers:
+                group_size = group_sizes[formal_manager_id]
+                team = manager_teams[formal_manager_id]
+                manager_location = manager_locations[formal_manager_id]
+                lead_id = ""
+                member_slots = group_size
+                if group_size >= 8:
+                    lead_id = next_employee_id()
+                    company_employees.append(employee_record(
+                        lead_id, company_id, unique_person_name(rng, used_names),
+                        team_lead_title(department, team), department, team,
+                        "Team Lead", formal_manager_id, manager_location,
+                    ))
+                    member_slots -= 1
+
+                # Senior, Staff and Principal are IC career levels. They do not
+                # become managers merely because their title is more senior.
+                level_pattern = [
+                    "Senior", "Individual Contributor", "Junior",
+                    "Individual Contributor", "Staff", "Senior",
+                    "Individual Contributor", "Junior", "Principal",
+                ]
+                for member_index in range(member_slots):
+                    member_level = level_pattern[member_index % len(level_pattern)]
+                    if member_level == "Principal" and member_slots < 9:
+                        member_level = "Individual Contributor"
                     job_title, _ = ic_title(department, team, member_level, rng)
+                    # Explicit Team Leads may supervise junior/intermediate ICs;
+                    # senior/staff/principal ICs continue to report to Manager.
+                    manager_id = (
+                        lead_id if lead_id and member_level in {"Junior", "Individual Contributor"}
+                        else formal_manager_id
+                    )
+                    employee_id = next_employee_id()
                     company_employees.append(employee_record(
                         employee_id, company_id, unique_person_name(rng, used_names),
-                        job_title, department, team, member_level, delivery_manager_id,
-                        rng.choice(LOCATIONS) if rng.random() < 0.12 else delivery_location,
+                        job_title, department, team, member_level, manager_id,
+                        rng.choice(LOCATIONS) if rng.random() < 0.10 else manager_location,
                     ))
 
         actual_size = len(company_employees)
