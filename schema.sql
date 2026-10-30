@@ -40,7 +40,10 @@ GROUP BY c.company_id;
 CREATE VIEW employee_text AS
 SELECT e.company_id, e.employee_id, e.location,
        ' ' || trim(replace(replace(replace(replace(replace(replace(replace(
-           lower(e.job_title), '.', ' '), ',', ' '), '-', ' '), '/', ' '),
+           replace(replace(replace(replace(lower(e.job_title),
+             'manger', 'manager'), 'enginering', 'engineering'),
+             'analtyics', 'analytics'), 'securty', 'security'),
+           '.', ' '), ',', ' '), '-', ' '), '/', ' '),
            '  ', ' '), '  ', ' '), '  ', ' ')) || ' ' AS title_text,
        lower(trim(replace(replace(replace(e.raw_team, '  ', ' '),
            ' / ', '/'), ' /', '/'))) AS team_path,
@@ -57,6 +60,7 @@ SELECT t.company_id, t.employee_id, t.location, t.team_path,
            THEN 'CEO'
          WHEN title_text LIKE '% chief %'
            OR trim(title_text) IN ('cto','cro','coo','cpo','cmo','cdo','cfo','ciso','cio','cco')
+           OR title_text LIKE ' cpo %'
            OR title_text LIKE '% general counsel %' THEN 'C-Suite'
          WHEN title_text LIKE '% vice president %' OR title_text LIKE '% vp %'
            OR title_text LIKE ' head %' THEN 'VP / Head'
@@ -79,6 +83,12 @@ SELECT t.company_id, t.employee_id, t.location, t.team_path,
            OR trim(title_text) IN ('product manager','product mgr','account manager',
              'account mgr','customer success manager','customer success mgr',
              'cust success manager','cust success mgr')
+           OR title_text LIKE ' account manager %'
+           OR title_text LIKE ' account mgr %'
+           OR title_text LIKE ' customer success manager %'
+           OR title_text LIKE ' customer success mgr %'
+           OR title_text LIKE ' cust success manager %'
+           OR title_text LIKE ' cust success mgr %'
          )
            THEN CASE WHEN title_text LIKE ' junior %' OR title_text LIKE ' jr %'
                        THEN 'Junior IC'
@@ -93,7 +103,8 @@ SELECT t.company_id, t.employee_id, t.location, t.team_path,
            OR title_text LIKE '% sr % mgr %'
            THEN 'Senior Manager'
          WHEN title_text LIKE '% manager %' OR title_text LIKE '% mgr %'
-           OR title_text LIKE '% group product %' THEN 'Manager'
+           OR title_text LIKE '% group product %'
+           OR trim(title_text) = 'program lead' THEN 'Manager'
          WHEN title_text LIKE ' staff %' OR title_text LIKE ' principal %'
            OR title_text LIKE ' lead %' OR title_text LIKE '% lead '
            THEN 'Principal / Staff IC'
@@ -137,7 +148,8 @@ SELECT t.company_id, t.employee_id, t.location, t.team_path,
            OR title_text LIKE '% program %' THEN 'Operations'
          WHEN title_text LIKE '% information technology %' OR title_text LIKE '% it %'
            OR title_text LIKE '% infrastructure %' THEN 'IT'
-         WHEN title_text LIKE '% engineer %' OR title_text LIKE '% developer %'
+         WHEN title_text LIKE '% engineer %' OR title_text LIKE '% engineering %'
+           OR title_text LIKE '% developer %'
            OR title_text LIKE '% software %' OR title_text LIKE '% technology %'
            OR title_text LIKE '% eng %' OR title_text LIKE '% cto %'
            THEN 'Engineering'
@@ -228,6 +240,44 @@ SELECT m.company_id, m.employee_id, m.candidate_id,
          WHEN report_level = 'Team Lead / Supervisor'
               AND candidate_level = 'Manager'
               AND team_relation = 'same_team' THEN 0.995
+         -- A same-team manager is strong evidence for an IC when the function
+         -- has no observed team lead who could be the closer manager.
+         WHEN report_level IN ('Junior IC','Individual Contributor')
+              AND candidate_level = 'Manager'
+              AND team_relation = 'same_team'
+              AND report_department = candidate_department
+              AND report_department <> 'Unclassified'
+              AND NOT EXISTS (
+                  SELECT 1 FROM employee_features lead
+                  WHERE lead.company_id = m.company_id
+                    AND lead.inferred_department = m.report_department
+                    AND lead.inferred_level = 'Team Lead / Supervisor'
+              ) THEN 0.99
+         -- Skip a hierarchy layer only when it is absent in this function.
+         WHEN report_level = 'Director' AND candidate_level = 'VP / Head'
+              AND report_department = candidate_department
+              AND report_department <> 'Unclassified'
+              AND team_relation IN ('same_team','parent_team') THEN 0.99
+         WHEN report_level = 'Manager' AND candidate_level = 'Director'
+              AND report_department = candidate_department
+              AND report_department <> 'Unclassified'
+              AND team_relation IN ('same_team','parent_team')
+              AND NOT EXISTS (
+                  SELECT 1 FROM employee_features intermediate
+                  WHERE intermediate.company_id = m.company_id
+                    AND intermediate.inferred_department = m.report_department
+                    AND intermediate.inferred_level = 'Senior Manager'
+              ) THEN 0.99
+         WHEN report_level = 'Manager' AND candidate_level = 'VP / Head'
+              AND report_department = candidate_department
+              AND report_department <> 'Unclassified'
+              AND team_relation IN ('same_team','parent_team')
+              AND NOT EXISTS (
+                  SELECT 1 FROM employee_features intermediate
+                  WHERE intermediate.company_id = m.company_id
+                    AND intermediate.inferred_department = m.report_department
+                    AND intermediate.inferred_level IN ('Director','Senior Manager')
+              ) THEN 0.99
          WHEN report_rank < 4 AND candidate_level = 'Manager'
               AND team_relation = 'same_team' THEN 0.95
          WHEN report_rank >= 4 AND candidate_rank = report_rank + 1

@@ -147,7 +147,7 @@
         <div class="group-toolbar" id="group-toolbar">
           <label for="group-filter" class="sr-only">Reporting group</label>
           <select id="group-filter">
-            <option value="">All {{ roots|length }} reporting groups</option>
+            <option value="">Whole chart · {{ roots|length }} groups, expanded</option>
             {% for person in roots %}
             <option value="{{ person.id }}" {% if person.inferredLevel == 'CEO' %}selected{% endif %}>{{ 'Company leadership' if person.inferredLevel == 'CEO' else 'Separate group' }} · {{ person.name }}</option>
             {% endfor %}

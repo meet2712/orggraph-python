@@ -54,6 +54,38 @@ scored AS MATERIALIZED (
              WHEN report_level = 'Team Lead / Supervisor'
                   AND candidate_level = 'Manager'
                   AND team_relation = 'same_team' THEN 0.995
+             WHEN report_level IN ('Junior IC','Individual Contributor')
+                  AND candidate_level = 'Manager'
+                  AND team_relation = 'same_team'
+                  AND report_department = candidate_department
+                  AND report_department <> 'Unclassified'
+                  AND NOT EXISTS (
+                      SELECT 1 FROM scoped lead
+                      WHERE lead.inferred_department = p.report_department
+                        AND lead.inferred_level = 'Team Lead / Supervisor'
+                  ) THEN 0.99
+             WHEN report_level = 'Director' AND candidate_level = 'VP / Head'
+                  AND report_department = candidate_department
+                  AND report_department <> 'Unclassified'
+                  AND team_relation IN ('same_team','parent_team') THEN 0.99
+             WHEN report_level = 'Manager' AND candidate_level = 'Director'
+                  AND report_department = candidate_department
+                  AND report_department <> 'Unclassified'
+                  AND team_relation IN ('same_team','parent_team')
+                  AND NOT EXISTS (
+                      SELECT 1 FROM scoped intermediate
+                      WHERE intermediate.inferred_department = p.report_department
+                        AND intermediate.inferred_level = 'Senior Manager'
+                  ) THEN 0.99
+             WHEN report_level = 'Manager' AND candidate_level = 'VP / Head'
+                  AND report_department = candidate_department
+                  AND report_department <> 'Unclassified'
+                  AND team_relation IN ('same_team','parent_team')
+                  AND NOT EXISTS (
+                      SELECT 1 FROM scoped intermediate
+                      WHERE intermediate.inferred_department = p.report_department
+                        AND intermediate.inferred_level IN ('Director','Senior Manager')
+                  ) THEN 0.99
              WHEN report_rank < 4 AND candidate_level = 'Manager'
                   AND team_relation = 'same_team' THEN 0.95
              WHEN report_rank >= 4 AND candidate_rank = report_rank + 1

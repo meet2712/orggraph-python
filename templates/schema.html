@@ -39,22 +39,6 @@ ORDER BY employee_id;</pre>
     <p>Open the SQL editor and select “Two manager decisions” to try this on the actual records.</p>
   </section>
   <section class="paper-section">
-    <h2>Derived views and their SQL</h2>
-    <p>These objects store no rows. Expand a view to inspect the complete <code>CREATE VIEW</code> query, including every join, aggregation and <code>CASE</code> condition.</p>
-    <div class="schema-tables">
-      {% for view in schema.views %}
-      <details class="schema-entity">
-        <summary><span><code>{{ view.name }}</code><span class="schema-grain">{{ view.grain }}</span></span><span class="muted">read-only view</span></summary>
-        <div class="table-scroll"><table class="simple-table"><thead><tr><th scope="col">Column</th><th scope="col">SQL type</th></tr></thead><tbody>
-          {% for column in view.columns %}<tr><th scope="row"><code>{{ column.name }}</code></th><td>{{ column.type or 'Derived' }}</td></tr>{% endfor %}
-        </tbody></table></div>
-        <h3>Definition</h3>
-        <pre class="schema-query"><code>{{ view.definition }}</code></pre>
-      </details>
-      {% endfor %}
-    </div>
-  </section>
-  <section class="paper-section">
     <h2>Company page SQL</h2>
     <p>The app uses this company-scoped query to calculate reporting lines from the same two source tables. Its <code>:company_id</code> parameter limits work to the selected company.</p>
     <details><summary>Read the company inference query</summary><pre class="schema-query"><code>{{ schema.company_query }}</code></pre></details>

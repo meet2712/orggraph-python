@@ -506,6 +506,19 @@ h3 {
   border-top: 1px dashed #c9d2c8;
   padding-top: 28px;
 }
+.chart-canvas.all-groups {
+  gap: 18px;
+}
+.chart-canvas.all-groups .group-caption {
+  display: none;
+}
+.chart-canvas.all-groups .reporting-group {
+  padding-bottom: 0;
+}
+.chart-canvas.all-groups .reporting-group + .reporting-group {
+  border-top: 0;
+  padding-top: 0;
+}
 .group-caption {
   display: flex;
   flex-direction: column;

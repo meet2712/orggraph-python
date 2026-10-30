@@ -62,7 +62,7 @@
 <rect x="740" y="270" width="318" height="96" rx="7" fill="#ffffff" stroke="#b9cbbd"/>
 <text x="752" y="291" class="name">candidate_scores</text>
 <text x="752" y="311" class="description">Evidence for each candidate</text>
-<text x="752" y="333" class="reads">Reads: manager_candidates</text>
+<text x="752" y="333" class="reads">Reads: employee_features, manager_candidates</text>
 </g>
 <g aria-label="employee_top_candidates">
 <rect x="740" y="374" width="318" height="96" rx="7" fill="#ffffff" stroke="#b9cbbd"/>

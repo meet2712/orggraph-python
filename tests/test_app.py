@@ -94,10 +94,18 @@ class SourceDatabaseTests(unittest.TestCase):
             payload = read_company(connection, "cmp_0001")
             people = {person["id"]: person for person in payload["employees"]}
             self.assertEqual(people["cto"]["predictedManagerId"], "ceo")
-            self.assertIsNone(people["junior"]["predictedManagerId"])
+            self.assertEqual(people["junior"]["predictedManagerId"], "manager")
             self.assertEqual(people["junior"]["bestCandidateId"], "manager")
             self.assertNotIn("groundTruthManagerId", people["junior"])
             self.assertEqual(payload["company"]["employeeCount"], 4)
+
+    def test_equally_plausible_managers_remain_unresolved(self):
+        self.insert_person("other_manager", "QA Manager")
+        with closing(connect(self.database, readonly=True)) as connection:
+            payload = read_company(connection, "cmp_0001")
+            junior = next(p for p in payload["employees"] if p["id"] == "junior")
+            self.assertIsNone(junior["predictedManagerId"])
+            self.assertIn(junior["bestCandidateId"], {"manager", "other_manager"})
 
     def test_direct_insert_updates_inference_and_survives_restart(self):
         self.insert_person("new_cfo", "Chief Financial Officer", "Executive",
