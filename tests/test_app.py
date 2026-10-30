@@ -197,6 +197,13 @@ class AppTests(unittest.TestCase):
         self.assertTrue(reused.config["DATABASE_REUSED"])
         self.assertEqual([path.stat().st_mtime_ns for path in paths], before)
 
+    def test_confidence_display_matches_sql_rounding_at_halfway_values(self):
+        percent = self.app.jinja_env.filters["percent"]
+        points = self.app.jinja_env.filters["points"]
+        self.assertEqual(percent(0.6425), "64.3%")
+        self.assertEqual(percent(0.5995), "60.0%")
+        self.assertEqual(points(0.6425), "64.3")
+
     def test_decision_audit_joins_evidence_without_the_answer_key(self):
         with closing(connect(self.config["DATABASE"])) as connection:
             rows = connection.execute("SELECT * FROM employee_reporting_audit").fetchall()

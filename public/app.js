@@ -289,8 +289,11 @@ if (records && dialog) {
   const people = new Map(JSON.parse(records.textContent).map((person) => [person.id, person]));
   const managerButton = document.querySelector("#dialog-manager");
   const reasons = document.querySelector("#dialog-reasons");
-  const formatPercent = (value) => `${(value * 100).toFixed(1)}%`;
-  const formatPoints = (value) => (value * 100).toFixed(1);
+  const percentFormatter = new Intl.NumberFormat("en-US", {
+    style: "percent", minimumFractionDigits: 1, maximumFractionDigits: 1,
+  });
+  const formatPercent = (value) => percentFormatter.format(value);
+  const formatPoints = (value) => formatPercent(value).replace("%", "");
 
   function setText(id, value) {
     document.getElementById(id).textContent = value;

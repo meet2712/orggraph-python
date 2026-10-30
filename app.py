@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import sqlite3
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 
 from flask import Flask, abort, current_app, g, render_template, send_file
@@ -113,8 +114,11 @@ def create_app(test_config: dict | None = None) -> Flask:
         app.config.update(test_config)
     initialize_database(app)
 
-    app.jinja_env.filters["percent"] = lambda value: f"{value * 100:.1f}%"
-    app.jinja_env.filters["points"] = lambda value: f"{value * 100:.1f}"
+    def display_points(value):
+        return str((Decimal(str(value)) * 100).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP))
+
+    app.jinja_env.filters["percent"] = lambda value: f"{display_points(value)}%"
+    app.jinja_env.filters["points"] = display_points
     app.jinja_env.filters["count"] = lambda value: f"{value:,}"
 
     @app.teardown_appcontext
