@@ -40,7 +40,7 @@ from employee_reporting_audit
 where company_id = 'cmp_0004' and employee_id in ('emp_0000542', 'emp_0000543');
 ```
 
-Team paths are compared with equality and substring checks. Blank team labels do not produce a same-team match, and `%` or `_` remain ordinary characters. When a team is missing, a specific role family can provide evidence, such as matching a Data Engineer to a Data Engineering Manager. Competing candidates remain unresolved.
+Team paths are compared with equality and substring checks. Blank team labels do not produce a same-team match, and `%` or `_` remain ordinary characters. When a team is missing, a narrow role family can provide evidence. Backend, frontend and general software-development titles use the broader `software_engineering` family, while narrower terms such as QA, security, data engineering and infrastructure keep their own families. Because many teams share general software roles, `software_engineering` is descriptive only and does not accept a reporting line without team evidence. Competing candidates remain unresolved.
 
 The [schema page](../templates/schema.html) shows both source tables, all views and their direct dependencies. Solid lines are foreign keys. Dashed arrows show which objects each view reads.
 

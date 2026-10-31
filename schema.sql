@@ -188,6 +188,14 @@ with classified as materialized (select * from employee_role_classification),
                and c.inferred_level <> 'Team Lead / Supervisor' then 'analytics'
              when title_text like '% infrastructure %' or title_text like '% network %'
                or title_text like '% systems administrator %' then 'it_infrastructure'
+             when title_text like '% backend %' or title_text like '% back end %'
+               or title_text like '% frontend %' or title_text like '% front end %'
+               or title_text like '% full stack %' or title_text like '% fullstack %'
+               or title_text like '% software engineer %'
+               or title_text like '% software engineering %'
+               or title_text like '% software developer %'
+               or title_text like '% software development %'
+               or title_text like '% software eng %' then 'software_engineering'
              when title_text like '% fp&a %' or title_text like '% financial analyst %'
                or title_text like '% finance team lead %' then 'financial_planning'
              when title_text like '% business development %' then 'business_development'
@@ -302,7 +310,8 @@ where r.employee_id <> c.employee_id
       or ((r.team_path in ('','n/a','unknown','-') or c.team_path in ('','n/a','unknown','-'))
           and r.inferred_level in ('Junior IC','Individual Contributor','Senior IC','Principal / Staff IC')
           and c.inferred_level in ('Manager','Team Lead / Supervisor')
-          and r.role_family <> '' and r.role_family = c.role_family)
+          and r.role_family not in ('','software_engineering')
+          and r.role_family = c.role_family)
   );
 
 -- Every way a manager can be matched, with the score it earns. The scoring
@@ -340,7 +349,8 @@ with features as materialized (select * from employee_reporting_features),
        case
          -- No team on one side, but a specific specialty on both. The margin
          -- check in employee_reporting_decisions handles two equal matches.
-         when report_family <> '' and report_family = candidate_family
+         when report_family not in ('','software_engineering')
+              and report_family = candidate_family
               and report_level in ('Junior IC','Individual Contributor','Senior IC','Principal / Staff IC')
               and candidate_level in ('Manager','Team Lead / Supervisor')
               and (report_team in ('','n/a','unknown','-') or candidate_team in ('','n/a','unknown','-')

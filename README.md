@@ -16,7 +16,7 @@ SQLite stores two source tables: `companies` and `employees`. Headcount, company
 The inference is five views in a row:
 
 1. `employee_role_classification` cleans the title text and reads off a level (CEO, C-Suite, VP / Head, Director, Manager, Team Lead, Senior IC, ...) and a function (Engineering, Sales, ...).
-2. `employee_reporting_features` adds a specialty (`data_engineering`, `quality`, `sales_smb`, ...) and, for executives, the portfolio they own.
+2. `employee_reporting_features` adds a role family (`software_engineering`, `data_engineering`, `quality`, `sales_smb`, ...) and, for executives, the portfolio they own. Backend, frontend and general software-development titles share the `software_engineering` family. The label is useful for consistent classification, but it is too broad to accept a reporting line by itself when team evidence is missing.
 3. `employee_manager_candidates` pairs each person with everyone in the same company who holds a management title above them and shares a team, a parent team, a portfolio or a specialty.
 4. `employee_manager_scores` names the first rule in `reporting_rules` that fits each pair and takes that rule's score.
 5. `employee_reporting_decisions` keeps the best two candidates per person and accepts the best only when its score reaches 0.98 and leads the runner-up by 0.04. Everyone else is unresolved, with the rule and a one-line reason attached.

@@ -81,6 +81,35 @@ class SchemaViewTests(unittest.TestCase):
                                      (f'person_{index}',)).fetchone()[0]
             self.assertEqual(actual, expected, title)
 
+    def test_common_software_roles_share_one_role_family(self):
+        examples = [
+            ('Backend Engineer', 'software_engineering'),
+            ('Front-end Engineer', 'software_engineering'),
+            ('Frontend Developer', 'software_engineering'),
+            ('Full Stack Developer', 'software_engineering'),
+            ('Software Engineer', 'software_engineering'),
+            ('Software Development Manager', 'software_engineering'),
+            ('QA Software Engineer', 'quality'),
+            ('Security Software Engineer', 'security'),
+            ('Data Engineer', 'data_engineering'),
+        ]
+        for index, (title, expected) in enumerate(examples):
+            employee_id = f'software_{index}'
+            self.add(employee_id, title, '')
+            actual = self.db.execute(
+                'select role_family from employee_reporting_features where employee_id=?',
+                (employee_id,),
+            ).fetchone()[0]
+            self.assertEqual(actual, expected, title)
+
+    def test_broad_software_family_does_not_guess_across_missing_teams(self):
+        self.add('first_manager', 'Software Development Manager', 'Company / Engineering / Platform')
+        self.add('second_manager', 'Software Development Manager', 'Company / Engineering / Applications')
+        self.add('missing_team', 'Senior Backend Engineer', '')
+        self.add('known_team', 'Senior Frontend Engineer', 'Company / Engineering / Platform')
+        self.assertEqual(self.prediction('missing_team'), (None, 'unresolved'))
+        self.assertEqual(self.prediction('known_team'), ('first_manager', 'accepted'))
+
     def prediction(self, employee_id):
         return self.db.execute('select accepted_manager_id, decision from employee_reporting_decisions where employee_id=?',
                                (employee_id,)).fetchone()
