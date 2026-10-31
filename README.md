@@ -1,6 +1,6 @@
 # OrgGraph
 
-OrgGraph turns a flat list of employees into an inferred reporting chart. The working app is at [GitHub Pages](https://meet2712.github.io/orggraph-python/). Reviewers can [query the SQLite database](https://meet2712.github.io/orggraph-python/data.html) and [read its view definitions](https://meet2712.github.io/orggraph-python/schema.html).
+OrgGraph turns a flat list of employees into an inferred reporting chart. The working app is at [GitHub Pages](https://meet2712.github.io/orggraph-python/). Reviewers can [query the SQLite database](https://meet2712.github.io/orggraph-python/data.html), [follow the view dependencies](https://meet2712.github.io/orggraph-python/schema.html), and read each definition in [`schema.sql`](schema.sql).
 
 The assessment asks for at least 500 companies with at least 100 employees each, messy job titles and missing fields, confidence on reporting lines, a hosted chart, source code and an explanation of how results were checked. This project generates 500 synthetic companies and 87,160 people. It leaves a manager unresolved when the evidence is insufficient.
 
@@ -11,13 +11,13 @@ The operational SQLite file has two persisted tables:
 - `companies`: company ID, name, industry and headquarters.
 - `employees`: one observed row per person, including name, job title, department, team, location and email.
 
-Employee IDs are row keys. No table stores an employee-to-manager answer or prediction mapping. `schema.sql` defines 14 SQL views for current headcount, size band, inferred employee features, manager candidates and decisions, reasons, coverage and the audit. `inference_settings` holds the score and margin thresholds as a view. These views recalculate when a source row changes. Adding one employee in PyCharm updates that company's headcount and the new employee's inference without editing another table or rerunning Python ETL. The Python loader rebuilds the local database only when the source files or schema change; ordinary local employee edits are preserved.
+Employee IDs are row keys. No table stores an employee-to-manager answer or prediction mapping. `schema.sql` defines 12 SQL views. Their names describe what each query returns: a company overview, employee roles, possible managers, candidate scores, reporting decisions, and summaries. `reporting_thresholds` holds the score and margin needed to accept a line. These views recalculate when a source row changes. Adding one employee in PyCharm updates that company's headcount and the new employee's inference without editing another table or rerunning Python ETL. The Python loader rebuilds the local database only when the source files or schema change; ordinary local employee edits are preserved.
 
 The generated answer key is [`data/employees_ground_truth.csv`](data/employees_ground_truth.csv). It is kept outside the app database and never used as an inference feature. It supports independent offline evaluation. A new manually inserted employee has no known answer until one is supplied separately; the inference view still produces a decision.
 
 [Database notes](docs/DATABASE.md) explain each table and view. [Hierarchy policy](docs/HIERARCHY.md) explains the title ladder and individual-contributor safeguards.
 
-The database diagram shows the two source tables and all 14 views together,
+The database diagram shows the two source tables and all 12 views together,
 including every column. A solid line marks the company foreign key; dashed
 arrows show which table or view supplies each view. Select a card to follow its
 connections. The raw CSVs stay unchanged; matching happens in SQL.
@@ -56,7 +56,7 @@ sqlite3 instance/orggraph.sqlite3 '.tables'
 sqlite3 -header -column instance/orggraph.sqlite3 < scripts/quality_checks.sql
 ```
 
-The browser SQL editor opens a read-only copy of the published database. You can download its compressed snapshot from the schema page and open it in PyCharm or another SQLite client.
+The browser SQL editor opens a read-only copy of the published database. You can [download its compressed snapshot](https://meet2712.github.io/orggraph-python/database/snapshot.sqlite.gz), decompress it and open the SQLite file in PyCharm or another SQLite client.
 
 ## Generation and checks
 

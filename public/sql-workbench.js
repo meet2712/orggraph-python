@@ -32,7 +32,7 @@ WHERE company_id = 'cmp_0004'
   AND employee_id IN ('emp_0000542', 'emp_0000543')
 ORDER BY employee_id;`,
     profiles: `SELECT company_name, employee_count AS people, size_band
-FROM company_profiles
+FROM company_overview
 WHERE company_id IN ('cmp_0001', 'cmp_0002', 'cmp_0003')
 ORDER BY company_name;`,
     counts: `SELECT 'companies' AS dataset, COUNT(*) AS rows FROM companies
@@ -41,14 +41,14 @@ SELECT 'employees', COUNT(*) FROM employees;`,
     classification: `SELECT e.full_name, e.job_title,
        f.inferred_department, f.inferred_level
 FROM employees AS e
-JOIN employee_features AS f USING (company_id, employee_id)
+JOIN employee_reporting_features AS f USING (company_id, employee_id)
 WHERE e.company_id = 'cmp_0004'
   AND e.employee_id IN ('emp_0000542', 'emp_0000543')
 ORDER BY e.employee_id;`,
     matches: `SELECT c.company_name, e.full_name AS employee,
        m.full_name AS inferred_manager,
        ROUND(p.confidence * 100, 1) AS evidence_score_pct
-FROM reporting_predictions AS p
+FROM employee_reporting_decisions AS p
 JOIN companies AS c USING (company_id)
 JOIN employees AS e
   ON e.company_id = p.company_id AND e.employee_id = p.employee_id
@@ -62,7 +62,7 @@ ORDER BY e.employee_id;`,
   SELECT e.company_id, e.employee_id, e.full_name, e.job_title,
          p.accepted_manager_id, 0 AS depth
   FROM employees AS e
-  JOIN reporting_predictions AS p USING (company_id, employee_id)
+  JOIN employee_reporting_decisions AS p USING (company_id, employee_id)
   WHERE e.company_id = 'cmp_0001' AND e.employee_id = 'emp_0000018'
   UNION ALL
   SELECT e.company_id, e.employee_id, e.full_name, e.job_title,
@@ -70,7 +70,7 @@ ORDER BY e.employee_id;`,
   FROM manager_chain AS chain
   JOIN employees AS e ON e.company_id = chain.company_id
     AND e.employee_id = chain.accepted_manager_id
-  JOIN reporting_predictions AS p ON p.company_id = e.company_id
+  JOIN employee_reporting_decisions AS p ON p.company_id = e.company_id
     AND p.employee_id = e.employee_id
   WHERE chain.depth < 12
 )
@@ -83,7 +83,7 @@ FROM manager_chain ORDER BY depth;`,
        SUM(CASE WHEN TRIM(location) = '' THEN 1 ELSE 0 END) AS missing_locations
 FROM employees;`,
     thresholds: `SELECT score_threshold, margin_threshold
-FROM inference_settings;`,
+FROM reporting_thresholds;`,
   };
 
   function placeholder(text) {

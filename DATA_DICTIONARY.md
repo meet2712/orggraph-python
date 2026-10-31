@@ -10,8 +10,8 @@ answer key: it lets us measure whether a suggested manager is right.
 | `company_id` | Stable synthetic company key. |
 | `company_name` | Synthetic company name. |
 | `industry` | Industry used to vary the department mix. |
-| `size_band` | Generation-time size category used to shape the synthetic hierarchy. In SQLite, the current value is recalculated by `company_profiles`. |
-| `employee_count` | Generation-time reconciliation count. It is not stored on the SQLite `companies` table; `company_profiles` counts current employee rows. |
+| `size_band` | Generation-time size category used to shape the synthetic hierarchy. In SQLite, the current value is recalculated by `company_overview`. |
+| `employee_count` | Generation-time reconciliation count. It is not stored on the SQLite `companies` table; `company_overview` counts current employee rows. |
 | `headquarters` | Synthetic headquarters location. |
 
 ## `employees_messy.csv`

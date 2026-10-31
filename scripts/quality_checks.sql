@@ -11,25 +11,25 @@ ORDER BY type, name;
 
 SELECT 'companies' AS object_name, count(*) AS row_count FROM companies
 UNION ALL SELECT 'employees', count(*) FROM employees
-UNION ALL SELECT 'company_profiles', count(*) FROM company_profiles
-UNION ALL SELECT 'reporting_predictions', count(*) FROM reporting_predictions;
+UNION ALL SELECT 'company_overview', count(*) FROM company_overview
+UNION ALL SELECT 'employee_reporting_decisions', count(*) FROM employee_reporting_decisions;
 
 -- Expected: zero rows. Company count and size band are calculated from employees.
 SELECT c.company_id, c.employee_count, count(e.employee_id) AS actual_count
-FROM company_profiles AS c LEFT JOIN employees AS e USING (company_id)
+FROM company_overview AS c LEFT JOIN employees AS e USING (company_id)
 GROUP BY c.company_id, c.employee_count
 HAVING c.employee_count <> count(e.employee_id);
 
 -- Expected: zero rows. Every observed employee has exactly one decision.
 SELECT e.company_id, e.employee_id, count(p.employee_id) AS prediction_rows
-FROM employees AS e LEFT JOIN reporting_predictions AS p USING (company_id, employee_id)
+FROM employees AS e LEFT JOIN employee_reporting_decisions AS p USING (company_id, employee_id)
 GROUP BY e.company_id, e.employee_id
 HAVING count(p.employee_id) <> 1;
 
 -- Expected: zero rows. Accepted edges must name the leading candidate and stay in company.
 SELECT p.company_id, p.employee_id, p.accepted_manager_id, p.best_candidate_id,
        p.confidence, p.margin, p.decision
-FROM reporting_predictions AS p
+FROM employee_reporting_decisions AS p
 LEFT JOIN employees AS m ON m.company_id = p.company_id
     AND m.employee_id = p.accepted_manager_id
 WHERE p.confidence NOT BETWEEN 0 AND 1
@@ -43,9 +43,9 @@ WHERE p.confidence NOT BETWEEN 0 AND 1
 
 -- Expected: zero rows. Every accepted manager has a higher leadership rank.
 SELECT p.company_id, p.employee_id, p.accepted_manager_id
-FROM reporting_predictions AS p
-JOIN employee_features AS report USING (company_id, employee_id)
-JOIN employee_features AS manager ON manager.company_id = p.company_id
+FROM employee_reporting_decisions AS p
+JOIN employee_reporting_features AS report USING (company_id, employee_id)
+JOIN employee_reporting_features AS manager ON manager.company_id = p.company_id
     AND manager.employee_id = p.accepted_manager_id
 WHERE manager.inferred_rank <= report.inferred_rank;
 
@@ -53,12 +53,12 @@ WHERE manager.inferred_rank <= report.inferred_rank;
 WITH RECURSIVE walk AS (
     SELECT company_id, employee_id AS start_id, employee_id,
            accepted_manager_id, '|' || employee_id || '|' AS path, 0 AS cycle
-    FROM reporting_predictions WHERE accepted_manager_id IS NOT NULL
+    FROM employee_reporting_decisions WHERE accepted_manager_id IS NOT NULL
     UNION ALL
     SELECT w.company_id, w.start_id, p.employee_id, p.accepted_manager_id,
            w.path || p.employee_id || '|',
            instr(w.path, '|' || p.employee_id || '|') > 0
-    FROM walk AS w JOIN reporting_predictions AS p
+    FROM walk AS w JOIN employee_reporting_decisions AS p
       ON p.company_id = w.company_id AND p.employee_id = w.accepted_manager_id
     WHERE w.cycle = 0
 )
@@ -71,22 +71,22 @@ SELECT sum(trim(job_title) = '') AS missing_titles,
        sum(lower(trim(raw_team)) IN ('', 'n/a', 'unknown', '-')) AS missing_teams
 FROM employees;
 
-SELECT decision, count(*) AS employees FROM reporting_predictions GROUP BY decision;
+SELECT decision, count(*) AS employees FROM employee_reporting_decisions GROUP BY decision;
 
 -- Expected: zero rows. The published acceptance thresholds come from the SQL view.
-SELECT p.company_id, p.employee_id FROM reporting_predictions AS p
-CROSS JOIN inference_settings AS s
+SELECT p.company_id, p.employee_id FROM employee_reporting_decisions AS p
+CROSS JOIN reporting_thresholds AS s
 WHERE p.decision = 'accepted'
   AND (p.confidence < s.score_threshold OR p.margin < s.margin_threshold);
 
 -- Example: inspect one employee's live manager chain.
 WITH RECURSIVE manager_chain AS (
     SELECT company_id, employee_id, accepted_manager_id, 0 AS depth
-    FROM reporting_predictions
+    FROM employee_reporting_decisions
     WHERE company_id = 'cmp_0001' AND employee_id = 'emp_0000178'
     UNION ALL
     SELECT p.company_id, p.employee_id, p.accepted_manager_id, chain.depth + 1
-    FROM manager_chain AS chain JOIN reporting_predictions AS p
+    FROM manager_chain AS chain JOIN employee_reporting_decisions AS p
       ON p.company_id = chain.company_id AND p.employee_id = chain.accepted_manager_id
     WHERE chain.depth < 12
 )

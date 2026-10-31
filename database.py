@@ -20,7 +20,7 @@ COMPANY_PREDICTIONS_SQL = (ROOT / "sql" / "company_predictions.sql").read_text(
 ).strip().removesuffix(";")
 # Reuse the same scoped features when assembling a company page.
 COMPANY_INFERENCE_CTES = COMPANY_PREDICTIONS_SQL.removesuffix(
-    "\nSELECT * FROM reporting_predictions"
+    "\nSELECT * FROM employee_reporting_decisions"
 )
 RANKS = {
     "Unknown": 1, "Junior IC": 0, "Individual Contributor": 1, "Senior IC": 2,
@@ -141,7 +141,7 @@ def cached_snapshot(database: Path, fingerprint: str) -> bool:
         with closing(connect(database, readonly=True)) as connection:
             if connection.execute("PRAGMA quick_check(1)").fetchone()[0] != "ok":
                 return False
-            settings = connection.execute("SELECT * FROM inference_settings").fetchone()
+            settings = connection.execute("SELECT * FROM reporting_thresholds").fetchone()
             tables = {row[0] for row in connection.execute(
                 "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
             )}
@@ -227,9 +227,14 @@ def check_loaded_snapshot(connection, company_count, employee_count):
         raise ValueError("Loaded table counts do not match the source")
     if connection.execute("PRAGMA foreign_key_check").fetchone():
         raise ValueError("Foreign-key validation failed")
-    required_views = {"inference_settings", "company_profiles", "employee_features",
-                      "reporting_predictions", "prediction_reasons", "company_metrics",
-                      "dataset_metrics", "employee_reporting_audit"}
+    required_views = {
+        "reporting_thresholds", "company_overview",
+        "employee_role_classification", "employee_reporting_features",
+        "employee_manager_candidates", "employee_manager_scores",
+        "employee_top_manager_candidates", "employee_reporting_decisions",
+        "employee_reporting_reasons", "company_reporting_summary",
+        "dataset_reporting_summary", "employee_reporting_audit",
+    }
     views = {row[0] for row in connection.execute(
         "SELECT name FROM sqlite_master WHERE type = 'view'"
     )}
@@ -241,7 +246,7 @@ def read_index(connection: sqlite3.Connection) -> dict:
     """Build the directory from live headcounts without scoring all companies."""
     companies = []
     for row in connection.execute("""
-        SELECT * FROM company_profiles
+        SELECT * FROM company_overview
         ORDER BY company_name, company_id
     """):
         companies.append({
@@ -264,7 +269,7 @@ def read_index(connection: sqlite3.Connection) -> dict:
 
 def read_company(connection: sqlite3.Connection, company_id: str) -> dict | None:
     profile = connection.execute(
-        "SELECT * FROM company_profiles WHERE company_id = ?", (company_id,)
+        "SELECT * FROM company_overview WHERE company_id = ?", (company_id,)
     ).fetchone()
     if profile is None:
         return None
@@ -272,7 +277,7 @@ def read_company(connection: sqlite3.Connection, company_id: str) -> dict | None
     # to one company so a page never ranks all 87,000 employees at once.
     query = f"""
         {COMPANY_INFERENCE_CTES},
-        predictions AS MATERIALIZED (SELECT * FROM reporting_predictions),
+        predictions AS MATERIALIZED (SELECT * FROM employee_reporting_decisions),
         person_rows AS MATERIALIZED (
             SELECT e.*, f.inferred_department, f.inferred_level,
                    p.accepted_manager_id, p.best_candidate_id,
@@ -288,9 +293,9 @@ def read_company(connection: sqlite3.Connection, company_id: str) -> dict | None
                         ELSE 'Several candidates have similar evidence'
                    END AS reason
             FROM employees e
-            JOIN employee_features f USING (company_id, employee_id)
+            JOIN employee_reporting_features f USING (company_id, employee_id)
             JOIN predictions p USING (company_id, employee_id)
-            CROSS JOIN inference_settings settings
+            CROSS JOIN reporting_thresholds settings
             WHERE e.company_id = :company_id
         )
         SELECT *,

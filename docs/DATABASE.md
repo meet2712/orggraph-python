@@ -17,22 +17,20 @@ There is no `run_id` in the live views. The former value `live` was only a fixed
 
 | View | Calculation |
 |---|---|
-| `inference_settings` | The score and margin thresholds used to accept a line |
-| `employee_text` | Normalized title and team text |
-| `employee_classification` | Function and seniority inferred from the title |
-| `employee_role_profiles` | Specific role family and executive portfolio from observed titles and compatible team paths |
-| `employee_features` | Normalized title/team, function, seniority, role family, portfolio and rank per employee |
-| `manager_candidates` | Plausible manager pairs within each company |
-| `candidate_scores` | Evidence score for each possible reporting line |
-| `employee_top_candidates` | Best candidate and lead over the next candidate |
-| `reporting_predictions` | Accepted manager or unresolved decision |
-| `prediction_reasons` | Readable signals behind each decision |
-| `company_profiles` | Live employee count and size band |
-| `company_metrics` | Accepted and unresolved line counts, coverage and average accepted score |
-| `dataset_metrics` | Current totals across companies and employees |
-| `employee_reporting_audit` | Raw input and derived decision side by side |
+| `reporting_thresholds` | Minimum evidence score and lead over the next candidate needed to accept a manager |
+| `company_overview` | Company details with current employee count and size band |
+| `employee_role_classification` | Cleaned title and team text, inferred function and seniority |
+| `employee_reporting_features` | Role specialty, executive portfolio and seniority rank used for matching |
+| `employee_manager_candidates` | Possible employee–manager pairs within the same company |
+| `employee_manager_scores` | Evidence score for each possible manager |
+| `employee_top_manager_candidates` | Best manager and the second-best score for each employee |
+| `employee_reporting_decisions` | Accepted manager or unresolved decision for each employee |
+| `employee_reporting_reasons` | Readable explanation of each decision |
+| `company_reporting_summary` | Accepted lines, unresolved people and coverage by company |
+| `dataset_reporting_summary` | Reporting totals across all companies |
+| `employee_reporting_audit` | Observed record, inferred manager and decision evidence together |
 
-The SQL in [`schema.sql`](../schema.sql) defines all 14 views. The [schema page](../templates/schema.html) shows their columns and dependencies. The Flask page uses [`sql/company_predictions.sql`](../sql/company_predictions.sql), a company-scoped form generated from the same view definitions by `scripts/build_company_query.py`. It materializes each stage once for that company rather than repeating title parsing for every candidate. Candidate ranking is entirely in SQL. Adding an employee recalculates that employee's match and can change another employee's top candidate. A match is accepted only when the score reaches `inference_settings.score_threshold` **and** its lead over the next candidate reaches `inference_settings.margin_threshold`. The score is an interpretable heuristic, not a calibrated probability.
+The SQL in [`schema.sql`](../schema.sql) defines all 12 views. The [schema page](../templates/schema.html) shows their columns and dependencies. The Flask page uses [`sql/company_predictions.sql`](../sql/company_predictions.sql), a company-scoped form generated from the same view definitions by `scripts/build_company_query.py`. It materializes each stage once for that company rather than repeating title parsing for every candidate. Candidate ranking is entirely in SQL. Adding an employee recalculates that employee's match and can change another employee's top candidate. A match is accepted only when the score reaches `reporting_thresholds.score_threshold` **and** its lead over the next candidate reaches `reporting_thresholds.margin_threshold`. The score is an interpretable heuristic, not a calibrated probability.
 
 The combined diagram includes both tables and every view, with all columns.
 Solid lines are foreign keys. Dashed arrows are direct SQL inputs; they are not
@@ -50,12 +48,12 @@ A quick check in PyCharm:
 
 ```sql
 SELECT company_id, employee_count, size_band
-FROM company_profiles
+FROM company_overview
 WHERE company_id = 'cmp_0001';
 
 SELECT e.full_name, e.job_title, p.accepted_manager_id, p.confidence, p.margin, p.decision
 FROM employees AS e
-JOIN reporting_predictions AS p USING (company_id, employee_id)
+JOIN employee_reporting_decisions AS p USING (company_id, employee_id)
 WHERE e.company_id = 'cmp_0001'
 LIMIT 25;
 ```

@@ -6,9 +6,9 @@ import sqlite3
 
 ROOT = Path(__file__).resolve().parents[1]
 VIEWS = (
-    'employee_text', 'employee_classification', 'employee_role_profiles', 'employee_features',
-    'manager_candidates', 'candidate_scores', 'employee_top_candidates',
-    'reporting_predictions',
+    'employee_role_classification', 'employee_reporting_features',
+    'employee_manager_candidates', 'employee_manager_scores',
+    'employee_top_manager_candidates', 'employee_reporting_decisions',
 )
 
 
@@ -25,7 +25,7 @@ def company_query():
             parts.append(f'{name} AS MATERIALIZED (\n{select}\n)')
     return ('-- Generated from schema.sql by scripts/build_company_query.py.\n'
             '-- Scope the source rows first; all decision rules stay in the views.\n'
-            'WITH ' + ',\n'.join(parts) + '\nSELECT * FROM reporting_predictions;\n')
+            'WITH ' + ',\n'.join(parts) + '\nSELECT * FROM employee_reporting_decisions;\n')
 
 
 if __name__ == '__main__':

@@ -84,8 +84,13 @@ class SourceDatabaseTests(unittest.TestCase):
             self.assertEqual(tables, {"companies", "employees"})
             views = {row[0] for row in connection.execute(
                 "SELECT name FROM sqlite_master WHERE type = 'view'")}
-            self.assertIn("reporting_predictions", views)
-            self.assertIn("company_metrics", views)
+            self.assertEqual(len(views), 12)
+            self.assertIn("employee_role_classification", views)
+            self.assertIn("employee_reporting_features", views)
+            self.assertIn("employee_reporting_decisions", views)
+            self.assertIn("company_reporting_summary", views)
+            self.assertNotIn("employee_text", views)
+            self.assertNotIn("employee_role_profiles", views)
             self.assertNotIn("benchmark_labels", tables | views)
             self.assertNotIn("inference_outputs", tables | views)
 
@@ -130,7 +135,7 @@ class SourceDatabaseTests(unittest.TestCase):
                     for i in range(125)]
             connection.executemany("INSERT INTO employees VALUES (?,?,?,?,?,?,?,?)", rows)
             before = connection.execute("""
-                SELECT employee_count, size_band FROM company_profiles
+                SELECT employee_count, size_band FROM company_overview
                 WHERE company_id = 'cmp_0001'
             """).fetchone()
             self.assertEqual(tuple(before), (129, "Small"))
@@ -140,7 +145,7 @@ class SourceDatabaseTests(unittest.TestCase):
                  'Operations', '', 'Sydney, AU', 'threshold@example.test')
             """)
             after = connection.execute("""
-                SELECT employee_count, size_band FROM company_profiles
+                SELECT employee_count, size_band FROM company_overview
                 WHERE company_id = 'cmp_0001'
             """).fetchone()
             self.assertEqual(tuple(after), (130, "Growth"))

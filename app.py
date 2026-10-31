@@ -92,7 +92,7 @@ def page_context(page: str, company_id: str = DEFAULT_COMPANY) -> dict:
     if index is None:
         index = read_index(get_database())
     settings = get_database().execute(
-        "SELECT score_threshold, margin_threshold FROM inference_settings",
+        "SELECT score_threshold, margin_threshold FROM reporting_thresholds",
     ).fetchone()
     return {
         "page": page,
@@ -171,7 +171,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     @app.get("/health")
     def health():
         connection = get_database()
-        settings = connection.execute("SELECT score_threshold FROM inference_settings").fetchone()
+        settings = connection.execute("SELECT score_threshold FROM reporting_thresholds").fetchone()
         tables = {row[0] for row in connection.execute(
             "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
         )}

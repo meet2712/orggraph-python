@@ -32,17 +32,17 @@ def check_views(database, timeout=20):
 
         employee_count = connection.execute('SELECT count(*) FROM employees').fetchone()[0]
         company_count = connection.execute('SELECT count(*) FROM companies').fetchone()[0]
-        decisions = query('reporting_predictions', '''
+        decisions = query('employee_reporting_decisions', '''
             SELECT count(*) AS employees, count(DISTINCT company_id || ':' || employee_id) AS people,
                    sum(decision = 'accepted') AS accepted,
                    sum(decision = 'unresolved') AS unresolved
-            FROM reporting_predictions
+            FROM employee_reporting_decisions
         ''')[0]
-        summaries = query('company_metrics', '''
+        summaries = query('company_reporting_summary', '''
             SELECT count(*) AS companies, sum(resolved_count) AS accepted,
-                   sum(unresolved_count) AS unresolved FROM company_metrics
+                   sum(unresolved_count) AS unresolved FROM company_reporting_summary
         ''')[0]
-        totals = query('dataset_metrics', 'SELECT * FROM dataset_metrics')[0]
+        totals = query('dataset_reporting_summary', 'SELECT * FROM dataset_reporting_summary')[0]
         if decisions['employees'] != employee_count or decisions['people'] != employee_count:
             raise ValueError('Reporting decisions do not match the employee rows')
         if summaries['companies'] != company_count or totals['company_count'] != company_count:
