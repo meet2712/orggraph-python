@@ -7,7 +7,7 @@
       {% if person.predictedManagerId %}
         <small>Reports to {{ employees_by_id[person.predictedManagerId].name }}</small>
       {% elif person.inferredLevel != 'CEO' %}
-        <small>{% if not person.bestCandidateId %}No suitable manager candidate{% elif person.confidence < threshold.score %}Evidence below the acceptance threshold{% else %}Candidates too close to choose a manager{% endif %}</small>
+        <small>{{ person.reason }}</small>
       {% endif %}
       {% if not person.predictedManagerId and person.bestCandidateId %}
         <small>Unconfirmed candidate: {{ employees_by_id[person.bestCandidateId].name }}</small>
@@ -218,7 +218,7 @@
         <div><dt>Lead over next candidate</dt><dd id="dialog-margin"></dd><small>Percentage points · needs {{ threshold.margin|points }}</small></div>
       </dl>
       <div id="dialog-signals">
-        <h4>Signals behind the match</h4>
+        <h4>Which rule matched</h4>
         <ul class="reason-list" id="dialog-reasons"></ul>
       </div>
       <p class="small-note" id="dialog-confidence-note">The evidence score summarizes the SQL rules supporting this candidate.</p>
@@ -256,8 +256,15 @@
       <p class="note">Precision covers accepted lines only. Lower coverage reflects employees left unresolved when the evidence is ambiguous.</p>
     </section>
     <section class="paper-section">
-      <h2>What the evidence score means</h2>
-      <p>The rule-based score combines title seniority, functional match and team scope. A link is accepted only when its score reaches {{ threshold.score|percent }} and exceeds the next candidate by {{ threshold.margin|points }} percentage points.</p>
+      <h2>Results by rule</h2>
+      <p>Every accepted line comes from one named rule in <code>reporting_rules</code>. This table shows how often each rule fired on the held-out companies and how often it was right.</p>
+      <div class="table-scroll"><table class="simple-table"><thead><tr><th scope="col">Rule</th><th scope="col">What it matches</th><th scope="col">Accepted</th><th scope="col">Correct</th><th scope="col">Precision</th></tr></thead><tbody>
+        {% for row in sql_evaluation.by_rule %}<tr><th scope="row"><code>{{ row.rule }}</code></th><td>{{ row.description }}</td><td>{{ row.accepted|count }}</td><td>{{ row.correct|count }}</td><td>{{ row.precision|percent }}</td></tr>{% endfor %}
+      </tbody></table></div>
+    </section>
+    <section class="paper-section">
+      <h2>What the score means</h2>
+      <p>Each rule carries a fixed score. A line is accepted only when the best candidate's score reaches {{ threshold.score|percent }} and leads the next candidate by {{ threshold.margin|points }} percentage points. Rules below the threshold never create a line on their own; they only pick the candidate shown for people who stay unresolved.</p>
     </section>
   </main>
 
@@ -276,16 +283,16 @@
       <div class="score-flow" role="list" aria-label="Reporting-line inference stages">
         <article class="score-stage" role="listitem"><span class="score-step">01 · Input</span><h3>Read source rows</h3><p><code>companies</code> and <code>employees</code> are the only persisted tables. Titles, department, team and location remain as observed.</p></article>
         <article class="score-stage" role="listitem"><span class="score-step">02 · Parse</span><h3>Infer role level</h3><p><code>employee_reporting_features</code> reads title abbreviations, function and seniority. A specific role can help when a team is missing.</p></article>
-        <article class="score-stage" role="listitem"><span class="score-step">03 · Compare</span><h3>Rank candidates</h3><p>Only plausible leaders in the same company are considered. Seniority, team scope and function determine the evidence score.</p></article>
+        <article class="score-stage" role="listitem"><span class="score-step">03 · Compare</span><h3>Match a rule</h3><p>Only people with a management title above the person, in the same company, are candidates. The first rule in <code>reporting_rules</code> that fits a pair sets its score.</p></article>
         <article class="score-stage" role="listitem"><span class="score-step">04 · Decide</span><h3>Accept or abstain</h3><p><code>employee_reporting_decisions</code> compares the top candidates. It creates an edge only when the score and the lead over second place both clear their thresholds.</p></article>
       </div>
       <div class="score-formula-grid">
-        <article class="formula-card"><span class="formula-label">Evidence score</span><code>score = strongest matching hierarchy/team rule + location tie-break</code><p>The SQL <code>case</code> order sets the main score, with location used as a small tie-break.</p></article>
+        <article class="formula-card"><span class="formula-label">Evidence score</span><code>score = rule score + location tie-break</code><p>Twelve rules score 0.99 or above and can be accepted on their own. Five weak rules sit below the threshold and only rank the candidate shown for unresolved people. A shared location adds 0.2 points.</p></article>
         <article class="formula-card"><span class="formula-label">Lead over next candidate</span><code>lead = top score − second score</code><p>If two candidates look too similar, the SQL rules leave the manager unresolved.</p></article>
         <article class="formula-card"><span class="formula-label">Acceptance</span><code>score ≥ {{ threshold.score|percent }} and lead ≥ {{ threshold.margin|points }} points</code><p>Thresholds are visible in the <code>reporting_thresholds</code> view and decision audit.</p></article>
       </div>
     </section>
-    <section class="paper-section"><h2>3. Inspect the decision</h2><p><code>employee_reporting_audit</code> joins the raw employee row with inferred features, the selected manager or leading candidate, score, margin and decision reason. <code>company_overview</code> and <code>company_reporting_summary</code> calculate headcount, size band and coverage from current rows. Each app page runs a company-scoped SQL form of the same inference rules for speed.</p><p>Follow the tables and views on the <a href="/schema.html">database diagram</a>, or run a query in the <a href="/data.html">database explorer</a>. The source download contains every <code>create view</code> statement.</p></section>
+    <section class="paper-section"><h2>3. Inspect the decision</h2><p><code>employee_reporting_audit</code> joins the raw employee row with inferred features, the selected manager or leading candidate, score, margin, the rule that matched and a one-line reason. <code>company_overview</code> and <code>company_reporting_summary</code> calculate headcount, size band and coverage from current rows. Each app page runs a company-scoped SQL form of the same inference rules for speed.</p><p>Follow the tables and views on the <a href="/schema.html">database diagram</a>, or run a query in the <a href="/data.html">database explorer</a>. The source download contains every <code>create view</code> statement.</p></section>
     <section class="paper-section"><h2>4. Check quality separately</h2><p>The offline evaluator compares SQL decisions with the answer CSV. Coverage measures how many possible lines were accepted, while precision measures how many accepted lines match the answer key.</p></section>
     <section class="paper-section"><h2>Try it yourself</h2><p>The source package includes the generator, schema, app and quality queries. The dataset package includes observed records and the separate answer key.</p><div class="download-row"><a class="button" href="/downloads/firmable-org-chart-dataset.zip" download>Download dataset</a><a class="button" href="/downloads/orggraph-source.zip" download>Download source</a></div></section>
   </main>

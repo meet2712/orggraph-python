@@ -6,13 +6,13 @@ flowchart TB
     employee_role_classification["employee_role_classification<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>location : TEXT<br/>team_path : derived<br/>title_text : derived<br/>inferred_level : derived<br/>inferred_department : derived"]
     employee_reporting_features["employee_reporting_features<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>location : TEXT<br/>team_path : derived<br/>title_text : derived<br/>inferred_level : derived<br/>inferred_department : derived<br/>role_family : derived<br/>executive_portfolio : derived<br/>inferred_rank : derived"]
     employee_manager_candidates["employee_manager_candidates<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>candidate_id : TEXT<br/>report_rank : derived<br/>candidate_rank : derived<br/>report_level : derived<br/>candidate_level : derived<br/>report_department : derived<br/>candidate_department : derived<br/>report_team : derived<br/>candidate_team : derived<br/>report_family : derived<br/>candidate_family : derived<br/>report_portfolio : derived<br/>candidate_portfolio : derived<br/>team_relation : derived<br/>same_location : derived"]
-    employee_manager_scores["employee_manager_scores<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>candidate_id : TEXT<br/>candidate_rank : derived<br/>candidate_team : derived<br/>evidence_score : derived"]
-    employee_top_manager_candidates["employee_top_manager_candidates<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>best_candidate_id : derived<br/>best_score : derived<br/>second_score : derived"]
-    employee_reporting_decisions["employee_reporting_decisions<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>accepted_manager_id : derived<br/>best_candidate_id : derived<br/>confidence : derived<br/>margin : derived<br/>decision : derived"]
-    employee_reporting_reasons["employee_reporting_reasons<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>reason : derived"]
+    reporting_rules["reporting_rules<br/>VIEW<br/>rule : derived<br/>score : derived<br/>rule_group : derived<br/>description : derived"]
+    employee_manager_scores["employee_manager_scores<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>candidate_id : TEXT<br/>candidate_rank : derived<br/>candidate_team : derived<br/>rule : derived<br/>evidence_score : derived"]
+    employee_top_manager_candidates["employee_top_manager_candidates<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>best_candidate_id : derived<br/>best_rule : derived<br/>best_score : derived<br/>second_score : derived"]
+    employee_reporting_decisions["employee_reporting_decisions<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>accepted_manager_id : derived<br/>best_candidate_id : derived<br/>confidence : derived<br/>margin : derived<br/>decision : derived<br/>rule : derived<br/>reason : derived"]
     company_reporting_summary["company_reporting_summary<br/>VIEW<br/>company_id : TEXT<br/>resolved_count : derived<br/>unresolved_count : derived<br/>coverage : derived<br/>average_confidence : derived"]
     dataset_reporting_summary["dataset_reporting_summary<br/>VIEW<br/>company_count : derived<br/>employee_count : derived<br/>accepted_count : derived<br/>unresolved_count : derived<br/>average_resolved_confidence : derived"]
-    employee_reporting_audit["employee_reporting_audit<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>full_name : TEXT<br/>job_title : TEXT<br/>raw_department : TEXT<br/>raw_team : TEXT<br/>location : TEXT<br/>inferred_department : derived<br/>inferred_level : derived<br/>accepted_manager_id : derived<br/>inferred_manager : TEXT<br/>best_candidate_id : derived<br/>leading_candidate : TEXT<br/>confidence : derived<br/>margin : derived<br/>decision : derived<br/>score_threshold : derived<br/>margin_threshold : derived<br/>decision_reason : derived"]
+    employee_reporting_audit["employee_reporting_audit<br/>VIEW<br/>company_id : TEXT<br/>employee_id : TEXT<br/>full_name : TEXT<br/>job_title : TEXT<br/>raw_department : TEXT<br/>raw_team : TEXT<br/>location : TEXT<br/>inferred_department : derived<br/>inferred_level : derived<br/>accepted_manager_id : derived<br/>inferred_manager : TEXT<br/>best_candidate_id : derived<br/>leading_candidate : TEXT<br/>confidence : derived<br/>margin : derived<br/>decision : derived<br/>rule : derived<br/>reason : derived<br/>score_threshold : derived<br/>margin_threshold : derived"]
     companies -->|company_id FK| employees
     companies -.-> company_overview
     employees -.-> company_overview
@@ -22,14 +22,14 @@ flowchart TB
     employee_reporting_features -.-> employee_manager_scores
     employees -.-> employee_manager_scores
     employee_manager_candidates -.-> employee_manager_scores
+    reporting_rules -.-> employee_manager_scores
     employee_manager_scores -.-> employee_top_manager_candidates
     employees -.-> employee_top_manager_candidates
     employees -.-> employee_reporting_decisions
     employee_reporting_features -.-> employee_reporting_decisions
     employee_top_manager_candidates -.-> employee_reporting_decisions
     reporting_thresholds -.-> employee_reporting_decisions
-    employee_reporting_decisions -.-> employee_reporting_reasons
-    reporting_thresholds -.-> employee_reporting_reasons
+    reporting_rules -.-> employee_reporting_decisions
     employee_reporting_decisions -.-> company_reporting_summary
     employee_reporting_decisions -.-> dataset_reporting_summary
     employee_reporting_decisions -.-> employee_reporting_audit

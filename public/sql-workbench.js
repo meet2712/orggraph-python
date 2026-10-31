@@ -26,7 +26,7 @@ if (queryEditor) {
   const examples = {
     audit: `select full_name, job_title, inferred_manager, leading_candidate,
        ROUND(confidence * 100, 1) as evidence_score_pct,
-       ROUND(margin * 100, 1) as lead_pct, decision, decision_reason
+       ROUND(margin * 100, 1) as lead_pct, decision, rule, reason
 from employee_reporting_audit
 where company_id = 'cmp_0004'
   and employee_id in ('emp_0000542', 'emp_0000543')
@@ -84,6 +84,14 @@ from manager_chain order by depth;`,
 from employees;`,
     thresholds: `select score_threshold, margin_threshold
 from reporting_thresholds;`,
+    rules: `select rule, score, rule_group, description
+from reporting_rules
+order by score desc, rule;`,
+    byrule: `select p.rule, COUNT(*) as accepted_lines
+from employee_reporting_decisions as p
+where p.company_id = 'cmp_0004' and p.decision = 'accepted'
+group by p.rule
+order by accepted_lines desc;`,
   };
 
   function placeholder(text) {

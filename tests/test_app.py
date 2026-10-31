@@ -1,4 +1,4 @@
-"""Check source-only storage and live SQL inference."""
+"""App and database tests on a tiny four-person company."""
 
 import csv
 import gzip
@@ -43,7 +43,7 @@ class SourceDatabaseTests(unittest.TestCase):
             "companies": 1, "employees": 4, "roots": 1,
             "eligible_reporting_lines": 3, "accepted_reporting_lines": 2,
             "correct_reporting_lines": 2, "incorrect_reporting_lines": 0,
-            "precision": 1.0, "coverage": 0.6667, "recall": 0.6667,
+            "precision": 1.0, "coverage": 0.6667, "recall": 0.6667, "by_rule": [],
         }), encoding="utf-8")
         team = "Company / Technology / Engineering / Quality & Reliability"
         write_csv(raw / "employees_messy.csv", [
@@ -88,6 +88,7 @@ class SourceDatabaseTests(unittest.TestCase):
             self.assertIn("employee_reporting_features", views)
             self.assertIn("employee_reporting_decisions", views)
             self.assertIn("company_reporting_summary", views)
+            self.assertIn("reporting_rules", views)
             self.assertNotIn("employee_text", views)
             self.assertNotIn("employee_role_profiles", views)
             self.assertNotIn("benchmark_labels", tables | views)
@@ -100,6 +101,8 @@ class SourceDatabaseTests(unittest.TestCase):
             self.assertEqual(people["cto"]["predictedManagerId"], "ceo")
             self.assertEqual(people["junior"]["predictedManagerId"], "manager")
             self.assertEqual(people["junior"]["bestCandidateId"], "manager")
+            self.assertEqual(people["junior"]["rule"], "junior_to_manager")
+            self.assertEqual(people["cto"]["reason"], "Executive reports to the CEO")
             self.assertNotIn("groundTruthManagerId", people["junior"])
             self.assertEqual(payload["company"]["employeeCount"], 4)
 

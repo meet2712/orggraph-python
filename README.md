@@ -13,7 +13,41 @@ Python generates two independent datasets:
 
 SQLite stores two source tables: `companies` and `employees`. Headcount, company size, role classification, manager candidates, scores, decisions and audit fields are calculated by the views in [`schema.sql`](schema.sql). There is no persisted employee-to-manager mapping, so inserting or changing an employee immediately changes the relevant view results.
 
+The inference is five views in a row:
+
+1. `employee_role_classification` cleans the title text and reads off a level (CEO, C-Suite, VP / Head, Director, Manager, Team Lead, Senior IC, ...) and a function (Engineering, Sales, ...).
+2. `employee_reporting_features` adds a specialty (`data_engineering`, `quality`, `sales_smb`, ...) and, for executives, the portfolio they own.
+3. `employee_manager_candidates` pairs each person with everyone in the same company who holds a management title above them and shares a team, a parent team, a portfolio or a specialty.
+4. `employee_manager_scores` names the first rule in `reporting_rules` that fits each pair and takes that rule's score.
+5. `employee_reporting_decisions` keeps the best two candidates per person and accepts the best only when its score reaches 0.98 and leads the runner-up by 0.04. Everyone else is unresolved, with the rule and a one-line reason attached.
+
 The Flask app reads those SQL results and renders the org chart. A company-scoped query generated from the same view definitions avoids scoring all 500 companies for each page request.
+
+## The rules
+
+Every reporting line in the app comes from one of these rules. The first rule that fits a pair wins, in this order. `select * from reporting_rules` returns the same table from the database.
+
+| Rule | Score | Matches |
+|---|---|---|
+| `specialty_match` | 0.995 | Team is missing on one side, but the IC and the manager share a specific specialty |
+| `vp_to_matching_exec` | 0.99 | VP/Head reports to the executive who owns their portfolio |
+| `vp_to_ceo_no_exec` | 0.99 | VP/Head reports to the CEO because no executive owns their portfolio |
+| `exec_to_ceo` | 0.995 | Executive reports to the CEO |
+| `junior_to_lead` | 0.995 | Junior or intermediate IC reports to the Team Lead of the same team |
+| `senior_to_manager` | 0.99 | Senior, Staff or Principal IC reports to the Manager of the same team |
+| `lead_to_manager` | 0.995 | Team Lead reports to the Manager of the same team |
+| `junior_to_manager` | 0.99 | Junior or intermediate IC reports to the same-team Manager; the function has no Team Lead |
+| `director_to_vp` | 0.99 | Director reports to the VP/Head of the same function |
+| `manager_to_director` | 0.99 | Manager reports to the Director of the same function; no Senior Manager in between |
+| `manager_to_vp` | 0.99 | Manager reports to the VP/Head of the same function; no Director or Senior Manager in between |
+| `next_level_up` | 0.99 | Management role reports to the next level up on the same or parent team |
+| `ceo_only` | 0.45 | The CEO, who is a candidate for everyone |
+| `same_team_only` | 0.90 | Same team, but no rule above applies |
+| `parent_team_only` | 0.85 | Parent team, but no rule above applies |
+| `same_function_only` | 0.67 | Same function, different team |
+| `title_only` | 0.45 | A management title above this person, nothing else |
+
+The last five sit below the 0.98 threshold, so they never create a line on their own. They only decide which candidate is shown as "unconfirmed" for people who stay unresolved. A shared location adds 0.002 to any score as a tie-break. The 0.995 rules outrank the 0.99 rules when both fit, and two candidates on the same rule block each other through the 0.04 margin.
 
 ## Key decisions
 
@@ -22,16 +56,17 @@ The Flask app reads those SQL results and renders the org chart. A company-scope
 - Vary the C-suite by company size and industry rather than assigning every executive role to every company.
 - Use team paths, function, leadership level and location as visible evidence for each candidate.
 - Accept a manager only when the top score reaches `0.98` and leads the next candidate by at least `0.04`; otherwise leave the line unresolved.
+- Give every rule a name and a fixed score, so each accepted line can be traced to one row of `reporting_rules` and the results can be reported per rule.
 - Keep the answer key outside the operational database so evaluation cannot influence inference.
-- Use transparent SQL rules instead of the retired Python candidate model, leaving one implementation to explain and test.
+- Use named SQL rules instead of the earlier Python logistic model. The model reached 97.7% precision at 76.6% coverage on the same held-out companies; the rules do slightly better and every decision can be explained in one sentence.
 
 The hierarchy policy is documented in [`docs/HIERARCHY.md`](docs/HIERARCHY.md), and [`docs/DATABASE.md`](docs/DATABASE.md) describes the tables, views and checks.
 
 ## Measurement
 
-Rules were developed on companies 1–350, checked on companies 351–425, and tested on companies 426–500. The held-out set contains 13,447 employees across 75 companies. SQL accepted 10,223 reporting lines; 10,087 matched the independent answer key and 136 did not. That is **98.67% precision at 76.45% coverage**. These figures measure performance on the generated dataset and should not be treated as real-company accuracy.
+Rules were developed on companies 1–350, checked on companies 351–425, and tested on companies 426–500. The held-out set contains 13,447 employees across 75 companies. SQL accepted 10,235 reporting lines; 10,100 matched the independent answer key and 135 did not. That is **98.68% precision at 76.54% coverage**. These figures measure performance on the generated dataset and should not be treated as real-company accuracy.
 
-The evidence score is a rule-based ranking value, not a probability. Precision measures correct accepted lines divided by all accepted lines. Coverage measures accepted lines divided by employees who have a manager in the answer key.
+Precision is correct accepted lines divided by all accepted lines. Coverage is accepted lines divided by employees who have a manager in the answer key. `scripts/evaluate_sql_inference.py` also reports both per rule; the [results page](https://meet2712.github.io/orggraph-python/results.html) shows that table. The weakest rule is `next_level_up` at 96.7% and the strongest four are at 100%.
 
 Run the checks with:
 
@@ -75,7 +110,7 @@ python pipeline/generate_dataset.py --companies 500 --min-employees 100 --max-em
 | [`database.py`](database.py) | Load source records and query company results |
 | [`app.py`](app.py), [`templates/`](templates) | Serve the Flask pages |
 | [`scripts/evaluate_sql_inference.py`](scripts/evaluate_sql_inference.py) | Compare held-out SQL decisions with the answer key |
-| [`scripts/quality_checks.sql`](scripts/quality_checks.sql) | Check keys, cardinality, score bounds, decisions and cycles |
+| [`scripts/quality_checks.sql`](scripts/quality_checks.sql) | Check keys, cardinality, score bounds, decisions, rules and cycles |
 | [`scripts/build_erd.py`](scripts/build_erd.py) | Build the database diagram from the SQLite schema |
 | [`scripts/export_site.py`](scripts/export_site.py) | Export the app for GitHub Pages |
 

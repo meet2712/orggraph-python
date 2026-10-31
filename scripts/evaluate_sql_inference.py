@@ -1,7 +1,7 @@
-"""Evaluate SQL reporting decisions against held-out generated labels.
+"""Score the SQL inference on the held-out companies against the answer-key CSV.
 
-The answer key stays in a CSV outside the application database. This script
-never writes an employee-to-manager mapping into SQLite.
+Reports overall precision and coverage, plus the same numbers per matching
+rule so a weak rule shows up on its own line.
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ import argparse
 import csv
 import json
 import sqlite3
+from collections import Counter
 from pathlib import Path
 
 
@@ -24,12 +25,15 @@ def evaluate(database: Path, labels: Path, minimum_company_number: int = 426) ->
                 truth[(row["company_id"], row["employee_id"])] = row["manager_employee_id"] or None
 
     accepted = correct = eligible = roots = seen = 0
+    accepted_by_rule: Counter[str] = Counter()
+    correct_by_rule: Counter[str] = Counter()
     query = (ROOT / "sql/company_predictions.sql").read_text(encoding="utf-8")
     with sqlite3.connect(database) as connection:
+        connection.row_factory = sqlite3.Row
+        rules = {row["rule"]: dict(row) for row in connection.execute("select * from reporting_rules")}
         for company_id in sorted({company_id for company_id, _ in truth}):
-            for result in connection.execute(query, {"company_id": company_id}):
-                result_company_id, employee_id, manager_id, _, _, _, decision = result
-                key = result_company_id, employee_id
+            for row in connection.execute(query, {"company_id": company_id}):
+                key = row["company_id"], row["employee_id"]
                 if key not in truth:
                     continue
                 seen += 1
@@ -38,13 +42,27 @@ def evaluate(database: Path, labels: Path, minimum_company_number: int = 426) ->
                     roots += 1
                     continue
                 eligible += 1
-                if decision == "accepted" and manager_id is not None:
+                if row["decision"] == "accepted" and row["accepted_manager_id"] is not None:
                     accepted += 1
-                    correct += manager_id == expected
+                    hit = row["accepted_manager_id"] == expected
+                    correct += hit
+                    accepted_by_rule[row["rule"]] += 1
+                    correct_by_rule[row["rule"]] += hit
 
     if seen != len(truth):
         raise ValueError(f"SQL view returned {seen} of {len(truth)} benchmark employees")
 
+    by_rule = [
+        {
+            "rule": rule,
+            "group": rules[rule]["rule_group"],
+            "description": rules[rule]["description"],
+            "accepted": accepted_by_rule[rule],
+            "correct": correct_by_rule[rule],
+            "precision": round(correct_by_rule[rule] / accepted_by_rule[rule], 4),
+        }
+        for rule in sorted(accepted_by_rule, key=lambda name: -accepted_by_rule[name])
+    ]
     return {
         "companies": len({company_id for company_id, _ in truth}),
         "employees": len(truth),
@@ -56,6 +74,7 @@ def evaluate(database: Path, labels: Path, minimum_company_number: int = 426) ->
         "precision": round(correct / accepted, 4) if accepted else 0.0,
         "coverage": round(accepted / eligible, 4) if eligible else 0.0,
         "recall": round(correct / eligible, 4) if eligible else 0.0,
+        "by_rule": by_rule,
     }
 
 

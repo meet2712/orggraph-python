@@ -292,7 +292,7 @@ const dialog = document.querySelector("#person-dialog");
 if (records && dialog) {
   const people = new Map(JSON.parse(records.textContent).map((person) => [person.id, person]));
   const managerButton = document.querySelector("#dialog-manager");
-  const reasons = document.querySelector("#dialog-reasons");
+  const reasonList = document.querySelector("#dialog-reasons");
   const percentFormatter = new Intl.NumberFormat("en-US", {
     style: "percent", minimumFractionDigits: 1, maximumFractionDigits: 1,
   });
@@ -342,16 +342,19 @@ if (records && dialog) {
     setText("dialog-confidence", formatPercent(person.confidence));
     setText("dialog-margin", formatPoints(person.margin));
 
-    reasons.replaceChildren();
-    for (const reason of person.reasons) {
-      const item = document.createElement("li");
-      const check = document.createElement("span");
-      check.setAttribute("aria-hidden", "true");
-      check.textContent = "✓";
-      item.append(check, document.createTextNode(reason));
-      reasons.append(item);
+    reasonList.replaceChildren();
+    const item = document.createElement("li");
+    const check = document.createElement("span");
+    check.setAttribute("aria-hidden", "true");
+    check.textContent = manager ? "✓" : "·";
+    item.append(check, document.createTextNode(person.reason));
+    if (person.rule) {
+      const rule = document.createElement("code");
+      rule.textContent = person.rule;
+      item.append(" ", rule);
     }
-    document.querySelector("#dialog-signals").hidden = person.reasons.length === 0;
+    reasonList.append(item);
+    document.querySelector("#dialog-signals").hidden = isRoot;
 
     setText("dialog-original-title", person.title || "Missing");
     setText("dialog-original-department", person.rawDepartment);

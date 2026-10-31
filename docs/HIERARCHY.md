@@ -59,12 +59,12 @@ explicit management cue identifies a people-management role.
 
 The operational database derives features and manager choices in SQL views.
 It normalizes explicit management titles, filters to more-senior candidates in
-the same company, and scores team scope and function evidence. A candidate is
-accepted only when the evidence score and its lead over the next candidate
-clear the thresholds in the `reporting_thresholds` view. Ties and missing evidence
-remain unresolved. The evidence score is a heuristic rather than a calibrated
-probability. Senior, Staff and Principal IC titles do not become managers just
-because of their seniority.
+the same company, and matches each pair against the named rules in
+`reporting_rules` (see the table in the README). A candidate is accepted only
+when the rule's score and its lead over the next candidate clear the thresholds
+in the `reporting_thresholds` view. Ties and missing evidence remain unresolved.
+Senior, Staff and Principal IC titles do not become managers just because of
+their seniority.
 
 The generator keeps company size within the requested range while varying the
 executive portfolio. A role allocated to a portfolio without a dedicated

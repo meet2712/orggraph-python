@@ -1,10 +1,10 @@
--- Read-only checks for the current source rows and derived inference views.
+-- Integrity checks for the source tables and the inference views.
 -- Run with: sqlite3 -header -column instance/orggraph.sqlite3 < scripts/quality_checks.sql
 
 pragma foreign_keys = on;
 pragma foreign_key_check;
 
--- Only the two source tables should be persisted.
+-- Only two real tables should exist.
 select type, name from sqlite_master
 where type in ('table', 'view') and name not like 'sqlite_%'
 order by type, name;
@@ -14,7 +14,7 @@ union all select 'employees', count(*) from employees
 union all select 'company_overview', count(*) from company_overview
 union all select 'employee_reporting_decisions', count(*) from employee_reporting_decisions;
 
--- Expected: zero rows. Company count and size band are calculated from employees.
+-- Expected: zero rows. Headcount comes from employees, not a stored column.
 select c.company_id, c.employee_count, count(e.employee_id) as actual_count
 from company_overview as c left join employees as e using (company_id)
 group by c.company_id, c.employee_count
@@ -64,7 +64,7 @@ with recursive walk as (
 )
 select company_id, start_id, path from walk where cycle = 1;
 
--- Source fields remain messy rather than being overwritten by display labels.
+-- The messy source values should still be there; nothing writes back to employees.
 select sum(trim(job_title) = '') as missing_titles,
        sum(trim(location) = '') as missing_locations,
        sum(lower(trim(raw_department)) in ('', 'n/a', 'unknown', '-')) as missing_departments,
@@ -73,13 +73,23 @@ from employees;
 
 select decision, count(*) as employees from employee_reporting_decisions group by decision;
 
--- Expected: zero rows. The published acceptance thresholds come from the SQL view.
+-- Expected: zero rows. Accepted rows clear both thresholds.
 select p.company_id, p.employee_id from employee_reporting_decisions as p
 cross join reporting_thresholds as s
 where p.decision = 'accepted'
   and (p.confidence < s.score_threshold or p.margin < s.margin_threshold);
 
--- Example: inspect one employee's live manager chain.
+-- Expected: zero rows. Every scored pair names a rule from reporting_rules.
+select count(*) as pairs_without_a_rule
+from employee_manager_scores where evidence_score is null;
+
+-- Accepted lines by rule.
+select p.rule, r.rule_group, count(*) as accepted
+from employee_reporting_decisions as p join reporting_rules as r using (rule)
+where p.decision = 'accepted'
+group by p.rule, r.rule_group order by accepted desc;
+
+-- Walk one employee's manager chain.
 with recursive manager_chain as (
     select company_id, employee_id, accepted_manager_id, 0 as depth
     from employee_reporting_decisions

@@ -1,6 +1,7 @@
-"""Keep view dependencies complete and match team names literally."""
+"""SQL view behaviour on hand-built rows."""
 
 from pathlib import Path
+import re
 import sqlite3
 import unittest
 import xml.etree.ElementTree as ET
@@ -26,9 +27,44 @@ class SchemaViewTests(unittest.TestCase):
         self.add('ceo', 'CEO', 'Company')
         self.add('unassigned', 'Senior Engineer', '')
         shortlist = self.db.execute('select * from employee_top_manager_candidates order by employee_id').fetchall()
-        self.assertEqual(shortlist, [('example', 'ceo', None, None, None),
-                                     ('example', 'unassigned', 'ceo', 0.452, None)])
+        self.assertEqual(shortlist, [('example', 'ceo', None, None, None, None),
+                                     ('example', 'unassigned', 'ceo', 'ceo_only', 0.452, None)])
         self.assertEqual(self.prediction('unassigned'), (None, 'unresolved'))
+
+    def test_every_rule_named_in_the_scores_view_is_in_the_rule_table(self):
+        sql = (ROOT / 'schema.sql').read_text()
+        scores = sql[sql.index('create view employee_manager_scores'):sql.index('create view employee_top_manager_candidates')]
+        named = set(re.findall(r"(?:then|else) '([a-z_]+)'", scores))
+        rules = {row[0] for row in self.db.execute('select rule from reporting_rules')}
+        self.assertEqual(named, rules)
+        strong = {row[0] for row in self.db.execute(
+            'select rule from reporting_rules, reporting_thresholds where score >= score_threshold')}
+        self.assertEqual(len(strong), 12)
+
+    def test_decisions_carry_the_rule_and_a_readable_reason(self):
+        self.add('ceo', 'CEO', 'Company')
+        self.add('cto', 'CTO', 'Company / Technology')
+        self.add('manager', 'Engineering Manager', 'Company / Technology / Engineering / Platform')
+        self.add('senior', 'Senior Engineer', 'Company / Technology / Engineering / Platform')
+        self.add('alone', 'Senior Engineer', 'Company / Technology / Sales')
+        rows = {row[0]: row[1:] for row in self.db.execute(
+            'select employee_id, accepted_manager_id, rule, reason from employee_reporting_decisions')}
+        self.assertEqual(rows['cto'], ('ceo', 'exec_to_ceo', 'Executive reports to the CEO'))
+        self.assertEqual(rows['senior'][:2], ('manager', 'senior_to_manager'))
+        self.assertEqual(rows['alone'][:2], (None, 'parent_team_only'))
+        self.assertTrue(rows['alone'][2].startswith('Only weak evidence: '))
+        self.assertEqual(rows['ceo'], (None, None, 'CEO is the company root'))
+        audit = self.db.execute("select rule, reason from employee_reporting_audit where employee_id = 'senior'").fetchone()
+        self.assertEqual(audit[0], 'senior_to_manager')
+
+    def test_a_vp_never_attaches_to_an_executive_with_a_different_portfolio(self):
+        self.add('ceo', 'CEO', 'Company')
+        self.add('cfo', 'Chief Financial Officer', 'Company / Technology')
+        self.add('vp', 'VP of Engineering', 'Company / Technology / Engineering')
+        # The CFO sits on the parent team path, but owns Finance, so the VP goes to the CEO.
+        self.assertEqual(self.prediction('vp'), ('ceo', 'accepted'))
+        self.add('unknown', '', 'Company / Technology')
+        self.assertEqual(self.prediction('vp'), (None, 'unresolved'))
 
     def test_company_query_is_built_from_current_view_rules(self):
         self.assertEqual((ROOT / 'sql/company_predictions.sql').read_text(), company_query())

@@ -1,4 +1,4 @@
-"""Serve the SQL-derived org chart and supporting pages."""
+"""Flask app: one page per company plus results, approach, data and schema pages."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pathlib import Path
 from flask import Flask, abort, current_app, g, render_template, send_file
 
 from database import (
-    connect, ensure_snapshot, read_company, read_company_csv, read_index,
+    connect, prepare_database, read_company, read_company_csv, read_index,
     read_json, write_compressed_snapshot,
 )
 
@@ -21,7 +21,6 @@ DEFAULT_COMPANY = "cmp_0001"
 
 
 def initialize_database(app: Flask) -> None:
-    """Prepare the SQLite database and load published metadata."""
     public_data_dir = Path(app.config["DATA_DIR"])
     raw_dir = Path(app.config["RAW_DATA_DIR"])
     dataset_summary = read_json(raw_dir / "dataset_summary.json")
@@ -38,7 +37,7 @@ def initialize_database(app: Flask) -> None:
         if company_id in seen:
             raise ValueError(f"Duplicate company ID: {company_id}")
         seen.add(company_id)
-    reused = ensure_snapshot(
+    reused = prepare_database(
         Path(app.config["DATABASE"]), Path(app.config["DATABASE_SNAPSHOT"]),
         raw_dir, companies, dataset_summary["employees"],
     )
@@ -48,14 +47,13 @@ def initialize_database(app: Flask) -> None:
 
 
 def get_database() -> sqlite3.Connection:
-    """Return the read-only SQLite connection for the current request."""
     if "database" not in g:
         g.database = connect(current_app.config["DATABASE"], readonly=True)
     return g.database
 
 
 def chart_context(payload: dict) -> dict:
-    """Arrange accepted reporting lines into chart roots and branches."""
+    """Turn the flat employee list into roots + children for the tree template."""
     employees = payload["employees"]
     people = {employee["id"]: employee for employee in employees}
     connected = set()
@@ -162,7 +160,7 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     @app.get("/database/snapshot.sqlite.gz")
     def database_snapshot():
-        # Include edits made directly in the local SQLite source tables.
+        # Re-pack so local edits to the sqlite file end up in the download.
         write_compressed_snapshot(Path(app.config["DATABASE"]),
                                   Path(app.config["DATABASE_SNAPSHOT"]))
         return send_file(

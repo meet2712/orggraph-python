@@ -1,4 +1,4 @@
-"""Build the SQLite database and query data for the application."""
+"""Build the SQLite file from the CSVs and read company pages out of the views."""
 
 from __future__ import annotations
 
@@ -18,10 +18,12 @@ ROOT = Path(__file__).resolve().parent
 COMPANY_PREDICTIONS_SQL = (ROOT / "sql" / "company_predictions.sql").read_text(
     encoding="utf-8"
 ).strip().removesuffix(";")
-# Company pages use the same feature and scoring CTEs as the public views.
+# Everything up to the final select, so read_company can add its own CTEs.
 COMPANY_INFERENCE_CTES = COMPANY_PREDICTIONS_SQL.removesuffix(
     "\nselect * from employee_reporting_decisions"
 )
+
+
 def connect(path: Path, readonly: bool = False) -> sqlite3.Connection:
     if readonly:
         connection = sqlite3.connect(Path(path).resolve().as_uri() + "?mode=ro", uri=True)
@@ -76,91 +78,45 @@ def read_company_csv(path: Path) -> list[dict[str, str]]:
     return records
 
 
-def source_fingerprint(files: list[tuple[str, Path]]) -> str:
+def source_fingerprint(raw_dir: Path) -> str:
+    """Hash of the two source CSVs and schema.sql; a change to any of them rebuilds the database."""
     digest = hashlib.sha256()
-    for label, path in files:
-        digest.update(label.encode("utf-8") + b"\0")
+    for path in (raw_dir / "companies.csv", raw_dir / "employees_messy.csv", ROOT / "schema.sql"):
         digest.update(path.read_bytes())
         digest.update(b"\0")
     return digest.hexdigest()
 
 
-def snapshot_fingerprint(raw_dir: Path) -> str:
-    """Return the fingerprint used to decide whether the database is current."""
-    files = [
-        ("raw/companies.csv", raw_dir / "companies.csv"),
-        ("raw/employees_messy.csv", raw_dir / "employees_messy.csv"),
-        ("schema.sql", ROOT / "schema.sql"),
-    ]
-    return source_fingerprint(files)
-
-
-def file_digest(path: Path) -> str:
-    with path.open("rb") as source:
-        return hashlib.file_digest(source, "sha256").hexdigest()
-
-
-def cached_snapshot(database: Path, fingerprint: str) -> bool:
-    """Check whether the existing database matches its source manifest."""
+def database_is_current(database: Path, fingerprint: str) -> bool:
+    """True when the file was built from these sources and still passes a quick check."""
     try:
         manifest = read_json(database.with_suffix(".manifest.json"))
         if manifest["source_hash"] != fingerprint:
             return False
         with closing(connect(database, readonly=True)) as connection:
-            if connection.execute("pragma quick_check(1)").fetchone()[0] != "ok":
-                return False
-            settings = connection.execute("select * from reporting_thresholds").fetchone()
-            tables = {row[0] for row in connection.execute(
-                "select name from sqlite_master where type = 'table' and name not like 'sqlite_%'"
-            )}
-            return settings is not None and tables == {"companies", "employees"}
+            return connection.execute("pragma quick_check(1)").fetchone()[0] == "ok"
     except (OSError, ValueError, KeyError, sqlite3.Error):
         return False
 
 
-def ensure_snapshot(database: Path, snapshot: Path, raw_dir: Path,
-                    companies: list[dict[str, str]], employee_count: int) -> bool:
-    fingerprint = snapshot_fingerprint(raw_dir)
-    if cached_snapshot(database, fingerprint):
-        database_hash = file_digest(database)
-        try:
-            manifest = read_json(database.with_suffix(".manifest.json"))
-            snapshot_current = (manifest.get("database_sha256") == database_hash
-                                and snapshot.exists()
-                                and manifest.get("snapshot_sha256") == file_digest(snapshot))
-        except (OSError, ValueError, KeyError):
-            snapshot_current = False
-        if not snapshot_current:
-            write_compressed_snapshot(database, snapshot)
-            manifest = {
-                "source_hash": fingerprint,
-                "database_sha256": database_hash,
-                "snapshot_sha256": file_digest(snapshot),
-            }
-            database.with_suffix(".manifest.json").write_text(
-                json.dumps(manifest), encoding="utf-8"
-            )
-        return True
-    load_snapshot(database, raw_dir, companies, employee_count)
-    write_compressed_snapshot(database, snapshot)
-    manifest = {
-        "source_hash": fingerprint,
-        "database_sha256": file_digest(database),
-        "snapshot_sha256": file_digest(snapshot),
-    }
-    with NamedTemporaryFile(prefix=".manifest-", dir=database.parent, delete=False) as temporary:
-        staging = Path(temporary.name)
-    try:
-        staging.write_text(json.dumps(manifest), encoding="utf-8")
-        os.replace(staging, database.with_suffix(".manifest.json"))
-    finally:
-        staging.unlink(missing_ok=True)
-    return False
+def prepare_database(database: Path, snapshot: Path, raw_dir: Path,
+                     companies: list[dict[str, str]], employee_count: int) -> bool:
+    """Build the database if the sources changed, then refresh the gzipped copy
+    if the database is newer than it. Returns True when the file was reused."""
+    fingerprint = source_fingerprint(raw_dir)
+    reused = database_is_current(database, fingerprint)
+    if not reused:
+        build_database(database, raw_dir, companies, employee_count)
+        manifest = database.with_suffix(".manifest.json")
+        manifest.write_text(json.dumps({"source_hash": fingerprint}), encoding="utf-8")
+    if not snapshot.exists() or snapshot.stat().st_mtime < database.stat().st_mtime:
+        write_compressed_snapshot(database, snapshot)
+    return reused
 
 
-def load_snapshot(database: Path, raw_dir: Path, companies: list[dict[str, str]],
-                  employee_count: int) -> None:
-    """Create the source tables and inference views in a new database."""
+def build_database(database: Path, raw_dir: Path, companies: list[dict[str, str]],
+                   employee_count: int) -> None:
+    """Load the CSVs and schema.sql into a new file, then swap it into place."""
     raw = read_employee_csv(raw_dir / "employees_messy.csv")
     if len(raw) != employee_count:
         raise ValueError("Raw employee count does not match the dataset summary")
@@ -183,13 +139,13 @@ def load_snapshot(database: Path, raw_dir: Path, companies: list[dict[str, str]]
                       row["department"], row["team"], row["location"], row["work_email"])
                      for row in raw.values()],
                 )
-                check_loaded_snapshot(connection, len(company_ids), len(raw))
+                check_loaded_database(connection, len(company_ids), len(raw))
         os.replace(staging, database)
     finally:
         staging.unlink(missing_ok=True)
 
 
-def check_loaded_snapshot(connection, company_count, employee_count):
+def check_loaded_database(connection, company_count, employee_count):
     counts = [connection.execute(f"select count(*) from {table}").fetchone()[0]
               for table in ("companies", "employees")]
     if counts != [company_count, employee_count]:
@@ -197,12 +153,12 @@ def check_loaded_snapshot(connection, company_count, employee_count):
     if connection.execute("pragma foreign_key_check").fetchone():
         raise ValueError("Foreign-key validation failed")
     required_views = {
-        "reporting_thresholds", "company_overview",
+        "reporting_thresholds", "reporting_rules", "company_overview",
         "employee_role_classification", "employee_reporting_features",
         "employee_manager_candidates", "employee_manager_scores",
         "employee_top_manager_candidates", "employee_reporting_decisions",
-        "employee_reporting_reasons", "company_reporting_summary",
-        "dataset_reporting_summary", "employee_reporting_audit",
+        "company_reporting_summary", "dataset_reporting_summary",
+        "employee_reporting_audit",
     }
     views = {row[0] for row in connection.execute(
         "select name from sqlite_master where type = 'view'"
@@ -212,7 +168,6 @@ def check_loaded_snapshot(connection, company_count, employee_count):
 
 
 def read_index(connection: sqlite3.Connection) -> dict:
-    """Build the company directory from the overview view."""
     companies = []
     for row in connection.execute("""
         select * from company_overview
@@ -242,28 +197,17 @@ def read_company(connection: sqlite3.Connection, company_id: str) -> dict | None
     ).fetchone()
     if profile is None:
         return None
-    # Scope inference to one company because SQLite views cannot take parameters.
+    # Views take no parameters, so run the same CTE chain scoped to one company
+    # rather than scoring all 87k people for every page load.
     query = f"""
         {COMPANY_INFERENCE_CTES},
-        predictions as materialized (select * from employee_reporting_decisions),
         person_rows as materialized (
             select e.*, f.inferred_department, f.inferred_level,
                    p.accepted_manager_id, p.best_candidate_id,
-                   p.confidence, p.margin, p.decision,
-                   case when p.decision = 'company_root'
-                        then 'CEO is the company root'
-                        when p.best_candidate_id is null
-                        then 'No suitable management title'
-                        when p.decision = 'accepted'
-                        then 'Role and team evidence support this manager'
-                        when p.confidence < settings.score_threshold
-                        then 'Insufficient team or role evidence'
-                        else 'Several candidates have similar evidence'
-                   end as reason
+                   p.confidence, p.margin, p.decision, p.rule, p.reason
             from employees e
             join employee_reporting_features f using (company_id, employee_id)
-            join predictions p using (company_id, employee_id)
-            cross join reporting_thresholds settings
+            join employee_reporting_decisions p using (company_id, employee_id)
             where e.company_id = :company_id
         )
         select *,
@@ -290,7 +234,7 @@ def read_company(connection: sqlite3.Connection, company_id: str) -> dict | None
             "predictedManagerId": person["accepted_manager_id"],
             "bestCandidateId": person["best_candidate_id"],
             "confidence": person["confidence"], "margin": person["margin"],
-            "reasons": [person["reason"]],
+            "rule": person["rule"], "reason": person["reason"],
             "isRoot": person["decision"] == "company_root",
         })
     return {

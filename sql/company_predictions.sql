@@ -266,18 +266,19 @@ where r.employee_id <> c.employee_id
   )
 ),
 employee_manager_scores as materialized (
-with features as materialized (select * from employee_reporting_features)
-select m.company_id, m.employee_id, m.candidate_id,
-       m.candidate_rank, m.candidate_team,
+with features as materialized (select * from employee_reporting_features),
+     matched as materialized (
+    select m.company_id, m.employee_id, m.candidate_id,
+           m.candidate_rank, m.candidate_team, m.same_location,
        case
-         -- Match a specialist when a team is missing or the manager owns a
-         -- parent team. The runner-up check rejects equally plausible matches.
+         -- No team on one side, but a specific specialty on both. The margin
+         -- check in employee_reporting_decisions handles two equal matches.
          when report_family <> '' and report_family = candidate_family
               and report_level in ('Junior IC','Individual Contributor','Senior IC','Principal / Staff IC')
               and candidate_level in ('Manager','Team Lead / Supervisor')
               and (report_team in ('','n/a','unknown','-') or candidate_team in ('','n/a','unknown','-')
                    or team_relation = 'parent_team')
-              -- A broad Staff/Principal title may belong to the whole function.
+              -- "Principal People Partner" could sit under any People manager.
               and not (report_level = 'Principal / Staff IC'
                        and report_family in ('financial_planning','people_operations','business_operations'))
               and (candidate_level = 'Team Lead / Supervisor'
@@ -294,10 +295,10 @@ select m.company_id, m.employee_id, m.candidate_id,
                   where manager.company_id = m.company_id
                     and manager.role_family = m.report_family
                     and manager.inferred_level = 'Manager'
-              ) <= 1) then 0.995
+              ) <= 1) then 'specialty_match'
          when report_level = 'VP / Head' and candidate_level = 'C-Suite'
               and report_portfolio <> '' and report_portfolio = candidate_portfolio
-              then 0.99
+              then 'vp_to_matching_exec'
          when report_level = 'VP / Head' and candidate_level = 'CEO'
               and team_relation = 'parent_team' and report_portfolio <> ''
               and not exists (
@@ -313,23 +314,19 @@ select m.company_id, m.employee_id, m.candidate_id,
                   where unknown.company_id = m.company_id and trim(unknown.job_title) = ''
                     and ut.team_path not in ('','n/a','unknown','-','company')
                     and substr(m.report_team, 1, length(ut.team_path) + 1) = ut.team_path || '/'
-              ) then 0.99
-         when report_level = 'C-Suite' and candidate_level = 'CEO' then 0.995
-         when report_level = 'VP / Head' and candidate_level = 'CEO'
-              and team_relation = 'parent_team' then 0.94
-         when report_level = 'VP / Head' and candidate_level = 'C-Suite'
-              and team_relation = 'parent_team' then 0.99
+              ) then 'vp_to_ceo_no_exec'
+         when report_level = 'C-Suite' and candidate_level = 'CEO' then 'exec_to_ceo'
          when report_level in ('Junior IC','Individual Contributor')
               and candidate_level = 'Team Lead / Supervisor'
-              and team_relation = 'same_team' then 0.995
+              and team_relation = 'same_team' then 'junior_to_lead'
          when report_level in ('Senior IC','Principal / Staff IC')
               and candidate_level = 'Manager'
-              and team_relation = 'same_team' then 0.99
+              and team_relation = 'same_team' then 'senior_to_manager'
          when report_level = 'Team Lead / Supervisor'
               and candidate_level = 'Manager'
-              and team_relation = 'same_team' then 0.995
-         -- A same-team manager is strong evidence for an IC when the function
-         -- has no observed team lead who could be the closer manager.
+              and team_relation = 'same_team' then 'lead_to_manager'
+         -- Same-team manager for an IC, as long as there is no team lead in
+         -- the function who would normally sit in between.
          when report_level in ('Junior IC','Individual Contributor')
               and candidate_level = 'Manager'
               and team_relation = 'same_team'
@@ -340,12 +337,12 @@ select m.company_id, m.employee_id, m.candidate_id,
                   where lead.company_id = m.company_id
                     and lead.inferred_department = m.report_department
                     and lead.inferred_level = 'Team Lead / Supervisor'
-              ) then 0.99
-         -- Skip a hierarchy layer only when it is absent in this function.
+              ) then 'junior_to_manager'
+         -- Skipping a layer is only fine when that layer does not exist here.
          when report_level = 'Director' and candidate_level = 'VP / Head'
               and report_department = candidate_department
               and report_department <> 'Unclassified'
-              and team_relation in ('same_team','parent_team') then 0.99
+              and team_relation in ('same_team','parent_team') then 'director_to_vp'
          when report_level = 'Manager' and candidate_level = 'Director'
               and report_department = candidate_department
               and report_department <> 'Unclassified'
@@ -355,7 +352,7 @@ select m.company_id, m.employee_id, m.candidate_id,
                   where intermediate.company_id = m.company_id
                     and intermediate.inferred_department = m.report_department
                     and intermediate.inferred_level = 'Senior Manager'
-              ) then 0.99
+              ) then 'manager_to_director'
          when report_level = 'Manager' and candidate_level = 'VP / Head'
               and report_department = candidate_department
               and report_department <> 'Unclassified'
@@ -365,29 +362,33 @@ select m.company_id, m.employee_id, m.candidate_id,
                   where intermediate.company_id = m.company_id
                     and intermediate.inferred_department = m.report_department
                     and intermediate.inferred_level in ('Director','Senior Manager')
-              ) then 0.99
-         when report_rank < 4 and candidate_level = 'Manager'
-              and team_relation = 'same_team' then 0.95
+              ) then 'manager_to_vp'
+         -- Generic step up the ladder. A VP never attaches to an executive
+         -- whose portfolio is known to be a different one.
          when report_rank >= 4 and candidate_rank = report_rank + 1
-              and team_relation in ('same_team','parent_team') then 0.99
-         when report_rank >= 4 and candidate_rank = report_rank + 2
-              and team_relation in ('same_team','parent_team') then 0.94
-         when report_rank >= 4 and candidate_rank > report_rank
-              and team_relation = 'parent_team'
-              then 0.90 - 0.02 * (candidate_rank - report_rank - 3)
-         when report_rank < 4 and candidate_level = 'Manager'
-              and team_relation = 'parent_team' then 0.75
+              and team_relation in ('same_team','parent_team')
+              and not (candidate_level = 'C-Suite' and candidate_portfolio <> ''
+                       and report_portfolio <> candidate_portfolio)
+              then 'next_level_up'
+         -- Nothing below here can be accepted on its own. These only rank the
+         -- leading candidate shown for people who stay unresolved.
+         when candidate_level = 'CEO' then 'ceo_only'
+         when team_relation = 'same_team' then 'same_team_only'
+         when team_relation = 'parent_team' then 'parent_team_only'
          when report_department = candidate_department
-              and report_department <> 'Unclassified' then 0.67
-         when candidate_level = 'CEO' then 0.45
-         else 0.20 end
-         + case when same_location = 1 then 0.002 else 0 end
+              and report_department <> 'Unclassified' then 'same_function_only'
+         else 'title_only' end as rule
+    from employee_manager_candidates m
+)
+select matched.company_id, matched.employee_id, matched.candidate_id,
+       matched.candidate_rank, matched.candidate_team, matched.rule,
+       rules.score + case when matched.same_location = 1 then 0.002 else 0 end
          as evidence_score
-from employee_manager_candidates m
+from matched left join reporting_rules rules using (rule)
 ),
 employee_top_manager_candidates as materialized (
 with ranked as (
-    select company_id, employee_id, candidate_id, evidence_score,
+    select company_id, employee_id, candidate_id, rule, evidence_score,
            row_number() over (
                partition by company_id, employee_id
                order by evidence_score desc, length(candidate_team) desc,
@@ -397,6 +398,7 @@ with ranked as (
 )
 select e.company_id, e.employee_id,
        max(case when r.position = 1 then r.candidate_id end) as best_candidate_id,
+       max(case when r.position = 1 then r.rule end) as best_rule,
        max(case when r.position = 1 then r.evidence_score end) as best_score,
        max(case when r.position = 2 then r.evidence_score end) as second_score
 from employees e
@@ -407,7 +409,7 @@ group by e.company_id, e.employee_id
 employee_reporting_decisions as materialized (
 with scored as (
     select e.company_id, e.employee_id, f.inferred_level,
-           t.best_candidate_id as candidate_id,
+           t.best_candidate_id as candidate_id, t.best_rule as rule,
            round(coalesce(t.best_score, 0.0), 4) as confidence,
            round(max(0.0, coalesce(t.best_score, 0.0) -
                     coalesce(t.second_score, 0.0)), 4) as margin
@@ -422,7 +424,17 @@ select company_id, employee_id,
        min(1.0, confidence) as confidence, margin,
        case when inferred_level = 'CEO' then 'company_root'
             when confidence >= s.score_threshold and margin >= s.margin_threshold then 'accepted'
-            else 'unresolved' end as decision
-from scored cross join reporting_thresholds s
+            else 'unresolved' end as decision,
+       rule,
+       case when inferred_level = 'CEO' then 'CEO is the company root'
+            when candidate_id is null then 'No management title above this person'
+            when confidence >= s.score_threshold and margin >= s.margin_threshold then r.description
+            when confidence < s.score_threshold then 'Only weak evidence: ' || r.description
+            else 'Two candidates fit equally well: '
+                 || lower(substr(r.description, 1, 1)) || substr(r.description, 2)
+            end as reason
+from scored
+cross join reporting_thresholds s
+left join reporting_rules r using (rule)
 )
 select * from employee_reporting_decisions;
