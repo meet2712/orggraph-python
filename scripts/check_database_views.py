@@ -14,7 +14,7 @@ def check_views(database, timeout=20):
     timings = {}
     with closing(sqlite3.connect(database.resolve().as_uri() + '?mode=ro', uri=True)) as connection:
         connection.row_factory = sqlite3.Row
-        connection.execute('PRAGMA query_only = ON')
+        connection.execute('pragma query_only = on')
 
         def query(name, sql):
             started = time.monotonic()
@@ -30,19 +30,19 @@ def check_views(database, timeout=20):
             timings[name] = round(time.monotonic() - started, 3)
             return rows
 
-        employee_count = connection.execute('SELECT count(*) FROM employees').fetchone()[0]
-        company_count = connection.execute('SELECT count(*) FROM companies').fetchone()[0]
+        employee_count = connection.execute('select count(*) from employees').fetchone()[0]
+        company_count = connection.execute('select count(*) from companies').fetchone()[0]
         decisions = query('employee_reporting_decisions', '''
-            SELECT count(*) AS employees, count(DISTINCT company_id || ':' || employee_id) AS people,
-                   sum(decision = 'accepted') AS accepted,
-                   sum(decision = 'unresolved') AS unresolved
-            FROM employee_reporting_decisions
+            select count(*) as employees, count(distinct company_id || ':' || employee_id) as people,
+                   sum(decision = 'accepted') as accepted,
+                   sum(decision = 'unresolved') as unresolved
+            from employee_reporting_decisions
         ''')[0]
         summaries = query('company_reporting_summary', '''
-            SELECT count(*) AS companies, sum(resolved_count) AS accepted,
-                   sum(unresolved_count) AS unresolved FROM company_reporting_summary
+            select count(*) as companies, sum(resolved_count) as accepted,
+                   sum(unresolved_count) as unresolved from company_reporting_summary
         ''')[0]
-        totals = query('dataset_reporting_summary', 'SELECT * FROM dataset_reporting_summary')[0]
+        totals = query('dataset_reporting_summary', 'select * from dataset_reporting_summary')[0]
         if decisions['employees'] != employee_count or decisions['people'] != employee_count:
             raise ValueError('Reporting decisions do not match the employee rows')
         if summaries['companies'] != company_count or totals['company_count'] != company_count:

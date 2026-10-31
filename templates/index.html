@@ -221,7 +221,7 @@
         <h4>Signals behind the match</h4>
         <ul class="reason-list" id="dialog-reasons"></ul>
       </div>
-      <p class="small-note" id="dialog-confidence-note">This is a rule-based evidence score, not a calibrated probability. A high score can still be wrong.</p>
+      <p class="small-note" id="dialog-confidence-note">The evidence score summarizes the SQL rules supporting this candidate.</p>
     </section>
     <section class="record-section">
       <details id="dialog-record-disclosure">
@@ -241,9 +241,9 @@
   {% elif page == 'results' %}
   <main class="document-page" id="main-content">
     <header class="page-heading">
-      <p class="muted">Offline benchmark and current database</p>
+      <p class="muted">Held-out benchmark</p>
       <h1>Reporting-line results</h1>
-      <p>The SQL inference was checked against generated answers for {{ sql_evaluation.companies }} held-out companies. Those answers are in a separate CSV, outside the app database. All companies and employees are synthetic.</p>
+      <p>SQL reporting decisions were compared with an independent answer key for {{ sql_evaluation.companies }} held-out companies.</p>
     </header>
     <dl class="stats-row" aria-label="Held-out SQL inference benchmark">
       <div class="stat"><dt>Precision among accepted lines</dt><dd>{{ sql_evaluation.precision|percent }}</dd></div>
@@ -253,11 +253,11 @@
     <section class="paper-section">
       <h2>What was checked</h2>
       <p>On {{ sql_evaluation.employees|count }} people in the held-out companies, the SQL rules accepted {{ sql_evaluation.accepted_reporting_lines|count }} reporting lines: {{ sql_evaluation.correct_reporting_lines|count }} matched the independently generated manager and {{ sql_evaluation.incorrect_reporting_lines|count }} did not. Precision is correct lines divided by accepted lines. Coverage is accepted lines divided by people with a true manager.</p>
-      <p class="note">The high precision comes with lower coverage: the rules leave uncertain managers open rather than add a weak edge. These synthetic-data results do not establish accuracy on real company records. The benchmark CSV is used only by the offline evaluator.</p>
+      <p class="note">Precision covers accepted lines only. Lower coverage reflects employees left unresolved when the evidence is ambiguous.</p>
     </section>
     <section class="paper-section">
       <h2>What the evidence score means</h2>
-      <p>The score reflects title seniority, functional match, and team scope. It is a heuristic, not a calibrated probability. A link is accepted only when its score reaches {{ threshold.score|percent }} and exceeds the next candidate by {{ threshold.margin|points }} percentage points. The separate generated answer file can be used for offline accuracy checks; it is not stored in the app database.</p>
+      <p>The rule-based score combines title seniority, functional match and team scope. A link is accepted only when its score reaches {{ threshold.score|percent }} and exceeds the next candidate by {{ threshold.margin|points }} percentage points.</p>
     </section>
   </main>
 
@@ -269,7 +269,7 @@
     <header class="page-heading"><p class="muted">How it works</p><h1>From job titles to reporting lines</h1><p>The database starts with a flat employee list. SQL views interpret each row and calculate reporting lines whenever the source changes.</p></header>
     <section class="paper-section">
       <h2>1. Generate messy source records</h2>
-      <p>The Python generator creates {{ dataset.companies|count }} companies and {{ dataset.employees|count }} employees with varied functions, seniority, team sizes, missing fields and title noise. The generated answer key is stored separately in a CSV for offline evaluation. It is never imported into the operational database or used to choose a manager.</p>
+      <p>The Python generator creates {{ dataset.companies|count }} companies and {{ dataset.employees|count }} employees with varied functions, seniority, team sizes, missing fields and title noise. It also writes a separate answer key for offline evaluation.</p>
     </section>
     <section class="paper-section score-explainer">
       <h2>2. Calculate the hierarchy in SQL</h2>
@@ -280,13 +280,13 @@
         <article class="score-stage" role="listitem"><span class="score-step">04 · Decide</span><h3>Accept or abstain</h3><p><code>employee_reporting_decisions</code> compares the top candidates. It creates an edge only when the score and the lead over second place both clear their thresholds.</p></article>
       </div>
       <div class="score-formula-grid">
-        <article class="formula-card"><span class="formula-label">Evidence score</span><code>score = strongest matching hierarchy/team rule + location tie-break</code><p>The SQL <code>CASE</code> order sets the main score. Location contributes a small tie-break. The score is not a calibrated probability.</p></article>
+        <article class="formula-card"><span class="formula-label">Evidence score</span><code>score = strongest matching hierarchy/team rule + location tie-break</code><p>The SQL <code>case</code> order sets the main score, with location used as a small tie-break.</p></article>
         <article class="formula-card"><span class="formula-label">Lead over next candidate</span><code>lead = top score − second score</code><p>If two candidates look too similar, the SQL rules leave the manager unresolved.</p></article>
-        <article class="formula-card"><span class="formula-label">Acceptance</span><code>score ≥ {{ threshold.score|percent }} AND lead ≥ {{ threshold.margin|points }} points</code><p>Thresholds are visible in the <code>reporting_thresholds</code> view and decision audit.</p></article>
+        <article class="formula-card"><span class="formula-label">Acceptance</span><code>score ≥ {{ threshold.score|percent }} and lead ≥ {{ threshold.margin|points }} points</code><p>Thresholds are visible in the <code>reporting_thresholds</code> view and decision audit.</p></article>
       </div>
     </section>
-    <section class="paper-section"><h2>3. Inspect the decision</h2><p><code>employee_reporting_audit</code> joins the raw employee row with inferred features, the selected manager or leading candidate, score, margin and decision reason. <code>company_overview</code> and <code>company_reporting_summary</code> calculate headcount, size band and coverage from current rows. Each app page runs a company-scoped SQL form of the same inference rules for speed.</p><p>Follow the tables and views on the <a href="/schema.html">database diagram</a>, or run a query in the <a href="/data.html">database explorer</a>. The source download contains every <code>CREATE VIEW</code> statement.</p></section>
-    <section class="paper-section"><h2>4. Check quality separately</h2><p>The generated answer CSV can be compared with the SQL view output outside the app. This avoids putting employee-to-manager answer mappings in the operational database. Coverage describes how many lines were accepted; precision requires that separate answer key. A high evidence score alone does not prove a correct manager.</p></section>
+    <section class="paper-section"><h2>3. Inspect the decision</h2><p><code>employee_reporting_audit</code> joins the raw employee row with inferred features, the selected manager or leading candidate, score, margin and decision reason. <code>company_overview</code> and <code>company_reporting_summary</code> calculate headcount, size band and coverage from current rows. Each app page runs a company-scoped SQL form of the same inference rules for speed.</p><p>Follow the tables and views on the <a href="/schema.html">database diagram</a>, or run a query in the <a href="/data.html">database explorer</a>. The source download contains every <code>create view</code> statement.</p></section>
+    <section class="paper-section"><h2>4. Check quality separately</h2><p>The offline evaluator compares SQL decisions with the answer CSV. Coverage measures how many possible lines were accepted, while precision measures how many accepted lines match the answer key.</p></section>
     <section class="paper-section"><h2>Try it yourself</h2><p>The source package includes the generator, schema, app and quality queries. The dataset package includes observed records and the separate answer key.</p><div class="download-row"><a class="button" href="/downloads/firmable-org-chart-dataset.zip" download>Download dataset</a><a class="button" href="/downloads/orggraph-source.zip" download>Download source</a></div></section>
   </main>
   {% endif %}

@@ -9,13 +9,11 @@ instance/
 dist/
 outputs/
 work/
-design-qa.md
 
 # Hidden tool directories and local settings
 .*/
 !.github/
 .env*
-.dev.vars*
 *.pem
 *.log
 .DS_Store

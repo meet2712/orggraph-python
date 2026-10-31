@@ -30,7 +30,7 @@ def view_dependencies(tables, views):
     names = {item['name'] for item in [*tables, *views]}
     result = {}
     for view in views:
-        references = re.findall(r'\b(?:FROM|JOIN)\s+"?([A-Za-z_][A-Za-z_0-9]*)',
+        references = re.findall(r'\b(?:from|join)\s+"?([A-Za-z_][A-Za-z_0-9]*)',
                                 view['definition'], flags=re.IGNORECASE)
         result[view['name']] = [name for name in dict.fromkeys(references)
                                 if name in names and name != view['name']]
@@ -171,11 +171,11 @@ def build_diagram():
     connection = sqlite3.connect(':memory:')
     connection.executescript((ROOT / 'schema.sql').read_text())
     tables, views, relationships = [], [], []
-    objects = connection.execute("SELECT name, type, sql FROM sqlite_master WHERE type IN ('table','view') AND name NOT LIKE 'sqlite_%' ORDER BY rowid").fetchall()
+    objects = connection.execute("select name, type, sql from sqlite_master where type in ('table','view') and name not like 'sqlite_%' order by rowid").fetchall()
     for name, kind, definition in objects:
-        columns = connection.execute(f'PRAGMA table_info("{name}")').fetchall()
+        columns = connection.execute(f'pragma table_info("{name}")').fetchall()
         groups = defaultdict(list)
-        for row in connection.execute(f'PRAGMA foreign_key_list("{name}")'):
+        for row in connection.execute(f'pragma foreign_key_list("{name}")'):
             groups[row[0]].append(row)
         foreign_columns = {row[3] for group in groups.values() for row in group}
         item = {'name': name, 'kind': kind, 'grain': GRAINS.get(name, name.replace('_', ' ')),

@@ -69,7 +69,7 @@ class SourceDatabaseTests(unittest.TestCase):
                       team="Company / Technology / Engineering / Quality & Reliability"):
         with closing(connect(self.database)) as connection, connection:
             connection.execute("""
-                INSERT INTO employees VALUES
+                insert into employees values
                 ('cmp_0001', ?, ?, ?, ?, ?, 'Sydney, AU', ?)
             """, (employee_id, employee_id.title(), title, department, team,
                   f"{employee_id}@example.test"))
@@ -77,12 +77,12 @@ class SourceDatabaseTests(unittest.TestCase):
     def test_only_basic_source_tables_are_persisted(self):
         with closing(connect(self.database, readonly=True)) as connection:
             tables = {row[0] for row in connection.execute("""
-                SELECT name FROM sqlite_master WHERE type = 'table'
-                AND name NOT LIKE 'sqlite_%'
+                select name from sqlite_master where type = 'table'
+                and name not like 'sqlite_%'
             """)}
             self.assertEqual(tables, {"companies", "employees"})
             views = {row[0] for row in connection.execute(
-                "SELECT name FROM sqlite_master WHERE type = 'view'")}
+                "select name from sqlite_master where type = 'view'")}
             self.assertEqual(len(views), 12)
             self.assertIn("employee_role_classification", views)
             self.assertIn("employee_reporting_features", views)
@@ -123,7 +123,7 @@ class SourceDatabaseTests(unittest.TestCase):
         restarted = create_app(self.config)
         self.assertTrue(restarted.config["DATABASE_REUSED"])
         with closing(connect(self.database, readonly=True)) as connection:
-            self.assertEqual(connection.execute("SELECT count(*) FROM employees").fetchone()[0], 5)
+            self.assertEqual(connection.execute("select count(*) from employees").fetchone()[0], 5)
         with gzip.open(self.snapshot, "rb") as source:
             self.assertEqual(source.read(16), b"SQLite format 3\0")
 
@@ -132,20 +132,20 @@ class SourceDatabaseTests(unittest.TestCase):
             rows = [("cmp_0001", f"extra_{i:03d}", f"Extra {i}", "Analyst",
                      "Operations", "", "Sydney, AU", f"extra_{i}@example.test")
                     for i in range(125)]
-            connection.executemany("INSERT INTO employees VALUES (?,?,?,?,?,?,?,?)", rows)
+            connection.executemany("insert into employees values (?,?,?,?,?,?,?,?)", rows)
             before = connection.execute("""
-                SELECT employee_count, size_band FROM company_overview
-                WHERE company_id = 'cmp_0001'
+                select employee_count, size_band from company_overview
+                where company_id = 'cmp_0001'
             """).fetchone()
             self.assertEqual(tuple(before), (129, "Small"))
             connection.execute("""
-                INSERT INTO employees VALUES
+                insert into employees values
                 ('cmp_0001', 'threshold_hire', 'Threshold Hire', 'Analyst',
                  'Operations', '', 'Sydney, AU', 'threshold@example.test')
             """)
             after = connection.execute("""
-                SELECT employee_count, size_band FROM company_overview
-                WHERE company_id = 'cmp_0001'
+                select employee_count, size_band from company_overview
+                where company_id = 'cmp_0001'
             """).fetchone()
             self.assertEqual(tuple(after), (130, "Growth"))
 
@@ -153,12 +153,12 @@ class SourceDatabaseTests(unittest.TestCase):
         with closing(connect(self.database)) as connection:
             with self.assertRaises(sqlite3.IntegrityError):
                 connection.execute("""
-                    INSERT INTO employees VALUES
+                    insert into employees values
                     ('cmp_0001', 'ceo', 'Duplicate', 'CEO', '', '', '', '')
                 """)
             with self.assertRaises(sqlite3.IntegrityError):
                 connection.execute("""
-                    INSERT INTO employees VALUES
+                    insert into employees values
                     ('missing', 'another', 'Another', 'Analyst', '', '', '', '')
                 """)
 

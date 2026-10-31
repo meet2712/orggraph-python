@@ -51,8 +51,7 @@ def export_site(base_path: str = "") -> None:
     app.config["TESTING"] = True
     with closing(connect(app.config["DATABASE"], readonly=True)) as connection:
         index = read_index(connection)
-    # The export is a fixed snapshot. Reuse one view result while rendering 505
-    # pages; normal Flask requests continue to query the live views.
+    # Reuse one view result while rendering the fixed set of static pages.
     app.config["STATIC_EXPORT_INDEX"] = index
     routes = [
         ("/", "index.html"),
@@ -66,7 +65,7 @@ def export_site(base_path: str = "") -> None:
         for company in index["companies"]
     )
 
-    # Finish the new export before replacing the previous one.
+    # Build in a staging directory so the published export is replaced atomically.
     with TemporaryDirectory(prefix=".orggraph-export-", dir=ROOT) as temporary:
         output = Path(temporary)
         with app.test_client() as client:

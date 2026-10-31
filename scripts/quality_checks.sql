@@ -1,98 +1,98 @@
 -- Read-only checks for the current source rows and derived inference views.
 -- Run with: sqlite3 -header -column instance/orggraph.sqlite3 < scripts/quality_checks.sql
 
-PRAGMA foreign_keys = ON;
-PRAGMA foreign_key_check;
+pragma foreign_keys = on;
+pragma foreign_key_check;
 
 -- Only the two source tables should be persisted.
-SELECT type, name FROM sqlite_master
-WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%'
-ORDER BY type, name;
+select type, name from sqlite_master
+where type in ('table', 'view') and name not like 'sqlite_%'
+order by type, name;
 
-SELECT 'companies' AS object_name, count(*) AS row_count FROM companies
-UNION ALL SELECT 'employees', count(*) FROM employees
-UNION ALL SELECT 'company_overview', count(*) FROM company_overview
-UNION ALL SELECT 'employee_reporting_decisions', count(*) FROM employee_reporting_decisions;
+select 'companies' as object_name, count(*) as row_count from companies
+union all select 'employees', count(*) from employees
+union all select 'company_overview', count(*) from company_overview
+union all select 'employee_reporting_decisions', count(*) from employee_reporting_decisions;
 
 -- Expected: zero rows. Company count and size band are calculated from employees.
-SELECT c.company_id, c.employee_count, count(e.employee_id) AS actual_count
-FROM company_overview AS c LEFT JOIN employees AS e USING (company_id)
-GROUP BY c.company_id, c.employee_count
-HAVING c.employee_count <> count(e.employee_id);
+select c.company_id, c.employee_count, count(e.employee_id) as actual_count
+from company_overview as c left join employees as e using (company_id)
+group by c.company_id, c.employee_count
+having c.employee_count <> count(e.employee_id);
 
 -- Expected: zero rows. Every observed employee has exactly one decision.
-SELECT e.company_id, e.employee_id, count(p.employee_id) AS prediction_rows
-FROM employees AS e LEFT JOIN employee_reporting_decisions AS p USING (company_id, employee_id)
-GROUP BY e.company_id, e.employee_id
-HAVING count(p.employee_id) <> 1;
+select e.company_id, e.employee_id, count(p.employee_id) as prediction_rows
+from employees as e left join employee_reporting_decisions as p using (company_id, employee_id)
+group by e.company_id, e.employee_id
+having count(p.employee_id) <> 1;
 
 -- Expected: zero rows. Accepted edges must name the leading candidate and stay in company.
-SELECT p.company_id, p.employee_id, p.accepted_manager_id, p.best_candidate_id,
+select p.company_id, p.employee_id, p.accepted_manager_id, p.best_candidate_id,
        p.confidence, p.margin, p.decision
-FROM employee_reporting_decisions AS p
-LEFT JOIN employees AS m ON m.company_id = p.company_id
-    AND m.employee_id = p.accepted_manager_id
-WHERE p.confidence NOT BETWEEN 0 AND 1
-   OR p.margin NOT BETWEEN 0 AND p.confidence
-   OR p.accepted_manager_id = p.employee_id
-   OR p.best_candidate_id = p.employee_id
-   OR (p.decision = 'accepted' AND (
-       p.accepted_manager_id IS NULL OR p.accepted_manager_id <> p.best_candidate_id
-       OR m.employee_id IS NULL))
-   OR (p.decision <> 'accepted' AND p.accepted_manager_id IS NOT NULL);
+from employee_reporting_decisions as p
+left join employees as m on m.company_id = p.company_id
+    and m.employee_id = p.accepted_manager_id
+where p.confidence not between 0 and 1
+   or p.margin not between 0 and p.confidence
+   or p.accepted_manager_id = p.employee_id
+   or p.best_candidate_id = p.employee_id
+   or (p.decision = 'accepted' and (
+       p.accepted_manager_id is null or p.accepted_manager_id <> p.best_candidate_id
+       or m.employee_id is null))
+   or (p.decision <> 'accepted' and p.accepted_manager_id is not null);
 
 -- Expected: zero rows. Every accepted manager has a higher leadership rank.
-SELECT p.company_id, p.employee_id, p.accepted_manager_id
-FROM employee_reporting_decisions AS p
-JOIN employee_reporting_features AS report USING (company_id, employee_id)
-JOIN employee_reporting_features AS manager ON manager.company_id = p.company_id
-    AND manager.employee_id = p.accepted_manager_id
-WHERE manager.inferred_rank <= report.inferred_rank;
+select p.company_id, p.employee_id, p.accepted_manager_id
+from employee_reporting_decisions as p
+join employee_reporting_features as report using (company_id, employee_id)
+join employee_reporting_features as manager on manager.company_id = p.company_id
+    and manager.employee_id = p.accepted_manager_id
+where manager.inferred_rank <= report.inferred_rank;
 
 -- Expected: zero rows. Strictly higher rank should prevent cycles.
-WITH RECURSIVE walk AS (
-    SELECT company_id, employee_id AS start_id, employee_id,
-           accepted_manager_id, '|' || employee_id || '|' AS path, 0 AS cycle
-    FROM employee_reporting_decisions WHERE accepted_manager_id IS NOT NULL
-    UNION ALL
-    SELECT w.company_id, w.start_id, p.employee_id, p.accepted_manager_id,
+with recursive walk as (
+    select company_id, employee_id as start_id, employee_id,
+           accepted_manager_id, '|' || employee_id || '|' as path, 0 as cycle
+    from employee_reporting_decisions where accepted_manager_id is not null
+    union all
+    select w.company_id, w.start_id, p.employee_id, p.accepted_manager_id,
            w.path || p.employee_id || '|',
            instr(w.path, '|' || p.employee_id || '|') > 0
-    FROM walk AS w JOIN employee_reporting_decisions AS p
-      ON p.company_id = w.company_id AND p.employee_id = w.accepted_manager_id
-    WHERE w.cycle = 0
+    from walk as w join employee_reporting_decisions as p
+      on p.company_id = w.company_id and p.employee_id = w.accepted_manager_id
+    where w.cycle = 0
 )
-SELECT company_id, start_id, path FROM walk WHERE cycle = 1;
+select company_id, start_id, path from walk where cycle = 1;
 
 -- Source fields remain messy rather than being overwritten by display labels.
-SELECT sum(trim(job_title) = '') AS missing_titles,
-       sum(trim(location) = '') AS missing_locations,
-       sum(lower(trim(raw_department)) IN ('', 'n/a', 'unknown', '-')) AS missing_departments,
-       sum(lower(trim(raw_team)) IN ('', 'n/a', 'unknown', '-')) AS missing_teams
-FROM employees;
+select sum(trim(job_title) = '') as missing_titles,
+       sum(trim(location) = '') as missing_locations,
+       sum(lower(trim(raw_department)) in ('', 'n/a', 'unknown', '-')) as missing_departments,
+       sum(lower(trim(raw_team)) in ('', 'n/a', 'unknown', '-')) as missing_teams
+from employees;
 
-SELECT decision, count(*) AS employees FROM employee_reporting_decisions GROUP BY decision;
+select decision, count(*) as employees from employee_reporting_decisions group by decision;
 
 -- Expected: zero rows. The published acceptance thresholds come from the SQL view.
-SELECT p.company_id, p.employee_id FROM employee_reporting_decisions AS p
-CROSS JOIN reporting_thresholds AS s
-WHERE p.decision = 'accepted'
-  AND (p.confidence < s.score_threshold OR p.margin < s.margin_threshold);
+select p.company_id, p.employee_id from employee_reporting_decisions as p
+cross join reporting_thresholds as s
+where p.decision = 'accepted'
+  and (p.confidence < s.score_threshold or p.margin < s.margin_threshold);
 
 -- Example: inspect one employee's live manager chain.
-WITH RECURSIVE manager_chain AS (
-    SELECT company_id, employee_id, accepted_manager_id, 0 AS depth
-    FROM employee_reporting_decisions
-    WHERE company_id = 'cmp_0001' AND employee_id = 'emp_0000178'
-    UNION ALL
-    SELECT p.company_id, p.employee_id, p.accepted_manager_id, chain.depth + 1
-    FROM manager_chain AS chain JOIN employee_reporting_decisions AS p
-      ON p.company_id = chain.company_id AND p.employee_id = chain.accepted_manager_id
-    WHERE chain.depth < 12
+with recursive manager_chain as (
+    select company_id, employee_id, accepted_manager_id, 0 as depth
+    from employee_reporting_decisions
+    where company_id = 'cmp_0001' and employee_id = 'emp_0000178'
+    union all
+    select p.company_id, p.employee_id, p.accepted_manager_id, chain.depth + 1
+    from manager_chain as chain join employee_reporting_decisions as p
+      on p.company_id = chain.company_id and p.employee_id = chain.accepted_manager_id
+    where chain.depth < 12
 )
-SELECT chain.depth, e.full_name, e.job_title, m.full_name AS inferred_manager
-FROM manager_chain AS chain
-JOIN employees AS e USING (company_id, employee_id)
-LEFT JOIN employees AS m ON m.company_id = chain.company_id
-    AND m.employee_id = chain.accepted_manager_id
-ORDER BY chain.depth;
+select chain.depth, e.full_name, e.job_title, m.full_name as inferred_manager
+from manager_chain as chain
+join employees as e using (company_id, employee_id)
+left join employees as m on m.company_id = chain.company_id
+    and m.employee_id = chain.accepted_manager_id
+order by chain.depth;

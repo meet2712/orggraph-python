@@ -1,4 +1,4 @@
-"""Load a relational SQLite snapshot and read company pages from it."""
+"""Build the SQLite database and query data for the application."""
 
 from __future__ import annotations
 
@@ -18,18 +18,18 @@ ROOT = Path(__file__).resolve().parent
 COMPANY_PREDICTIONS_SQL = (ROOT / "sql" / "company_predictions.sql").read_text(
     encoding="utf-8"
 ).strip().removesuffix(";")
-# Reuse the same scoped features when assembling a company page.
+# Company pages use the same feature and scoring CTEs as the public views.
 COMPANY_INFERENCE_CTES = COMPANY_PREDICTIONS_SQL.removesuffix(
-    "\nSELECT * FROM employee_reporting_decisions"
+    "\nselect * from employee_reporting_decisions"
 )
 def connect(path: Path, readonly: bool = False) -> sqlite3.Connection:
     if readonly:
         connection = sqlite3.connect(Path(path).resolve().as_uri() + "?mode=ro", uri=True)
-        connection.execute("PRAGMA query_only = ON")
+        connection.execute("pragma query_only = on")
     else:
         connection = sqlite3.connect(path)
     connection.row_factory = sqlite3.Row
-    connection.execute("PRAGMA foreign_keys = ON")
+    connection.execute("pragma foreign_keys = on")
     return connection
 
 
@@ -86,7 +86,7 @@ def source_fingerprint(files: list[tuple[str, Path]]) -> str:
 
 
 def snapshot_fingerprint(raw_dir: Path) -> str:
-    """Fingerprint the schema and source records, not derived predictions."""
+    """Return the fingerprint used to decide whether the database is current."""
     files = [
         ("raw/companies.csv", raw_dir / "companies.csv"),
         ("raw/employees_messy.csv", raw_dir / "employees_messy.csv"),
@@ -101,17 +101,17 @@ def file_digest(path: Path) -> str:
 
 
 def cached_snapshot(database: Path, fingerprint: str) -> bool:
-    """Reuse a healthy database even when source employees were edited locally."""
+    """Check whether the existing database matches its source manifest."""
     try:
         manifest = read_json(database.with_suffix(".manifest.json"))
         if manifest["source_hash"] != fingerprint:
             return False
         with closing(connect(database, readonly=True)) as connection:
-            if connection.execute("PRAGMA quick_check(1)").fetchone()[0] != "ok":
+            if connection.execute("pragma quick_check(1)").fetchone()[0] != "ok":
                 return False
-            settings = connection.execute("SELECT * FROM reporting_thresholds").fetchone()
+            settings = connection.execute("select * from reporting_thresholds").fetchone()
             tables = {row[0] for row in connection.execute(
-                "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+                "select name from sqlite_master where type = 'table' and name not like 'sqlite_%'"
             )}
             return settings is not None and tables == {"companies", "employees"}
     except (OSError, ValueError, KeyError, sqlite3.Error):
@@ -160,7 +160,7 @@ def ensure_snapshot(database: Path, snapshot: Path, raw_dir: Path,
 
 def load_snapshot(database: Path, raw_dir: Path, companies: list[dict[str, str]],
                   employee_count: int) -> None:
-    """Create a source-only database; every inference result is a SQL view."""
+    """Create the source tables and inference views in a new database."""
     raw = read_employee_csv(raw_dir / "employees_messy.csv")
     if len(raw) != employee_count:
         raise ValueError("Raw employee count does not match the dataset summary")
@@ -173,12 +173,12 @@ def load_snapshot(database: Path, raw_dir: Path, companies: list[dict[str, str]]
             connection.executescript((ROOT / "schema.sql").read_text(encoding="utf-8"))
             with connection:
                 connection.executemany(
-                    "INSERT INTO companies VALUES (?, ?, ?, ?)",
+                    "insert into companies values (?, ?, ?, ?)",
                     [(row["company_id"], row["company_name"], row["industry"],
                       row["headquarters"]) for row in companies],
                 )
                 connection.executemany(
-                    "INSERT INTO employees VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                    "insert into employees values (?, ?, ?, ?, ?, ?, ?, ?)",
                     [(row["company_id"], row["employee_id"], row["full_name"], row["job_title"],
                       row["department"], row["team"], row["location"], row["work_email"])
                      for row in raw.values()],
@@ -190,11 +190,11 @@ def load_snapshot(database: Path, raw_dir: Path, companies: list[dict[str, str]]
 
 
 def check_loaded_snapshot(connection, company_count, employee_count):
-    counts = [connection.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
+    counts = [connection.execute(f"select count(*) from {table}").fetchone()[0]
               for table in ("companies", "employees")]
     if counts != [company_count, employee_count]:
         raise ValueError("Loaded table counts do not match the source")
-    if connection.execute("PRAGMA foreign_key_check").fetchone():
+    if connection.execute("pragma foreign_key_check").fetchone():
         raise ValueError("Foreign-key validation failed")
     required_views = {
         "reporting_thresholds", "company_overview",
@@ -205,18 +205,18 @@ def check_loaded_snapshot(connection, company_count, employee_count):
         "dataset_reporting_summary", "employee_reporting_audit",
     }
     views = {row[0] for row in connection.execute(
-        "SELECT name FROM sqlite_master WHERE type = 'view'"
+        "select name from sqlite_master where type = 'view'"
     )}
     if not required_views.issubset(views):
         raise ValueError("Required inference views are missing")
 
 
 def read_index(connection: sqlite3.Connection) -> dict:
-    """Build the directory from live headcounts without scoring all companies."""
+    """Build the company directory from the overview view."""
     companies = []
     for row in connection.execute("""
-        SELECT * FROM company_overview
-        ORDER BY company_name, company_id
+        select * from company_overview
+        order by company_name, company_id
     """):
         companies.append({
             "id": row["company_id"], "name": row["company_name"],
@@ -224,8 +224,8 @@ def read_index(connection: sqlite3.Connection) -> dict:
             "employeeCount": row["employee_count"], "headquarters": row["headquarters"],
         })
     totals = connection.execute("""
-        SELECT (SELECT count(*) FROM companies) AS company_count,
-               (SELECT count(*) FROM employees) AS employee_count
+        select (select count(*) from companies) as company_count,
+               (select count(*) from employees) as employee_count
     """).fetchone()
     return {
         "companies": companies,
@@ -238,43 +238,42 @@ def read_index(connection: sqlite3.Connection) -> dict:
 
 def read_company(connection: sqlite3.Connection, company_id: str) -> dict | None:
     profile = connection.execute(
-        "SELECT * FROM company_overview WHERE company_id = ?", (company_id,)
+        "select * from company_overview where company_id = ?", (company_id,)
     ).fetchone()
     if profile is None:
         return None
-    # SQLite views cannot accept parameters. Scope the same SQL scoring rules
-    # to one company so a page never ranks all 87,000 employees at once.
+    # Scope inference to one company because SQLite views cannot take parameters.
     query = f"""
         {COMPANY_INFERENCE_CTES},
-        predictions AS MATERIALIZED (SELECT * FROM employee_reporting_decisions),
-        person_rows AS MATERIALIZED (
-            SELECT e.*, f.inferred_department, f.inferred_level,
+        predictions as materialized (select * from employee_reporting_decisions),
+        person_rows as materialized (
+            select e.*, f.inferred_department, f.inferred_level,
                    p.accepted_manager_id, p.best_candidate_id,
                    p.confidence, p.margin, p.decision,
-                   CASE WHEN p.decision = 'company_root'
-                        THEN 'CEO is the company root'
-                        WHEN p.best_candidate_id IS NULL
-                        THEN 'No suitable management title'
-                        WHEN p.decision = 'accepted'
-                        THEN 'Role and team evidence support this manager'
-                        WHEN p.confidence < settings.score_threshold
-                        THEN 'Insufficient team or role evidence'
-                        ELSE 'Several candidates have similar evidence'
-                   END AS reason
-            FROM employees e
-            JOIN employee_reporting_features f USING (company_id, employee_id)
-            JOIN predictions p USING (company_id, employee_id)
-            CROSS JOIN reporting_thresholds settings
-            WHERE e.company_id = :company_id
+                   case when p.decision = 'company_root'
+                        then 'CEO is the company root'
+                        when p.best_candidate_id is null
+                        then 'No suitable management title'
+                        when p.decision = 'accepted'
+                        then 'Role and team evidence support this manager'
+                        when p.confidence < settings.score_threshold
+                        then 'Insufficient team or role evidence'
+                        else 'Several candidates have similar evidence'
+                   end as reason
+            from employees e
+            join employee_reporting_features f using (company_id, employee_id)
+            join predictions p using (company_id, employee_id)
+            cross join reporting_thresholds settings
+            where e.company_id = :company_id
         )
-        SELECT *,
-               sum(decision = 'accepted') OVER () AS resolved_count,
-               sum(decision = 'unresolved') OVER () AS unresolved_count,
-               round(1.0 * sum(decision = 'accepted') OVER () /
-                     max(sum(decision <> 'company_root') OVER (), 1), 4) AS coverage,
-               round(coalesce(avg(CASE WHEN decision = 'accepted' THEN confidence END)
-                     OVER (), 0.0), 4) AS average_confidence
-        FROM person_rows ORDER BY employee_id
+        select *,
+               sum(decision = 'accepted') over () as resolved_count,
+               sum(decision = 'unresolved') over () as unresolved_count,
+               round(1.0 * sum(decision = 'accepted') over () /
+                     max(sum(decision <> 'company_root') over (), 1), 4) as coverage,
+               round(coalesce(avg(case when decision = 'accepted' then confidence end)
+                     over (), 0.0), 4) as average_confidence
+        from person_rows order by employee_id
     """
     rows = connection.execute(query, {"company_id": company_id}).fetchall()
     if not rows:

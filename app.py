@@ -1,4 +1,4 @@
-"""A small Flask app for browsing SQL-derived org-chart predictions."""
+"""Serve the SQL-derived org chart and supporting pages."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ DEFAULT_COMPANY = "cmp_0001"
 
 
 def initialize_database(app: Flask) -> None:
-    """Load source records and install the SQL inference views."""
+    """Prepare the SQLite database and load published metadata."""
     public_data_dir = Path(app.config["DATA_DIR"])
     raw_dir = Path(app.config["RAW_DATA_DIR"])
     dataset_summary = read_json(raw_dir / "dataset_summary.json")
@@ -48,14 +48,14 @@ def initialize_database(app: Flask) -> None:
 
 
 def get_database() -> sqlite3.Connection:
-    """Use one connection per request, closed when that request ends."""
+    """Return the read-only SQLite connection for the current request."""
     if "database" not in g:
         g.database = connect(current_app.config["DATABASE"], readonly=True)
     return g.database
 
 
 def chart_context(payload: dict) -> dict:
-    """Build a forest from accepted predictions, leaving every unknown link open."""
+    """Arrange accepted reporting lines into chart roots and branches."""
     employees = payload["employees"]
     people = {employee["id"]: employee for employee in employees}
     connected = set()
@@ -94,7 +94,7 @@ def page_context(page: str, company_id: str = DEFAULT_COMPANY) -> dict:
     if index is None:
         index = read_index(get_database())
     settings = get_database().execute(
-        "SELECT score_threshold, margin_threshold FROM reporting_thresholds",
+        "select score_threshold, margin_threshold from reporting_thresholds",
     ).fetchone()
     return {
         "page": page,
@@ -173,9 +173,9 @@ def create_app(test_config: dict | None = None) -> Flask:
     @app.get("/health")
     def health():
         connection = get_database()
-        settings = connection.execute("SELECT score_threshold FROM reporting_thresholds").fetchone()
+        settings = connection.execute("select score_threshold from reporting_thresholds").fetchone()
         tables = {row[0] for row in connection.execute(
-            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+            "select name from sqlite_master where type = 'table' and name not like 'sqlite_%'"
         )}
         if settings is None or tables != {"companies", "employees"}:
             abort(503)

@@ -206,9 +206,7 @@ SENIOR_MANAGER_TITLES = {
     "IT": "Senior IT Manager", "Legal": "Senior Legal Operations Manager",
 }
 
-# Keep a manager's title consistent with the team they own.  The earlier
-# generator selected a random department-level manager title, which could put
-# a QA Manager over a platform team and QA Engineers under a software manager.
+# Manager titles follow the discipline of the team they own.
 TEAM_MANAGER_TITLES = {
     "Engineering": {
         "Quality": ["QA Manager"],
@@ -480,12 +478,7 @@ def size_band(size: int) -> str:
 def selected_executive_portfolios(
     company_id: str, size: int, industry: str, seed: int,
 ) -> set[str]:
-    """Choose a realistic, reproducible subset of non-CEO executives.
-
-    Headcount determines how many specialist executives are affordable while
-    industry changes which portfolios are most likely. The dedicated RNG keeps
-    this decision independent from the legacy employee/noise generation stream.
-    """
+    """Choose a reproducible executive portfolio from company size and industry."""
     band = size_band(size)
     count_ranges = {
         "Small": (1, 2),
@@ -945,10 +938,9 @@ def main() -> None:
                     ))
 
         actual_size = len(company_employees)
-        # Preserve the original flat employee population and its global RNG
-        # sequence, but do not force every company into the same five-person
-        # C-suite. Portfolios without a dedicated executive roll their VP up
-        # to the CEO and keep the preserved employee as a functional Principal.
+        # Vary the C-suite without changing the target employee population.
+        # Portfolios without an executive report their VP to the CEO and use
+        # the allocated position as a functional Principal role.
         selected_portfolios = selected_executive_portfolios(
             company_id, actual_size, industry, args.seed
         )
@@ -996,8 +988,7 @@ def main() -> None:
         company_slug = slug(name)
         available_teams = sorted(set(original_teams.values()))
         for row in company_employees:
-            # Always consume the legacy title-noise RNG call so every untouched
-            # raw row remains byte-for-byte reproducible from the old dataset.
+            # Consume one seeded title-noise draw for every allocated row.
             noisy_title, noise_profile = messify_title(
                 original_titles[row["employee_id"]],
                 original_departments[row["employee_id"]],

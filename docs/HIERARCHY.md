@@ -55,7 +55,7 @@ explicit management cue identifies a people-management role.
 - Team names form a containment path, for example
   `Company / Technology / Engineering / Quality & Reliability / Quality`.
 
-## Live inference rule
+## Inference rule
 
 The operational database derives features and manager choices in SQL views.
 It normalizes explicit management titles, filters to more-senior candidates in
@@ -66,11 +66,10 @@ remain unresolved. The evidence score is a heuristic rather than a calibrated
 probability. Senior, Staff and Principal IC titles do not become managers just
 because of their seniority.
 
-The original generated employee population is retained. Rows that previously
-forced an unnecessary specialist executive into a company become functional
-Principal IC roles under the relevant VP/Head. In the messy input only their
-observed title changes; IDs, names, emails, observed departments, teams and
-locations remain unchanged.
+The generator keeps company size within the requested range while varying the
+executive portfolio. A role allocated to a portfolio without a dedicated
+executive becomes a functional Principal IC, and the corresponding VP/Head
+reports to the CEO. Employee IDs, names and contact fields remain stable.
 
 ## Research basis
 
@@ -90,8 +89,6 @@ universal structure. It is based on these public examples:
 - [Taunton Town Council staff structure](https://services.taunton-tc.gov.uk/orgchart/table)
   is a public `reports to` dataset showing real examples of Chief Executive →
   Deputy Chief Executive → Head → Lead/Supervisor → Officer/Assistant chains.
-
-Sources were reviewed on 30 October 2026.
 
 ## Automated checks
 

@@ -24,66 +24,66 @@ if (queryEditor) {
   }
 
   const examples = {
-    audit: `SELECT full_name, job_title, inferred_manager, leading_candidate,
-       ROUND(confidence * 100, 1) AS evidence_score_pct,
-       ROUND(margin * 100, 1) AS lead_pct, decision, decision_reason
-FROM employee_reporting_audit
-WHERE company_id = 'cmp_0004'
-  AND employee_id IN ('emp_0000542', 'emp_0000543')
-ORDER BY employee_id;`,
-    profiles: `SELECT company_name, employee_count AS people, size_band
-FROM company_overview
-WHERE company_id IN ('cmp_0001', 'cmp_0002', 'cmp_0003')
-ORDER BY company_name;`,
-    counts: `SELECT 'companies' AS dataset, COUNT(*) AS rows FROM companies
-UNION ALL
-SELECT 'employees', COUNT(*) FROM employees;`,
-    classification: `SELECT e.full_name, e.job_title,
+    audit: `select full_name, job_title, inferred_manager, leading_candidate,
+       ROUND(confidence * 100, 1) as evidence_score_pct,
+       ROUND(margin * 100, 1) as lead_pct, decision, decision_reason
+from employee_reporting_audit
+where company_id = 'cmp_0004'
+  and employee_id in ('emp_0000542', 'emp_0000543')
+order by employee_id;`,
+    profiles: `select company_name, employee_count as people, size_band
+from company_overview
+where company_id in ('cmp_0001', 'cmp_0002', 'cmp_0003')
+order by company_name;`,
+    counts: `select 'companies' as dataset, COUNT(*) as rows from companies
+union all
+select 'employees', COUNT(*) from employees;`,
+    classification: `select e.full_name, e.job_title,
        f.inferred_department, f.inferred_level
-FROM employees AS e
-JOIN employee_reporting_features AS f USING (company_id, employee_id)
-WHERE e.company_id = 'cmp_0004'
-  AND e.employee_id IN ('emp_0000542', 'emp_0000543')
-ORDER BY e.employee_id;`,
-    matches: `SELECT c.company_name, e.full_name AS employee,
-       m.full_name AS inferred_manager,
-       ROUND(p.confidence * 100, 1) AS evidence_score_pct
-FROM employee_reporting_decisions AS p
-JOIN companies AS c USING (company_id)
-JOIN employees AS e
-  ON e.company_id = p.company_id AND e.employee_id = p.employee_id
-JOIN employees AS m
-  ON m.company_id = p.company_id AND m.employee_id = p.accepted_manager_id
-WHERE p.company_id = 'cmp_0004'
-  AND p.employee_id IN ('emp_0000542', 'emp_0000545')
-  AND p.decision = 'accepted'
-ORDER BY e.employee_id;`,
-    chain: `WITH RECURSIVE manager_chain AS (
-  SELECT e.company_id, e.employee_id, e.full_name, e.job_title,
-         p.accepted_manager_id, 0 AS depth
-  FROM employees AS e
-  JOIN employee_reporting_decisions AS p USING (company_id, employee_id)
-  WHERE e.company_id = 'cmp_0001' AND e.employee_id = 'emp_0000018'
-  UNION ALL
-  SELECT e.company_id, e.employee_id, e.full_name, e.job_title,
+from employees as e
+join employee_reporting_features as f using (company_id, employee_id)
+where e.company_id = 'cmp_0004'
+  and e.employee_id in ('emp_0000542', 'emp_0000543')
+order by e.employee_id;`,
+    matches: `select c.company_name, e.full_name as employee,
+       m.full_name as inferred_manager,
+       ROUND(p.confidence * 100, 1) as evidence_score_pct
+from employee_reporting_decisions as p
+join companies as c using (company_id)
+join employees as e
+  on e.company_id = p.company_id and e.employee_id = p.employee_id
+join employees as m
+  on m.company_id = p.company_id and m.employee_id = p.accepted_manager_id
+where p.company_id = 'cmp_0004'
+  and p.employee_id in ('emp_0000542', 'emp_0000545')
+  and p.decision = 'accepted'
+order by e.employee_id;`,
+    chain: `with recursive manager_chain as (
+  select e.company_id, e.employee_id, e.full_name, e.job_title,
+         p.accepted_manager_id, 0 as depth
+  from employees as e
+  join employee_reporting_decisions as p using (company_id, employee_id)
+  where e.company_id = 'cmp_0001' and e.employee_id = 'emp_0000018'
+  union all
+  select e.company_id, e.employee_id, e.full_name, e.job_title,
          p.accepted_manager_id, chain.depth + 1
-  FROM manager_chain AS chain
-  JOIN employees AS e ON e.company_id = chain.company_id
-    AND e.employee_id = chain.accepted_manager_id
-  JOIN employee_reporting_decisions AS p ON p.company_id = e.company_id
-    AND p.employee_id = e.employee_id
-  WHERE chain.depth < 12
+  from manager_chain as chain
+  join employees as e on e.company_id = chain.company_id
+    and e.employee_id = chain.accepted_manager_id
+  join employee_reporting_decisions as p on p.company_id = e.company_id
+    and p.employee_id = e.employee_id
+  where chain.depth < 12
 )
-SELECT depth, full_name, job_title, accepted_manager_id
-FROM manager_chain ORDER BY depth;`,
-    quality: `SELECT COUNT(*) AS employees,
-       SUM(CASE WHEN TRIM(job_title) = '' THEN 1 ELSE 0 END) AS missing_titles,
-       SUM(CASE WHEN TRIM(raw_department) = '' THEN 1 ELSE 0 END) AS missing_departments,
-       SUM(CASE WHEN TRIM(raw_team) = '' THEN 1 ELSE 0 END) AS missing_teams,
-       SUM(CASE WHEN TRIM(location) = '' THEN 1 ELSE 0 END) AS missing_locations
-FROM employees;`,
-    thresholds: `SELECT score_threshold, margin_threshold
-FROM reporting_thresholds;`,
+select depth, full_name, job_title, accepted_manager_id
+from manager_chain order by depth;`,
+    quality: `select COUNT(*) as employees,
+       SUM(case when TRIM(job_title) = '' then 1 else 0 end) as missing_titles,
+       SUM(case when TRIM(raw_department) = '' then 1 else 0 end) as missing_departments,
+       SUM(case when TRIM(raw_team) = '' then 1 else 0 end) as missing_teams,
+       SUM(case when TRIM(location) = '' then 1 else 0 end) as missing_locations
+from employees;`,
+    thresholds: `select score_threshold, margin_threshold
+from reporting_thresholds;`,
   };
 
   function placeholder(text) {
@@ -166,7 +166,7 @@ FROM reporting_thresholds;`,
     const timing = `${Math.max(1, Math.round(message.elapsedMs))} ms`;
     resultCount.textContent = `${rows} ${rows === 1 ? "row" : "rows"} · ${timing}`;
     status.textContent = message.truncated
-      ? "Showing the first 200 rows. Add a filter or LIMIT to narrow the result."
+      ? "Showing the first 200 rows. Add a filter or limit to narrow the result."
       : `Query finished. ${rows} ${rows === 1 ? "row returned" : "rows returned"}.`;
   }
 
@@ -240,7 +240,7 @@ FROM reporting_thresholds;`,
       button.addEventListener("click", () => {
         for (const other of tableList.querySelectorAll("button")) other.setAttribute("aria-pressed", String(other === button));
         inspectTable(table);
-        queryEditor.value = `SELECT * FROM "${table.name.replaceAll('"', '""')}"\nLIMIT 100;`;
+        queryEditor.value = `select * from "${table.name.replaceAll('"', '""')}"\nlimit 100;`;
         runQuery();
       });
       tableList.append(button);

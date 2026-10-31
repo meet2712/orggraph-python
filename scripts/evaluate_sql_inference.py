@@ -1,4 +1,4 @@
-"""Evaluate the live SQL inference views against held-out generated labels.
+"""Evaluate SQL reporting decisions against held-out generated labels.
 
 The answer key stays in a CSV outside the application database. This script
 never writes an employee-to-manager mapping into SQLite.

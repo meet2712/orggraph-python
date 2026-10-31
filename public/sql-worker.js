@@ -108,14 +108,14 @@ function readRows(sql, limit = MAX_ROWS) {
 }
 
 function inspectTables() {
-  const tables = readRows("SELECT name, sql, type FROM sqlite_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' ORDER BY name").rows;
+  const tables = readRows("select name, sql, type from sqlite_master where type in ('table', 'view') and name not like 'sqlite_%' order by name").rows;
   return tables.map(([name, sql, type]) => ({
     name,
     sql,
     type,
-    rowCount: type === "table" ? readRows(`SELECT COUNT(*) FROM ${quoteIdentifier(name)}`).rows[0][0] : null,
-    columns: readRows(`PRAGMA table_info(${quoteIdentifier(name)})`).rows,
-    foreignKeys: readRows(`PRAGMA foreign_key_list(${quoteIdentifier(name)})`).rows,
+    rowCount: type === "table" ? readRows(`select COUNT(*) from ${quoteIdentifier(name)}`).rows[0][0] : null,
+    columns: readRows(`pragma table_info(${quoteIdentifier(name)})`).rows,
+    foreignKeys: readRows(`pragma foreign_key_list(${quoteIdentifier(name)})`).rows,
   }));
 }
 
@@ -158,7 +158,7 @@ async function openDatabase() {
     throw new Error("The snapshot is not a valid SQLite database.");
   }
   database = new SQL.Database(bytes);
-  database.run("PRAGMA query_only = ON");
+  database.run("pragma query_only = on");
   self.postMessage({ type: "ready", tables: inspectTables(), snapshotBytes: bytes.length });
 }
 
@@ -174,7 +174,7 @@ self.addEventListener("message", async (event) => {
   try {
     if (!database) throw new Error("The database has not finished loading.");
     validateQuery(query);
-    database.run("PRAGMA query_only = ON");
+    database.run("pragma query_only = on");
     const result = readRows(query);
     self.postMessage({ type: "result", id, ...result, elapsedMs: performance.now() - started });
   } catch (error) {

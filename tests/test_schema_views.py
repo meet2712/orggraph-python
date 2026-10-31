@@ -16,16 +16,16 @@ class SchemaViewTests(unittest.TestCase):
         self.db = sqlite3.connect(':memory:')
         self.addCleanup(self.db.close)
         self.db.executescript((ROOT / 'schema.sql').read_text())
-        self.db.execute("INSERT INTO companies VALUES ('example', 'Example', 'Software', 'London')")
+        self.db.execute("insert into companies values ('example', 'Example', 'Software', 'London')")
 
     def add(self, name, title, team):
-        self.db.execute('INSERT INTO employees VALUES (?,?,?,?,?,?,?,?)',
+        self.db.execute('insert into employees values (?,?,?,?,?,?,?,?)',
                         ('example', name, name, title, 'Engineering', team, 'London', ''))
 
     def test_shortlist_keeps_people_without_manager_candidates(self):
         self.add('ceo', 'CEO', 'Company')
         self.add('unassigned', 'Senior Engineer', '')
-        shortlist = self.db.execute('SELECT * FROM employee_top_manager_candidates ORDER BY employee_id').fetchall()
+        shortlist = self.db.execute('select * from employee_top_manager_candidates order by employee_id').fetchall()
         self.assertEqual(shortlist, [('example', 'ceo', None, None, None),
                                      ('example', 'unassigned', 'ceo', 0.452, None)])
         self.assertEqual(self.prediction('unassigned'), (None, 'unresolved'))
@@ -41,12 +41,12 @@ class SchemaViewTests(unittest.TestCase):
             ('Cust Success Mgr', 'Customer Success'),
         ]):
             self.add(f'person_{index}', title, '')
-            actual = self.db.execute('SELECT inferred_department FROM employee_reporting_features WHERE employee_id=?',
+            actual = self.db.execute('select inferred_department from employee_reporting_features where employee_id=?',
                                      (f'person_{index}',)).fetchone()[0]
             self.assertEqual(actual, expected, title)
 
     def prediction(self, employee_id):
-        return self.db.execute('SELECT accepted_manager_id, decision FROM employee_reporting_decisions WHERE employee_id=?',
+        return self.db.execute('select accepted_manager_id, decision from employee_reporting_decisions where employee_id=?',
                                (employee_id,)).fetchone()
 
     def test_missing_specialist_team_still_respects_the_lead_layer(self):
@@ -56,7 +56,7 @@ class SchemaViewTests(unittest.TestCase):
         self.add('senior', 'Senior Data Engineer', '')
         self.assertEqual(self.prediction('junior'), ('lead', 'accepted'))
         self.assertEqual(self.prediction('senior'), ('manager', 'accepted'))
-        self.db.execute("UPDATE employees SET raw_team='' WHERE employee_id='lead'")
+        self.db.execute("update employees set raw_team='' where employee_id='lead'")
         self.assertEqual(self.prediction('junior'), (None, 'unresolved'))
 
     def test_duplicate_specialists_and_broad_principal_roles_stay_open(self):
@@ -88,32 +88,32 @@ class SchemaViewTests(unittest.TestCase):
         self.assertEqual(self.prediction('report'), (None, 'unresolved'))
 
     def test_source_keys_and_cross_company_rows_are_not_matching_features(self):
-        self.db.execute("INSERT INTO companies VALUES ('other', 'Other', 'Software', 'London')")
-        self.db.execute("INSERT INTO employees VALUES ('other','manager','Manager','QA Manager','Engineering','Company / QA','London','')")
+        self.db.execute("insert into companies values ('other', 'Other', 'Software', 'London')")
+        self.db.execute("insert into employees values ('other','manager','Manager','QA Manager','Engineering','Company / QA','London','')")
         self.add('report', 'Senior QA Engineer', '')
         self.assertEqual(self.prediction('report'), (None, 'unresolved'))
 
     def test_team_underscores_do_not_match_another_team(self):
         self.add('manager', 'Engineering Manager', 'Company / Sales_Ops')
         self.add('report', 'Senior Engineer', 'Company / SalesXOps / Platform')
-        self.assertEqual(self.db.execute("SELECT count(*) FROM employee_manager_candidates WHERE employee_id='report'").fetchone()[0], 0)
+        self.assertEqual(self.db.execute("select count(*) from employee_manager_candidates where employee_id='report'").fetchone()[0], 0)
 
     def test_team_percent_does_not_match_another_team(self):
         self.add('manager', 'Engineering Manager', 'Company / 100%')
         self.add('report', 'Senior Engineer', 'Company / 1000 / Platform')
-        self.assertEqual(self.db.execute("SELECT count(*) FROM employee_manager_candidates WHERE employee_id='report'").fetchone()[0], 0)
+        self.assertEqual(self.db.execute("select count(*) from employee_manager_candidates where employee_id='report'").fetchone()[0], 0)
 
     def test_literal_parent_team_still_matches(self):
         self.add('manager', 'Engineering Manager', 'Company / 100%_Ops')
         self.add('report', 'Senior Engineer', 'Company / 100%_Ops / Platform')
-        row = self.db.execute("SELECT candidate_id, team_relation FROM employee_manager_candidates WHERE employee_id='report'").fetchone()
+        row = self.db.execute("select candidate_id, team_relation from employee_manager_candidates where employee_id='report'").fetchone()
         self.assertEqual(row, ('manager', 'parent_team'))
 
     def test_missing_team_labels_are_not_matching_evidence(self):
         for index, team in enumerate(['', '-', 'n/a', 'unknown']):
             self.add(f'manager_{index}', 'Engineering Manager', team)
             self.add(f'report_{index}', 'Senior Engineer', team)
-        self.assertEqual(self.db.execute('SELECT count(*) FROM employee_manager_candidates').fetchone()[0], 0)
+        self.assertEqual(self.db.execute('select count(*) from employee_manager_candidates').fetchone()[0], 0)
 
     def test_missing_team_specialist_fallback_requires_a_unique_manager(self):
         self.add('qa_manager', 'QA Manager', 'Engineering / QA')
@@ -125,18 +125,18 @@ class SchemaViewTests(unittest.TestCase):
         def decision(sql):
             return self.db.execute(sql, {'company_id': 'example'}).fetchall()
 
-        public = self.db.execute("SELECT accepted_manager_id, decision FROM employee_reporting_decisions WHERE employee_id='qa_report'").fetchone()
+        public = self.db.execute("select accepted_manager_id, decision from employee_reporting_decisions where employee_id='qa_report'").fetchone()
         self.assertEqual(public, ('qa_manager', 'accepted'))
-        security = self.db.execute("SELECT accepted_manager_id, decision FROM employee_reporting_decisions WHERE employee_id='security_report'").fetchone()
+        security = self.db.execute("select accepted_manager_id, decision from employee_reporting_decisions where employee_id='security_report'").fetchone()
         self.assertEqual(security, ('security_manager', 'accepted'))
-        self.assertEqual(sorted(decision(query)), sorted(self.db.execute('SELECT * FROM employee_reporting_decisions').fetchall()))
+        self.assertEqual(sorted(decision(query)), sorted(self.db.execute('select * from employee_reporting_decisions').fetchall()))
 
         self.add('second_qa_manager', 'QA Engineering Manager', 'Engineering / Quality')
-        public = self.db.execute("SELECT accepted_manager_id, decision FROM employee_reporting_decisions WHERE employee_id='qa_report'").fetchone()
+        public = self.db.execute("select accepted_manager_id, decision from employee_reporting_decisions where employee_id='qa_report'").fetchone()
         self.assertEqual(public, (None, 'unresolved'))
-        security = self.db.execute("SELECT accepted_manager_id, decision FROM employee_reporting_decisions WHERE employee_id='security_report'").fetchone()
+        security = self.db.execute("select accepted_manager_id, decision from employee_reporting_decisions where employee_id='security_report'").fetchone()
         self.assertEqual(security, ('security_manager', 'accepted'))
-        self.assertEqual(sorted(decision(query)), sorted(self.db.execute('SELECT * FROM employee_reporting_decisions').fetchall()))
+        self.assertEqual(sorted(decision(query)), sorted(self.db.execute('select * from employee_reporting_decisions').fetchall()))
 
     def test_company_query_and_public_views_agree(self):
         self.add('ceo', 'CEO', 'Company')
@@ -144,21 +144,21 @@ class SchemaViewTests(unittest.TestCase):
         self.add('report', 'Senior Engineer', 'Company / 100%_Ops / Platform')
         self.add('other', 'Senior Engineer', 'Company / 1000 / Platform')
         scoped = self.db.execute((ROOT / 'sql/company_predictions.sql').read_text(), {'company_id': 'example'}).fetchall()
-        public = self.db.execute('SELECT * FROM employee_reporting_decisions').fetchall()
+        public = self.db.execute('select * from employee_reporting_decisions').fetchall()
         self.assertEqual(sorted(scoped), sorted(public))
 
     def test_queries_leave_the_observed_rows_unchanged(self):
         self.add('manager', '  Engineering Mgr. ', ' Company / 100%_Ops ')
         self.add('report', 'Senior Engineer', 'Company / 100%_Ops / Platform')
-        before = self.db.execute('SELECT * FROM employees ORDER BY employee_id').fetchall()
-        self.db.execute('SELECT * FROM employee_reporting_audit').fetchall()
-        self.assertEqual(before, self.db.execute('SELECT * FROM employees ORDER BY employee_id').fetchall())
+        before = self.db.execute('select * from employees order by employee_id').fetchall()
+        self.db.execute('select * from employee_reporting_audit').fetchall()
+        self.assertEqual(before, self.db.execute('select * from employees order by employee_id').fetchall())
 
     def test_diagram_includes_every_object_column_and_direct_input(self):
         import json
         build_diagram()
         metadata = json.loads((ROOT / 'public/database-schema.json').read_text())
-        objects = {row[0] for row in self.db.execute("SELECT name FROM sqlite_master WHERE type IN ('table','view')")}
+        objects = {row[0] for row in self.db.execute("select name from sqlite_master where type in ('table','view')")}
         svg = ET.parse(ROOT / 'public/database-erd.svg').getroot()
         ns = {'s': 'http://www.w3.org/2000/svg'}
         entities = {group.attrib['data-name']: group for group in svg.findall('s:g', ns)
@@ -168,7 +168,7 @@ class SchemaViewTests(unittest.TestCase):
         self.assertEqual(len(metadata['views']), 12)
         for name, group in entities.items():
             fields = [node.text for node in group.findall('s:text', ns) if node.attrib.get('class') == 'column']
-            expected = [row[1] for row in self.db.execute(f'PRAGMA table_info("{name}")')]
+            expected = [row[1] for row in self.db.execute(f'pragma table_info("{name}")')]
             self.assertEqual(fields, expected, name)
         dependencies = view_dependencies(metadata['tables'], metadata['views'])
         actual = {(edge.attrib['data-parent'], edge.attrib['data-child']) for edge in svg.findall('s:path', ns) if edge.attrib.get('data-kind') == 'view-input'}
