@@ -44,7 +44,6 @@ def main() -> None:
     companies = read_csv(args.data_dir / "companies.csv")
     messy = read_csv(args.data_dir / "employees_messy.csv")
     truth = read_csv(args.data_dir / "employees_ground_truth.csv")
-    edges = read_csv(args.data_dir / "reporting_edges.csv")
 
     require(len(companies) >= 500, f"expected at least 500 companies; found {len(companies)}")
     require(len(messy) == len(truth), "messy and ground-truth row counts differ")
@@ -104,7 +103,9 @@ def main() -> None:
             cursor = parent[cursor]
 
     expected_edges = sum(count - 1 for count in company_counts.values())
-    require(len(edges) == expected_edges, "edge count must equal employees minus one root per company")
+    actual_edges = sum(bool(row["manager_employee_id"]) for row in truth)
+    require(actual_edges == expected_edges,
+            "manager answers must equal employees minus one root per company")
     require(sum(1 for row in messy if not row["job_title"]) > 0, "no missing titles were generated")
     require(
         sum(1 for row in messy if row["department"] in {"", "N/A", "Unknown", "-"}) > 0,
@@ -140,7 +141,7 @@ def main() -> None:
     print("Dataset validation passed")
     print(f"Companies: {len(companies):,}")
     print(f"Employees: {len(truth):,}")
-    print(f"Reporting edges: {len(edges):,}")
+    print(f"Reporting edges: {actual_edges:,}")
     print(f"Company size range: {min(company_counts.values()):,}-{max(company_counts.values()):,}")
     print(f"Industries: {len(industries)}")
     print(f"Departments (including Executive): {len(departments)}")

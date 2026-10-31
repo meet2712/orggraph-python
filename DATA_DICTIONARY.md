@@ -33,10 +33,9 @@ values and labels such as `N/A`, `Unknown`, or `-` mean information is missing.
 
 ## `employees_ground_truth.csv`
 
-This is the clean answer key used for training and evaluation. The model sees
-the noisy `team` value from `employees_messy.csv`, not this file's canonical
-team or manager ID. Its manager and canonical fields are never input features
-when the model scores a reporting line.
+This is the clean answer key used only for offline evaluation. The SQL
+inference reads the noisy values from `employees_messy.csv`; it never reads the
+canonical fields or manager ID from this file when choosing a reporting line.
 
 | Column | Meaning |
 |---|---|
@@ -50,15 +49,4 @@ when the model scores a reporting line.
 | `manager_employee_id` | True direct manager; blank only for the CEO/root. |
 | `is_people_manager` | `1` when the employee has direct reports. |
 | `noise_profile` | Changes applied to the title, used to compare results for different kinds of messy input. |
-
-## `reporting_edges.csv`
-
-The answer key as one row per true reporting line. CEOs have no manager, so
-there is no row for them in this file.
-
-| Column | Meaning |
-|---|---|
-| `company_id` | Company key. |
-| `employee_id` | Direct report. |
-| `manager_employee_id` | True direct manager. |
 

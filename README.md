@@ -67,7 +67,7 @@ python pipeline/validate_dataset.py --data-dir data
 python scripts/check_database_views.py
 ```
 
-The generator writes messy observations and the separate benchmark CSV. The operational inference reads only the observations. Accuracy must be measured independently against the benchmark CSV; coverage and evidence scores alone do not establish correctness on synthetic or real companies. `pipeline/train_and_infer.py` and the older `public/data/companies/*.json` predictions remain as a historical offline experiment. The current site and SQLite reporting views do not read those prediction files; their manager decisions are calculated in SQL.
+The generator writes messy observations and a separate benchmark CSV. The operational inference reads only the observations, and every manager decision is calculated in SQL. Accuracy is measured independently against the benchmark CSV; coverage and evidence scores alone do not establish correctness on synthetic or real companies.
 
 On 75 held-out generated companies (13,447 employees), the SQL rules accepted 10,223 reporting lines. Of those, 10,087 matched the separate answer CSV and 136 did not: **98.67% precision at 76.45% coverage**. These figures describe synthetic data, not accuracy on real employee records.
 

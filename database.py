@@ -22,14 +22,6 @@ COMPANY_PREDICTIONS_SQL = (ROOT / "sql" / "company_predictions.sql").read_text(
 COMPANY_INFERENCE_CTES = COMPANY_PREDICTIONS_SQL.removesuffix(
     "\nSELECT * FROM employee_reporting_decisions"
 )
-RANKS = {
-    "Unknown": 1, "Junior IC": 0, "Individual Contributor": 1, "Senior IC": 2,
-    "Lead / Principal IC": 3, "Principal / Staff IC": 3, "Team Lead / Supervisor": 3,
-    "Manager": 4, "Senior Manager": 5, "Director": 6,
-    "Senior Director": 7, "VP / Head": 8, "C-Suite": 9, "CEO": 10,
-}
-
-
 def connect(path: Path, readonly: bool = False) -> sqlite3.Connection:
     if readonly:
         connection = sqlite3.connect(Path(path).resolve().as_uri() + "?mode=ro", uri=True)
@@ -71,41 +63,17 @@ def read_employee_csv(path: Path) -> dict:
     return records
 
 
-def validate_company(payload: dict, company_id: str) -> None:
-    """Check graph boundaries before any data becomes the served snapshot."""
-    if payload.get("company", {}).get("id") != company_id:
-        raise ValueError(f"Company ID does not match its file: {company_id}")
-    employees = payload.get("employees")
-    if not isinstance(employees, list) or not employees:
-        raise ValueError(f"Company has no employee records: {company_id}")
-    people = {}
-    for employee in employees:
-        if not isinstance(employee, dict):
-            raise ValueError(f"Invalid employee record in {company_id}")
-        employee_id = employee.get("id")
-        if not isinstance(employee_id, str) or not employee_id or employee_id in people:
-            raise ValueError(f"Missing or duplicate employee ID in {company_id}")
-        if employee.get("inferredLevel") not in RANKS:
-            raise ValueError(f"Unknown inferred seniority in {company_id}")
-        people[employee_id] = employee
-
-    for employee in employees:
-        for field in ("predictedManagerId", "bestCandidateId"):
-            manager_id = employee.get(field)
-            if manager_id is not None and not isinstance(manager_id, str):
-                raise ValueError(f"Invalid manager ID in {company_id}")
-            if manager_id and manager_id not in people:
-                raise ValueError(f"Manager is outside the company: {company_id}")
-        visited = set()
-        cursor = employee["id"]
-        while cursor:
-            if cursor in visited:
-                raise ValueError(f"Circular reporting line in {company_id}")
-            visited.add(cursor)
-            cursor = people[cursor].get("predictedManagerId")
-        manager_id = employee.get("predictedManagerId")
-        if manager_id and RANKS[people[manager_id]["inferredLevel"]] <= RANKS[employee["inferredLevel"]]:
-            raise ValueError(f"Accepted manager is not more senior in {company_id}")
+def read_company_csv(path: Path) -> list[dict[str, str]]:
+    records = []
+    seen = set()
+    with path.open(newline="", encoding="utf-8") as source:
+        for row in csv.DictReader(source):
+            company_id = row["company_id"]
+            if company_id in seen:
+                raise ValueError(f"Duplicate company in {path.name}: {company_id}")
+            seen.add(company_id)
+            records.append(row)
+    return records
 
 
 def source_fingerprint(files: list[tuple[str, Path]]) -> str:
@@ -117,10 +85,10 @@ def source_fingerprint(files: list[tuple[str, Path]]) -> str:
     return digest.hexdigest()
 
 
-def snapshot_fingerprint(data_dir: Path, raw_dir: Path) -> str:
+def snapshot_fingerprint(raw_dir: Path) -> str:
     """Fingerprint the schema and source records, not derived predictions."""
     files = [
-        ("companies/index.json", data_dir / "index.json"),
+        ("raw/companies.csv", raw_dir / "companies.csv"),
         ("raw/employees_messy.csv", raw_dir / "employees_messy.csv"),
         ("schema.sql", ROOT / "schema.sql"),
     ]
@@ -150,9 +118,9 @@ def cached_snapshot(database: Path, fingerprint: str) -> bool:
         return False
 
 
-def ensure_snapshot(database: Path, snapshot: Path, data_dir: Path, raw_dir: Path,
-                    index: dict) -> bool:
-    fingerprint = snapshot_fingerprint(data_dir, raw_dir)
+def ensure_snapshot(database: Path, snapshot: Path, raw_dir: Path,
+                    companies: list[dict[str, str]], employee_count: int) -> bool:
+    fingerprint = snapshot_fingerprint(raw_dir)
     if cached_snapshot(database, fingerprint):
         database_hash = file_digest(database)
         try:
@@ -173,7 +141,7 @@ def ensure_snapshot(database: Path, snapshot: Path, data_dir: Path, raw_dir: Pat
                 json.dumps(manifest), encoding="utf-8"
             )
         return True
-    load_snapshot(database, data_dir, raw_dir, index)
+    load_snapshot(database, raw_dir, companies, employee_count)
     write_compressed_snapshot(database, snapshot)
     manifest = {
         "source_hash": fingerprint,
@@ -190,12 +158,13 @@ def ensure_snapshot(database: Path, snapshot: Path, data_dir: Path, raw_dir: Pat
     return False
 
 
-def load_snapshot(database: Path, data_dir: Path, raw_dir: Path, index: dict) -> None:
+def load_snapshot(database: Path, raw_dir: Path, companies: list[dict[str, str]],
+                  employee_count: int) -> None:
     """Create a source-only database; every inference result is a SQL view."""
     raw = read_employee_csv(raw_dir / "employees_messy.csv")
-    if len(raw) != index["summary"]["employeeCount"]:
-        raise ValueError("Raw employee count does not match the source index")
-    company_ids = [company["id"] for company in index["companies"]]
+    if len(raw) != employee_count:
+        raise ValueError("Raw employee count does not match the dataset summary")
+    company_ids = [company["company_id"] for company in companies]
     database.parent.mkdir(parents=True, exist_ok=True)
     with NamedTemporaryFile(prefix=".orggraph-load-", suffix=".sqlite3", dir=database.parent, delete=False) as temporary:
         staging = Path(temporary.name)
@@ -205,8 +174,8 @@ def load_snapshot(database: Path, data_dir: Path, raw_dir: Path, index: dict) ->
             with connection:
                 connection.executemany(
                     "INSERT INTO companies VALUES (?, ?, ?, ?)",
-                    [(row["id"], row["name"], row["industry"], row["headquarters"])
-                     for row in index["companies"]],
+                    [(row["company_id"], row["company_name"], row["industry"],
+                      row["headquarters"]) for row in companies],
                 )
                 connection.executemany(
                     "INSERT INTO employees VALUES (?, ?, ?, ?, ?, ?, ?, ?)",

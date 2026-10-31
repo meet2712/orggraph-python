@@ -264,7 +264,7 @@
   {% elif page == 'schema' %}
   {% include 'schema.html' %}
   {% elif page == 'approach' %}
-  {% set dataset = evaluation.dataset %}
+  {% set dataset = dataset_summary %}
   <main class="document-page" id="main-content">
     <header class="page-heading"><p class="muted">How it works</p><h1>From job titles to reporting lines</h1><p>The database starts with a flat employee list. SQL views interpret each row and calculate reporting lines whenever the source changes.</p></header>
     <section class="paper-section">

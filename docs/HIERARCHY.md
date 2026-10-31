@@ -97,19 +97,8 @@ Sources were reviewed on 30 October 2026.
 
 `pipeline/validate_dataset.py` checks the generated source and answer key.
 `scripts/quality_checks.sql` checks the current SQL view output for key
-integrity, decision consistency, seniority, and cycles. The older
-`pipeline/validate_hierarchy.py` checks the separate Python model export on a
-held-out sample of 75 companies and fails when:
-
-- a manager is not more senior than the report;
-- an IC receives direct reports;
-- a people manager has no reports;
-- a reporting edge violates the allowed management ladder;
-- a QA delivery edge leaves the QA branch;
-- an accepted prediction points to a non-manager title; or
-- accepted precision falls below the configured quality floor;
-- management-layer coverage regresses and disconnects the chart; or
-- accepted junior/intermediate edges skip generated Team Leads too often.
-
-`pipeline/validate_dataset.py` additionally checks all 500 companies for one
-CEO root, acyclic reporting lines, same-company edges and nested team scope.
+integrity, decision consistency, seniority, and cycles.
+`scripts/evaluate_sql_inference.py` compares accepted SQL decisions with the
+separate answer key on 75 held-out companies and enforces the precision floor.
+The dataset validator checks all 500 generated companies for one CEO root,
+acyclic reporting lines, same-company edges and nested team scope.

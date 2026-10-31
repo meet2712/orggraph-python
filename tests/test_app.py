@@ -30,15 +30,14 @@ class SourceDatabaseTests(unittest.TestCase):
         raw.mkdir()
         self.database = root / "orggraph.sqlite3"
         self.snapshot = root / "snapshot.sqlite.gz"
-        company = {"id": "cmp_0001", "name": "Example Company", "industry": "B2B SaaS",
-                   "headquarters": "Sydney, AU", "employeeCount": 4, "sizeBand": "Small"}
-        (data / "index.json").write_text(json.dumps({
-            "companies": [company], "summary": {"companyCount": 1, "employeeCount": 4},
-        }), encoding="utf-8")
-        (data / "evaluation.json").write_text(json.dumps({
-            "modelType": "Offline benchmark",
-            "model": {"threshold": {"probability": 0.9, "margin": 0.04}},
-            "split": {"testCompanies": 1},
+        write_csv(raw / "companies.csv", [{
+            "company_id": "cmp_0001", "company_name": "Example Company",
+            "industry": "B2B SaaS", "size_band": "Small", "employee_count": 4,
+            "headquarters": "Sydney, AU",
+        }])
+        (raw / "dataset_summary.json").write_text(json.dumps({
+            "companies": 1, "employees": 4, "minimum_company_size": 4,
+            "maximum_company_size": 4,
         }), encoding="utf-8")
         (data / "sql_evaluation.json").write_text(json.dumps({
             "companies": 1, "employees": 4, "roots": 1,

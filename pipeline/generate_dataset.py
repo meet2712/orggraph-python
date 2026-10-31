@@ -1030,11 +1030,7 @@ def main() -> None:
                 "work_email": f"{email_local}.{row['employee_id'].split('_')[-1]}@{company_slug}.example",
             })
 
-    edges = [
-        {"company_id": row["company_id"], "employee_id": row["employee_id"],
-         "manager_employee_id": row["manager_employee_id"]}
-        for row in truth if row["manager_employee_id"]
-    ]
+    reporting_line_count = sum(bool(row["manager_employee_id"]) for row in truth)
     write_csv(args.output_dir / "companies.csv", companies,
               ["company_id", "company_name", "industry", "size_band", "employee_count", "headquarters"])
     write_csv(args.output_dir / "employees_messy.csv", messy,
@@ -1043,9 +1039,6 @@ def main() -> None:
               ["employee_id", "company_id", "full_name", "canonical_title",
                "canonical_department", "canonical_team", "canonical_level", "manager_employee_id",
                "is_people_manager", "noise_profile"])
-    write_csv(args.output_dir / "reporting_edges.csv", edges,
-              ["company_id", "employee_id", "manager_employee_id"])
-
     industry_counts = Counter(row["industry"] for row in companies)
     c_suite_counts = Counter(
         Counter(
@@ -1059,7 +1052,7 @@ def main() -> None:
         "seed": args.seed,
         "companies": len(companies),
         "employees": len(truth),
-        "reporting_edges": len(edges),
+        "reporting_edges": reporting_line_count,
         "minimum_company_size": min(int(row["employee_count"]) for row in companies),
         "maximum_company_size": max(int(row["employee_count"]) for row in companies),
         "industries": dict(sorted(industry_counts.items())),

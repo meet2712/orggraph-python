@@ -9,7 +9,10 @@ from pathlib import Path
 
 from flask import Flask, abort, current_app, g, render_template, send_file
 
-from database import connect, ensure_snapshot, read_company, read_index, read_json, write_compressed_snapshot
+from database import (
+    connect, ensure_snapshot, read_company, read_company_csv, read_index,
+    read_json, write_compressed_snapshot,
+)
 
 
 ROOT = Path(__file__).resolve().parent
@@ -19,17 +22,17 @@ DEFAULT_COMPANY = "cmp_0001"
 
 def initialize_database(app: Flask) -> None:
     """Load source records and install the SQL inference views."""
-    data_dir = Path(app.config["DATA_DIR"])
-    index = read_json(data_dir / "index.json")
-    evaluation = read_json(data_dir / "evaluation.json")
-    companies = index.get("companies")
-    if not isinstance(companies, list) or not companies:
+    public_data_dir = Path(app.config["DATA_DIR"])
+    raw_dir = Path(app.config["RAW_DATA_DIR"])
+    dataset_summary = read_json(raw_dir / "dataset_summary.json")
+    companies = read_company_csv(raw_dir / "companies.csv")
+    if not companies:
         raise ValueError("The company directory is empty")
+    if len(companies) != dataset_summary.get("companies"):
+        raise ValueError("Company count does not match the dataset summary")
     seen = set()
     for company in companies:
-        if not isinstance(company, dict):
-            raise ValueError("Invalid entry in the company directory")
-        company_id = company.get("id", "")
+        company_id = company.get("company_id", "")
         if not isinstance(company_id, str) or not COMPANY_ID.fullmatch(company_id):
             raise ValueError("Invalid company ID in the dataset")
         if company_id in seen:
@@ -37,12 +40,11 @@ def initialize_database(app: Flask) -> None:
         seen.add(company_id)
     reused = ensure_snapshot(
         Path(app.config["DATABASE"]), Path(app.config["DATABASE_SNAPSHOT"]),
-        data_dir, Path(app.config["RAW_DATA_DIR"]), index,
+        raw_dir, companies, dataset_summary["employees"],
     )
     app.config["DATABASE_REUSED"] = reused
-    app.config["DATASET_INDEX"] = index
-    app.config["EVALUATION"] = evaluation
-    app.config["SQL_EVALUATION"] = read_json(data_dir / "sql_evaluation.json")
+    app.config["DATASET_SUMMARY"] = dataset_summary
+    app.config["SQL_EVALUATION"] = read_json(public_data_dir / "sql_evaluation.json")
 
 
 def get_database() -> sqlite3.Connection:
@@ -97,7 +99,7 @@ def page_context(page: str, company_id: str = DEFAULT_COMPANY) -> dict:
     return {
         "page": page,
         "index": index,
-        "evaluation": current_app.config["EVALUATION"],
+        "dataset_summary": current_app.config["DATASET_SUMMARY"],
         "sql_evaluation": current_app.config["SQL_EVALUATION"],
         "threshold": {"score": settings["score_threshold"],
                       "margin": settings["margin_threshold"]},

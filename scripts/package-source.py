@@ -13,7 +13,6 @@ DATASET_FILES = [
     ROOT / "data/companies.csv",
     ROOT / "data/employees_messy.csv",
     ROOT / "data/employees_ground_truth.csv",
-    ROOT / "data/reporting_edges.csv",
     ROOT / "data/dataset_summary.json",
     ROOT / "DATA_DICTIONARY.md",
     ROOT / "pipeline/generate_dataset.py",
