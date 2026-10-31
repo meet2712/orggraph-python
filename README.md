@@ -66,9 +66,11 @@ The hierarchy policy is documented in [`docs/HIERARCHY.md`](docs/HIERARCHY.md), 
 
 I built the project over three days in small, focused commits. After changing the generator or `schema.sql`, I rebuilt the database, ran the tests and dataset validation, and then reran the held-out evaluation. I kept a change only when precision remained above 98% and the rest of the pipeline still behaved as expected. GitHub Actions repeats the same checks on every push and publishes the site only after they pass.
 
-I used an AI coding assistant throughout the build as a pair, not as a substitute for review. It helped draft the first versions of the generator and SQL views, and later helped inspect the rules and compare the repository with the brief. I checked its suggestions against the hierarchy policy in [`docs/HIERARCHY.md`](docs/HIERARCHY.md), rewrote rules that did not fit, and reran the evaluation before accepting a change. The results in this README come from the scripts in [`scripts/`](scripts), not from manually entered figures.
+The database and inference design were primarily my work. This is my main area of expertise, and I designed roughly 95% of the data side myself, including the schema, SQL views, hierarchy rules, thresholds and evaluation approach. I used an AI coding assistant selectively for the remaining work: reviewing edge cases, suggesting alternatives and speeding up repetitive implementation. I checked every suggestion against the hierarchy policy in [`docs/HIERARCHY.md`](docs/HIERARCHY.md) and reran the evaluation before keeping it. The results in this README come from the scripts in [`scripts/`](scripts), not from manually entered figures.
 
-That review led to two useful additions: a queryable `reporting_rules` view, so the matching policy can be read in one place, and per-rule evaluation, so a weak rule is visible instead of being hidden inside the overall precision figure.
+I relied more heavily on AI for the frontend because that is not my primary area. It helped create the presentation layer and org-chart interactions, while I decided what the app needed to show and reviewed the result against the brief. The frontend stays deliberately thin: it displays the reporting decisions calculated in SQL rather than applying a separate hierarchy algorithm.
+
+The review process also helped me refine two useful additions: a queryable `reporting_rules` view, so the matching policy can be read in one place, and per-rule evaluation, so a weak rule is visible instead of being hidden inside the overall precision figure.
 
 ## Measurement
 
