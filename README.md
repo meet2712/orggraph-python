@@ -62,6 +62,14 @@ The last five sit below the 0.98 threshold, so they never create a line on their
 
 The hierarchy policy is documented in [`docs/HIERARCHY.md`](docs/HIERARCHY.md), and [`docs/DATABASE.md`](docs/DATABASE.md) describes the tables, views and checks.
 
+## How I worked
+
+I built the project over three days in 36 small, focused commits. After changing the generator or `schema.sql`, I rebuilt the database, ran the tests and dataset validation, and then reran the held-out evaluation. I kept a change only when precision remained above 98% and the rest of the pipeline still behaved as expected. GitHub Actions repeats the same checks on every push and publishes the site only after they pass.
+
+I used an AI coding assistant throughout the build as a pair, not as a substitute for review. It helped draft the first versions of the generator and SQL views, and later helped inspect the rules and compare the repository with the brief. I checked its suggestions against the hierarchy policy in [`docs/HIERARCHY.md`](docs/HIERARCHY.md), rewrote rules that did not fit, and reran the evaluation before accepting a change. The results in this README come from the scripts in [`scripts/`](scripts), not from manually entered figures.
+
+That review led to two useful additions: a queryable `reporting_rules` view, so the matching policy can be read in one place, and per-rule evaluation, so a weak rule is visible instead of being hidden inside the overall precision figure.
+
 ## Measurement
 
 Rules were developed on companies 1–350, checked on companies 351–425, and tested on companies 426–500. The held-out set contains 13,447 employees across 75 companies. SQL accepted 10,235 reporting lines; 10,100 matched the independent answer key and 135 did not. That is **98.68% precision at 76.54% coverage**. These figures measure performance on the generated dataset and should not be treated as real-company accuracy.
