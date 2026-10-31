@@ -64,7 +64,7 @@ The hierarchy policy is documented in [`docs/HIERARCHY.md`](docs/HIERARCHY.md), 
 
 ## How I worked
 
-I built the project over three days in 36 small, focused commits. After changing the generator or `schema.sql`, I rebuilt the database, ran the tests and dataset validation, and then reran the held-out evaluation. I kept a change only when precision remained above 98% and the rest of the pipeline still behaved as expected. GitHub Actions repeats the same checks on every push and publishes the site only after they pass.
+I built the project over three days in small, focused commits. After changing the generator or `schema.sql`, I rebuilt the database, ran the tests and dataset validation, and then reran the held-out evaluation. I kept a change only when precision remained above 98% and the rest of the pipeline still behaved as expected. GitHub Actions repeats the same checks on every push and publishes the site only after they pass.
 
 I used an AI coding assistant throughout the build as a pair, not as a substitute for review. It helped draft the first versions of the generator and SQL views, and later helped inspect the rules and compare the repository with the brief. I checked its suggestions against the hierarchy policy in [`docs/HIERARCHY.md`](docs/HIERARCHY.md), rewrote rules that did not fit, and reran the evaluation before accepting a change. The results in this README come from the scripts in [`scripts/`](scripts), not from manually entered figures.
 
